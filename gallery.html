@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Meine Bilder — mz media</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --cream:   #F5F0E1;
+      --sand:    #D4C4A8;
+      --terra:   #C67B5C;
+      --clay:    #B5651D;
+      --sage:    #6B7B3C;
+      --dark:    #2A1F14;
+      --mid:     #8A7055;
+      --light:   #B5A08A;
+      --white:   #FDFAF4;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--cream);
+      color: var(--dark);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      font-size: 16px;
+      line-height: 1.6;
+      min-height: 100svh;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+
+    :focus { outline: none; }
+    :focus-visible { outline: 2px solid var(--terra); outline-offset: 4px; }
+
+    /* ─── Grain ─── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 1000; opacity: .28;
+    }
+
+    /* ─── Nav ─── */
+    .nav {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1.4rem 4rem;
+      border-bottom: 1px solid var(--sand);
+      background: var(--cream);
+      position: sticky; top: 0; z-index: 50;
+    }
+    .nav-logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.2rem; font-weight: 600;
+      letter-spacing: .14em; text-transform: uppercase;
+      color: var(--dark); text-decoration: none;
+    }
+    .nav-right { display: flex; align-items: center; gap: 1.4rem; }
+    .nav-client-name {
+      font-size: .8rem; letter-spacing: .1em;
+      color: var(--mid);
+    }
+    .btn-logout {
+      min-height: 36px; padding: 0 1.2rem;
+      border: 1px solid var(--sand); background: transparent;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .72rem; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--mid);
+      cursor: pointer; transition: border-color .25s, color .25s;
+      display: none;
+    }
+    .btn-logout:hover { border-color: var(--terra); color: var(--terra); }
+
+    /* ─── LOGIN SCREEN ─── */
+    .login-screen {
+      min-height: calc(100svh - 65px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 2rem;
+    }
+    .login-card {
+      width: 100%; max-width: 440px;
+      background: var(--white);
+      padding: 3.5rem;
+    }
+    .login-eyebrow {
+      font-size: .7rem; letter-spacing: .22em;
+      text-transform: uppercase; color: var(--terra);
+      margin-bottom: 1.2rem;
+      display: flex; align-items: center; gap: .8rem;
+    }
+    .login-eyebrow::before { content: ''; width: 24px; height: 1px; background: var(--terra); }
+    .login-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2.4rem; font-weight: 300; line-height: 1.15;
+      margin-bottom: .8rem;
+    }
+    .login-title em { font-style: italic; color: var(--terra); }
+    .login-sub {
+      font-size: .9rem; color: var(--mid); line-height: 1.7;
+      margin-bottom: 2.4rem;
+    }
+    .form-group {
+      display: flex; flex-direction: column; gap: .5rem;
+      margin-bottom: 1.4rem;
+    }
+    .form-group label {
+      font-size: .7rem; letter-spacing: .14em;
+      text-transform: uppercase; color: var(--mid);
+    }
+    .form-group input {
+      background: transparent; border: none;
+      border-bottom: 1px solid var(--sand);
+      padding: .7rem 0; min-height: 44px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem; font-weight: 300;
+      color: var(--dark); outline: none;
+      transition: border-color .3s;
+      -webkit-appearance: none;
+    }
+    .form-group input:focus { border-color: var(--terra); }
+    .form-group input::placeholder { color: var(--light); }
+    .form-group.error label { color: #b00020; }
+    .form-group.error input { border-color: #b00020; }
+    .form-error { font-size: .75rem; color: #b00020; margin-top: .3rem; display: none; }
+    .form-group.error .form-error { display: block; }
+
+    .login-error {
+      background: #fff0f0; border: 1px solid #ffcccc;
+      padding: .8rem 1rem; font-size: .85rem; color: #b00020;
+      margin-bottom: 1.4rem; display: none;
+    }
+    .login-error.show { display: block; }
+
+    .btn-login {
+      width: 100%; min-height: 48px;
+      background: var(--terra); color: #fff; border: none;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .82rem; font-weight: 500;
+      letter-spacing: .14em; text-transform: uppercase;
+      cursor: pointer; transition: background .3s;
+      margin-top: .5rem;
+    }
+    .btn-login:hover { background: var(--clay); }
+    .btn-login:disabled { opacity: .6; }
+
+    .login-back {
+      display: block; text-align: center;
+      margin-top: 1.6rem;
+      font-size: .78rem; color: var(--mid);
+      text-decoration: none; letter-spacing: .08em;
+      transition: color .25s;
+    }
+    .login-back:hover { color: var(--terra); }
+
+    /* ─── GALLERY SCREEN ─── */
+    .gallery-screen { display: none; padding: 4rem; }
+    .gallery-screen.show { display: block; }
+
+    .gallery-welcome {
+      margin-bottom: 3.5rem;
+    }
+    .gallery-eyebrow {
+      font-size: .7rem; letter-spacing: .22em;
+      text-transform: uppercase; color: var(--terra);
+      display: flex; align-items: center; gap: .8rem;
+      margin-bottom: 1rem;
+    }
+    .gallery-eyebrow::before { content: ''; width: 24px; height: 1px; background: var(--terra); }
+    .gallery-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2.2rem, 4vw, 3.4rem);
+      font-weight: 300; line-height: 1.1;
+      margin-bottom: .6rem;
+    }
+    .gallery-title em { font-style: italic; color: var(--terra); }
+    .gallery-meta {
+      font-size: .85rem; color: var(--mid); letter-spacing: .04em;
+    }
+
+    /* Actions bar */
+    .gallery-actions {
+      display: flex; align-items: center;
+      justify-content: space-between; flex-wrap: wrap;
+      gap: 1rem; margin-bottom: 2.5rem;
+    }
+    .gallery-count {
+      font-size: .8rem; color: var(--mid); letter-spacing: .08em;
+    }
+    .btn-download-all {
+      min-height: 44px; padding: 0 2rem;
+      background: var(--terra); color: #fff; border: none;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .78rem; font-weight: 500;
+      letter-spacing: .12em; text-transform: uppercase;
+      cursor: pointer; transition: background .25s;
+      display: flex; align-items: center; gap: .6rem;
+    }
+    .btn-download-all:hover { background: var(--clay); }
+    .btn-download-all svg { flex-shrink: 0; }
+
+    /* Photo grid */
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+    }
+    .photo-card {
+      position: relative; overflow: hidden;
+      background: var(--sand); aspect-ratio: 3/4;
+      cursor: default;
+    }
+    .photo-card img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform .6s ease;
+    }
+    .photo-card:hover img { transform: scale(1.04); }
+    .photo-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(to top, rgba(42,31,20,.6) 0%, transparent 55%);
+      opacity: 0; transition: opacity .3s;
+      display: flex; align-items: flex-end;
+      padding: 1.2rem;
+    }
+    .photo-card:hover .photo-overlay { opacity: 1; }
+    .btn-dl {
+      min-height: 40px; padding: 0 1.2rem;
+      background: var(--cream); color: var(--dark); border: none;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .72rem; font-weight: 500;
+      letter-spacing: .1em; text-transform: uppercase;
+      cursor: pointer; transition: background .2s;
+      display: flex; align-items: center; gap: .5rem;
+      text-decoration: none;
+    }
+    .btn-dl:hover { background: #fff; }
+
+    /* Empty state */
+    .gallery-empty {
+      text-align: center; padding: 6rem 2rem;
+      display: none;
+    }
+    .gallery-empty.show { display: block; }
+    .gallery-empty-icon {
+      font-size: 3rem; margin-bottom: 1.2rem; opacity: .3;
+    }
+    .gallery-empty h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.8rem; font-weight: 300;
+      color: var(--mid); margin-bottom: .6rem;
+    }
+    .gallery-empty p { font-size: .9rem; color: var(--light); }
+
+    /* Loading spinner */
+    .loading {
+      display: flex; align-items: center; justify-content: center;
+      padding: 6rem; gap: 1rem; color: var(--mid);
+      font-size: .85rem; letter-spacing: .1em; text-transform: uppercase;
+    }
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2px solid var(--sand);
+      border-top-color: var(--terra);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Lightbox */
+    .lightbox {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(42,31,20,.92);
+      display: none; align-items: center; justify-content: center;
+      padding: 2rem;
+    }
+    .lightbox.show { display: flex; }
+    .lightbox img {
+      max-width: 90vw; max-height: 85vh;
+      object-fit: contain;
+      box-shadow: 0 24px 80px rgba(0,0,0,.4);
+    }
+    .lightbox-close {
+      position: absolute; top: 1.4rem; right: 1.6rem;
+      background: none; border: none; color: rgba(255,255,255,.7);
+      font-size: 1.8rem; cursor: pointer; min-height: 44px; min-width: 44px;
+      display: flex; align-items: center; justify-content: center;
+      transition: color .2s;
+    }
+    .lightbox-close:hover { color: #fff; }
+    .lightbox-dl {
+      position: absolute; bottom: 1.6rem; left: 50%;
+      transform: translateX(-50%);
+      min-height: 44px; padding: 0 2rem;
+      background: var(--terra); color: #fff; border: none;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .78rem; font-weight: 500;
+      letter-spacing: .12em; text-transform: uppercase;
+      cursor: pointer; text-decoration: none;
+      display: flex; align-items: center; gap: .6rem;
+      transition: background .25s;
+    }
+    .lightbox-dl:hover { background: var(--clay); }
+
+    @media (max-width: 768px) {
+      .nav { padding: 1.2rem 1.4rem; }
+      .gallery-screen { padding: 2.5rem 1.4rem; }
+      .photo-grid { grid-template-columns: repeat(2, 1fr); gap: .6rem; }
+      .photo-overlay { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <header>
+    <nav class="nav" aria-label="Seitennavigation">
+      <a href="/" class="nav-logo" aria-label="mz media — zur Startseite">mz media</a>
+      <div class="nav-right">
+        <span class="nav-client-name" id="navClientName" aria-live="polite"></span>
+        <button class="btn-logout" id="btnLogout" type="button">Abmelden</button>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <!-- LOGIN -->
+    <section class="login-screen" id="loginScreen" aria-labelledby="loginTitle">
+      <div class="login-card">
+        <p class="login-eyebrow" aria-hidden="true">Kundenbereich</p>
+        <h1 class="login-title" id="loginTitle">Deine <em>Bilder.</em></h1>
+        <p class="login-sub">Melde dich mit deinen Zugangsdaten an, um deine fertigen Fotos anzusehen und herunterzuladen.</p>
+
+        <div class="login-error" id="loginError" role="alert" aria-live="assertive"></div>
+
+        <form id="loginForm" novalidate>
+          <div class="form-group" id="grpEmail">
+            <label for="inputEmail">E-Mail-Adresse</label>
+            <input type="email" id="inputEmail" name="email"
+              autocomplete="email" placeholder="deine@email.de"
+              required aria-required="true" aria-describedby="errEmail" />
+            <span class="form-error" id="errEmail" role="alert">Bitte gib deine E-Mail-Adresse ein.</span>
+          </div>
+          <div class="form-group" id="grpPassword">
+            <label for="inputPassword">Passwort</label>
+            <input type="password" id="inputPassword" name="password"
+              autocomplete="current-password" placeholder="••••••••"
+              required aria-required="true" aria-describedby="errPassword" />
+            <span class="form-error" id="errPassword" role="alert">Bitte gib dein Passwort ein.</span>
+          </div>
+          <button type="submit" class="btn-login" id="btnLogin">Anmelden</button>
+        </form>
+
+        <a href="/" class="login-back">← Zurück zur Website</a>
+      </div>
+    </section>
+
+    <!-- GALLERY -->
+    <section class="gallery-screen" id="galleryScreen" aria-labelledby="galleryTitle">
+      <div class="gallery-welcome">
+        <p class="gallery-eyebrow" aria-hidden="true">Meine Bilder</p>
+        <h1 class="gallery-title" id="galleryTitle">
+          Hallo, <em id="clientNameDisplay"></em>
+        </h1>
+        <p class="gallery-meta" id="shootingMeta"></p>
+      </div>
+
+      <div class="gallery-actions">
+        <p class="gallery-count" id="photoCount" aria-live="polite"></p>
+        <button class="btn-download-all" id="btnDownloadAll" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Alle herunterladen
+        </button>
+      </div>
+
+      <div id="loadingState" class="loading" aria-live="polite" aria-label="Bilder werden geladen">
+        <div class="spinner" aria-hidden="true"></div>
+        Bilder werden geladen …
+      </div>
+
+      <div class="photo-grid" id="photoGrid" role="list" aria-label="Deine Fotos"></div>
+
+      <div class="gallery-empty" id="emptyState">
+        <div class="gallery-empty-icon" aria-hidden="true">📷</div>
+        <h3>Noch keine Bilder</h3>
+        <p>Deine Fotos werden hier erscheinen, sobald sie fertig bearbeitet sind.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- LIGHTBOX -->
+  <div class="lightbox" id="lightbox" role="dialog" aria-label="Bild Vollansicht" aria-modal="true">
+    <button class="lightbox-close" id="lightboxClose" aria-label="Schließen">✕</button>
+    <img id="lightboxImg" src="" alt="" />
+    <a class="lightbox-dl" id="lightboxDl" download>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Bild herunterladen
+    </a>
+  </div>
+
+  <script>
+    const API = '';   // same origin — server serves this file too
+
+    let token     = localStorage.getItem('mz_token') || null;
+    let clientId  = localStorage.getItem('mz_client_id') || null;
+    let currentPhotos = [];
+
+    // ─── DOM refs ───
+    const loginScreen   = document.getElementById('loginScreen');
+    const galleryScreen = document.getElementById('galleryScreen');
+    const loginForm     = document.getElementById('loginForm');
+    const loginError    = document.getElementById('loginError');
+    const btnLogout     = document.getElementById('btnLogout');
+    const navClientName = document.getElementById('navClientName');
+    const photoGrid     = document.getElementById('photoGrid');
+    const loadingState  = document.getElementById('loadingState');
+    const emptyState    = document.getElementById('emptyState');
+    const photoCount    = document.getElementById('photoCount');
+    const lightbox      = document.getElementById('lightbox');
+    const lightboxImg   = document.getElementById('lightboxImg');
+    const lightboxDl    = document.getElementById('lightboxDl');
+
+    // ─── Auth check on load ───
+    if (token) {
+      showGallery();
+    }
+
+    // ─── Login ───
+    loginForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      loginError.classList.remove('show');
+
+      const email    = document.getElementById('inputEmail').value.trim();
+      const password = document.getElementById('inputPassword').value;
+
+      // Inline validation
+      let valid = true;
+      if (!email) { document.getElementById('grpEmail').classList.add('error'); valid = false; }
+      else         { document.getElementById('grpEmail').classList.remove('error'); }
+      if (!password){ document.getElementById('grpPassword').classList.add('error'); valid = false; }
+      else          { document.getElementById('grpPassword').classList.remove('error'); }
+      if (!valid) return;
+
+      const btn = document.getElementById('btnLogin');
+      btn.disabled = true;
+      btn.textContent = 'Anmelden …';
+
+      try {
+        const res  = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          loginError.textContent = data.error || 'Anmeldung fehlgeschlagen.';
+          loginError.classList.add('show');
+          return;
+        }
+
+        token    = data.token;
+        clientId = data.id;
+        localStorage.setItem('mz_token', token);
+        showGallery();
+      } catch {
+        loginError.textContent = 'Server nicht erreichbar. Bitte später versuchen.';
+        loginError.classList.add('show');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Anmelden';
+      }
+    });
+
+    // Clear errors on input
+    loginForm.querySelectorAll('input').forEach(i => {
+      i.addEventListener('input', () => i.closest('.form-group')?.classList.remove('error'));
+    });
+
+    // ─── Logout ───
+    btnLogout.addEventListener('click', () => {
+      localStorage.removeItem('mz_token');
+      localStorage.removeItem('mz_client_id');
+      token = null; clientId = null;
+      galleryScreen.classList.remove('show');
+      loginScreen.style.display = '';
+      btnLogout.style.display = 'none';
+      navClientName.textContent = '';
+      loginForm.reset();
+    });
+
+    // ─── Show gallery ───
+    async function showGallery() {
+      loginScreen.style.display = 'none';
+      galleryScreen.classList.add('show');
+      loadingState.style.display = 'flex';
+      emptyState.classList.remove('show');
+      photoGrid.innerHTML = '';
+
+      try {
+        const res  = await fetch('/api/my-photos', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+
+        if (res.status === 401) {
+          localStorage.removeItem('mz_token');
+          location.reload();
+          return;
+        }
+
+        const data = await res.json();
+        currentPhotos = data.photos || [];
+
+        // Update UI
+        document.getElementById('clientNameDisplay').textContent = data.name || '';
+        navClientName.textContent = data.name || '';
+        btnLogout.style.display = 'flex';
+
+        const meta = [];
+        if (data.shootingType) meta.push(data.shootingType);
+        if (data.shootingDate) meta.push(formatDate(data.shootingDate));
+        document.getElementById('shootingMeta').textContent = meta.join(' · ');
+
+        loadingState.style.display = 'none';
+
+        if (!currentPhotos.length) {
+          emptyState.classList.add('show');
+          photoCount.textContent = '0 Bilder';
+          return;
+        }
+
+        photoCount.textContent = currentPhotos.length + (currentPhotos.length === 1 ? ' Bild' : ' Bilder');
+        renderPhotos(currentPhotos);
+
+      } catch {
+        loadingState.innerHTML = '<p>Fehler beim Laden. Bitte Seite neu laden.</p>';
+      }
+    }
+
+    // ─── Render photos ───
+    function renderPhotos(photos) {
+      photoGrid.innerHTML = '';
+      photos.forEach((photo, i) => {
+        const card = document.createElement('div');
+        card.className = 'photo-card';
+        card.setAttribute('role', 'listitem');
+
+        const img = document.createElement('img');
+        img.src = photo.url + '?token=' + encodeURIComponent(token);
+        img.alt = 'Foto ' + (i + 1);
+        img.loading = 'lazy';
+
+        // Auth: fetch with token, convert to blob URL
+        loadAuthImage(photo.url, token).then(blobUrl => {
+          img.src = blobUrl;
+          img.dataset.blobUrl = blobUrl;
+          img.dataset.filename = photo.filename;
+        });
+
+        const overlay = document.createElement('div');
+        overlay.className = 'photo-overlay';
+
+        const dlBtn = document.createElement('button');
+        dlBtn.className = 'btn-dl';
+        dlBtn.innerHTML = `
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Herunterladen`;
+        dlBtn.setAttribute('aria-label', 'Foto ' + (i + 1) + ' herunterladen');
+        dlBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          downloadPhoto(photo);
+        });
+
+        overlay.appendChild(dlBtn);
+        card.appendChild(img);
+        card.appendChild(overlay);
+
+        // Open lightbox on click
+        card.addEventListener('click', () => openLightbox(photo, img.dataset.blobUrl));
+        photoGrid.appendChild(card);
+      });
+    }
+
+    // ─── Load image with auth header ───
+    async function loadAuthImage(url, tok) {
+      const res = await fetch(url, { headers: { Authorization: 'Bearer ' + tok } });
+      const blob = await res.blob();
+      return URL.createObjectURL(blob);
+    }
+
+    // ─── Download single photo ───
+    async function downloadPhoto(photo) {
+      const res  = await fetch('/api/download/' + extractClientId(photo.url) + '/' + photo.filename,
+        { headers: { Authorization: 'Bearer ' + token } });
+      const blob = await res.blob();
+      const a    = document.createElement('a');
+      a.href     = URL.createObjectURL(blob);
+      a.download = photo.filename;
+      a.click();
+    }
+
+    // ─── Download all ───
+    document.getElementById('btnDownloadAll').addEventListener('click', async () => {
+      const btn = document.getElementById('btnDownloadAll');
+      btn.disabled = true;
+      btn.textContent = 'Wird vorbereitet …';
+      for (const photo of currentPhotos) {
+        await downloadPhoto(photo);
+        await new Promise(r => setTimeout(r, 300));
+      }
+      btn.disabled = false;
+      btn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Alle herunterladen`;
+    });
+
+    // ─── Lightbox ───
+    function openLightbox(photo, blobUrl) {
+      lightboxImg.src   = blobUrl || '';
+      lightboxImg.alt   = photo.filename;
+      lightboxDl.href   = '#';
+      lightboxDl.onclick = e => { e.preventDefault(); downloadPhoto(photo); };
+      lightbox.classList.add('show');
+      document.getElementById('lightboxClose').focus();
+    }
+    document.getElementById('lightboxClose').addEventListener('click', () => lightbox.classList.remove('show'));
+    lightbox.addEventListener('click', e => { if (e.target === lightbox) lightbox.classList.remove('show'); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') lightbox.classList.remove('show'); });
+
+    // ─── Helpers ───
+    function extractClientId(url) {
+      const parts = url.split('/');
+      return parts[parts.indexOf('photo') + 1];
+    }
+
+    function formatDate(str) {
+      if (!str) return '';
+      const d = new Date(str);
+      return d.toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' });
+    }
+  </script>
+</body>
+</html>

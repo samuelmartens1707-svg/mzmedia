@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Admin — mz media</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --cream:  #F5F0E1;
+      --sand:   #D4C4A8;
+      --terra:  #C67B5C;
+      --clay:   #B5651D;
+      --sage:   #6B7B3C;
+      --dark:   #2A1F14;
+      --mid:    #8A7055;
+      --light:  #B5A08A;
+      --white:  #FDFAF4;
+      --sidebar-w: 260px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--cream);
+      color: var(--dark);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+    :focus { outline: none; }
+    :focus-visible { outline: 2px solid var(--terra); outline-offset: 3px; }
+
+    /* ─── LOGIN ─── */
+    .login-wrap {
+      min-height: 100svh;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--dark);
+      padding: 2rem;
+    }
+    .login-box {
+      width: 100%; max-width: 380px;
+      background: #3A2A1A;
+      padding: 3rem;
+    }
+    .login-logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.4rem; font-weight: 600;
+      letter-spacing: .14em; text-transform: uppercase;
+      color: var(--cream); margin-bottom: .5rem;
+    }
+    .login-sub-label {
+      font-size: .7rem; letter-spacing: .18em;
+      text-transform: uppercase; color: var(--terra);
+      margin-bottom: 2.5rem;
+    }
+    .login-box label {
+      display: block; font-size: .7rem; letter-spacing: .14em;
+      text-transform: uppercase; color: var(--light);
+      margin-bottom: .5rem;
+    }
+    .login-box input {
+      width: 100%; background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.12);
+      padding: .75rem 1rem; min-height: 44px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .95rem; color: var(--cream);
+      outline: none; transition: border-color .25s;
+      margin-bottom: 1.2rem;
+    }
+    .login-box input:focus { border-color: var(--terra); }
+    .login-box input::placeholder { color: rgba(255,255,255,.25); }
+    .btn-admin-login {
+      width: 100%; min-height: 44px;
+      background: var(--terra); color: #fff; border: none;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .8rem; font-weight: 500;
+      letter-spacing: .14em; text-transform: uppercase;
+      cursor: pointer; transition: background .25s;
+    }
+    .btn-admin-login:hover { background: var(--clay); }
+    .login-err {
+      background: rgba(180,0,0,.2); border: 1px solid rgba(255,100,100,.3);
+      color: #ffaaaa; padding: .7rem .9rem;
+      font-size: .82rem; margin-bottom: 1rem;
+      display: none;
+    }
+    .login-err.show { display: block; }
+
+    /* ─── APP SHELL ─── */
+    .app { display: none; min-height: 100svh; }
+    .app.show { display: flex; }
+
+    /* ─── SIDEBAR ─── */
+    .sidebar {
+      width: var(--sidebar-w); flex-shrink: 0;
+      background: var(--dark);
+      display: flex; flex-direction: column;
+      position: sticky; top: 0; height: 100svh; overflow-y: auto;
+    }
+    .sidebar-logo {
+      padding: 1.8rem 1.6rem 1.4rem;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+    }
+    .sidebar-logo-text {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.2rem; font-weight: 600;
+      letter-spacing: .14em; text-transform: uppercase;
+      color: var(--cream); display: block;
+    }
+    .sidebar-role {
+      font-size: .65rem; letter-spacing: .2em;
+      text-transform: uppercase; color: var(--terra);
+      margin-top: .2rem;
+    }
+    .sidebar-nav { padding: 1.2rem 0; flex: 1; }
+    .sidebar-nav-item {
+      display: flex; align-items: center; gap: .8rem;
+      padding: .75rem 1.6rem;
+      font-size: .82rem; letter-spacing: .06em;
+      color: rgba(255,255,255,.5); cursor: pointer;
+      transition: color .2s, background .2s;
+      border: none; background: none; width: 100%;
+      min-height: 44px; text-align: left;
+    }
+    .sidebar-nav-item:hover { color: var(--cream); background: rgba(255,255,255,.04); }
+    .sidebar-nav-item.active { color: var(--cream); background: rgba(255,255,255,.07); }
+    .sidebar-nav-item svg { flex-shrink: 0; opacity: .7; }
+    .sidebar-bottom {
+      padding: 1.2rem 1.6rem;
+      border-top: 1px solid rgba(255,255,255,.07);
+    }
+    .btn-sidebar-logout {
+      width: 100%; min-height: 40px;
+      background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+      color: rgba(255,255,255,.5); font-family: 'DM Sans', sans-serif;
+      font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
+      cursor: pointer; transition: all .2s;
+    }
+    .btn-sidebar-logout:hover { background: rgba(255,255,255,.1); color: var(--cream); }
+
+    /* ─── MAIN CONTENT ─── */
+    .main { flex: 1; overflow-y: auto; }
+    .page { display: none; padding: 2.8rem 3rem; min-height: 100%; }
+    .page.active { display: block; }
+
+    .page-header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 2.5rem; flex-wrap: wrap; gap: 1rem;
+    }
+    .page-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2rem; font-weight: 300; line-height: 1.1;
+    }
+    .page-title em { font-style: italic; color: var(--terra); }
+    .page-subtitle {
+      font-size: .82rem; color: var(--mid); margin-top: .3rem;
+    }
+
+    /* ─── BUTTONS ─── */
+    .btn {
+      display: inline-flex; align-items: center; gap: .5rem;
+      min-height: 40px; padding: 0 1.4rem;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .75rem; font-weight: 500;
+      letter-spacing: .12em; text-transform: uppercase;
+      cursor: pointer; border: none; transition: all .2s;
+    }
+    .btn-primary { background: var(--terra); color: #fff; }
+    .btn-primary:hover { background: var(--clay); }
+    .btn-outline {
+      background: transparent; color: var(--mid);
+      border: 1px solid var(--sand);
+    }
+    .btn-outline:hover { border-color: var(--terra); color: var(--terra); }
+    .btn-danger { background: #c0392b; color: #fff; }
+    .btn-danger:hover { background: #a93226; }
+    .btn-sm { min-height: 34px; padding: 0 1rem; font-size: .7rem; }
+    .btn-icon {
+      min-height: 34px; min-width: 34px; padding: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: transparent; border: 1px solid var(--sand);
+      color: var(--mid); cursor: pointer; transition: all .2s;
+    }
+    .btn-icon:hover { border-color: var(--terra); color: var(--terra); }
+    .btn-icon.danger:hover { border-color: #c0392b; color: #c0392b; }
+
+    /* ─── STATS CARDS ─── */
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 1rem; margin-bottom: 2.5rem;
+    }
+    .stat-card {
+      background: var(--white); padding: 1.6rem 1.8rem;
+      border-left: 3px solid var(--terra);
+    }
+    .stat-value {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2.4rem; font-weight: 300; color: var(--dark); line-height: 1;
+    }
+    .stat-label {
+      font-size: .72rem; letter-spacing: .14em;
+      text-transform: uppercase; color: var(--mid); margin-top: .4rem;
+    }
+
+    /* ─── CLIENT TABLE ─── */
+    .table-wrap { background: var(--white); overflow: hidden; }
+    .table-toolbar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1.2rem 1.6rem;
+      border-bottom: 1px solid var(--sand);
+      flex-wrap: wrap; gap: .8rem;
+    }
+    .search-input {
+      background: var(--cream); border: 1px solid var(--sand);
+      padding: .5rem 1rem; min-height: 36px; width: 240px;
+      font-family: 'DM Sans', sans-serif; font-size: .85rem;
+      color: var(--dark); outline: none; transition: border-color .25s;
+    }
+    .search-input:focus { border-color: var(--terra); }
+    .search-input::placeholder { color: var(--light); }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      padding: .9rem 1.6rem;
+      text-align: left; font-size: .68rem;
+      letter-spacing: .16em; text-transform: uppercase;
+      color: var(--mid); border-bottom: 1px solid var(--sand);
+      white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid rgba(212,196,168,.4); transition: background .15s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(245,240,225,.6); }
+    td { padding: .85rem 1.6rem; font-size: .88rem; vertical-align: middle; }
+    .td-name { font-weight: 400; }
+    .td-email { color: var(--mid); font-size: .82rem; }
+    .badge {
+      display: inline-block; padding: .2rem .7rem;
+      font-size: .65rem; letter-spacing: .12em;
+      text-transform: uppercase; border: 1px solid;
+    }
+    .badge-green { color: var(--sage); border-color: var(--sage); background: rgba(107,123,60,.08); }
+    .badge-sand  { color: var(--mid); border-color: var(--sand); }
+    .td-actions { display: flex; gap: .4rem; align-items: center; }
+    .empty-row td {
+      text-align: center; padding: 3rem;
+      color: var(--light); font-size: .88rem;
+    }
+
+    /* ─── CLIENT DETAIL ─── */
+    .back-btn {
+      display: inline-flex; align-items: center; gap: .5rem;
+      font-size: .78rem; color: var(--mid); letter-spacing: .08em;
+      cursor: pointer; margin-bottom: 2rem;
+      background: none; border: none; padding: 0;
+      transition: color .2s;
+    }
+    .back-btn:hover { color: var(--terra); }
+    .client-header-card {
+      background: var(--white); padding: 2rem;
+      display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 2rem;
+      flex-wrap: wrap; margin-bottom: 2rem;
+    }
+    .client-avatar {
+      width: 52px; height: 52px; border-radius: 50%;
+      background: var(--terra); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.4rem; font-weight: 400;
+      flex-shrink: 0;
+    }
+    .client-info-row { display: flex; gap: 1.2rem; align-items: flex-start; }
+    .client-name-big {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.5rem; font-weight: 400; color: var(--dark);
+    }
+    .client-meta-row {
+      display: flex; gap: 1.4rem; margin-top: .5rem; flex-wrap: wrap;
+    }
+    .client-meta-item { font-size: .8rem; color: var(--mid); }
+    .client-meta-item span { color: var(--dark); font-weight: 400; }
+    .credential-box {
+      background: var(--cream); border: 1px solid var(--sand);
+      padding: 1rem 1.2rem; min-width: 260px;
+    }
+    .credential-box-label {
+      font-size: .65rem; letter-spacing: .18em;
+      text-transform: uppercase; color: var(--terra); margin-bottom: .6rem;
+    }
+    .credential-row {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: .82rem; gap: .8rem; margin-bottom: .3rem;
+    }
+    .credential-key { color: var(--mid); flex-shrink: 0; }
+    .credential-val { color: var(--dark); font-weight: 400; word-break: break-all; }
+    .btn-copy {
+      font-size: .65rem; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--terra); background: none; border: none; cursor: pointer;
+      white-space: nowrap; padding: 0; transition: color .2s; flex-shrink: 0;
+    }
+    .btn-copy:hover { color: var(--clay); }
+
+    /* Upload zone */
+    .upload-section { margin-bottom: 2rem; }
+    .upload-section-title {
+      font-size: .78rem; letter-spacing: .16em;
+      text-transform: uppercase; color: var(--mid);
+      margin-bottom: 1rem;
+      display: flex; align-items: center; gap: .8rem;
+    }
+    .upload-section-title::before { content: ''; width: 20px; height: 1px; background: var(--sand); }
+    .drop-zone {
+      border: 2px dashed var(--sand); padding: 3rem 2rem;
+      text-align: center; cursor: pointer;
+      transition: border-color .25s, background .25s;
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--terra); background: rgba(198,123,92,.04);
+    }
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+      width: 100%; height: 100%;
+    }
+    .drop-icon { font-size: 2rem; margin-bottom: .8rem; opacity: .4; }
+    .drop-text { font-size: .9rem; color: var(--mid); }
+    .drop-hint { font-size: .75rem; color: var(--light); margin-top: .3rem; }
+    .upload-progress {
+      margin-top: 1rem; display: none;
+      background: var(--sand); height: 3px;
+    }
+    .upload-progress-bar {
+      height: 100%; background: var(--terra);
+      transition: width .3s ease; width: 0%;
+    }
+    .upload-status {
+      font-size: .8rem; color: var(--mid);
+      margin-top: .6rem; display: none;
+    }
+
+    /* Photo management grid */
+    .photos-section-title {
+      font-size: .78rem; letter-spacing: .16em;
+      text-transform: uppercase; color: var(--mid);
+      margin-bottom: 1rem;
+      display: flex; align-items: center; gap: .8rem;
+    }
+    .photos-section-title::before { content: ''; width: 20px; height: 1px; background: var(--sand); }
+    .admin-photo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: .7rem;
+    }
+    .admin-photo-card {
+      position: relative; aspect-ratio: 3/4;
+      background: var(--sand); overflow: hidden;
+    }
+    .admin-photo-card img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    .admin-photo-overlay {
+      position: absolute; inset: 0;
+      background: rgba(42,31,20,.55);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity .25s;
+    }
+    .admin-photo-card:hover .admin-photo-overlay { opacity: 1; }
+    .admin-photo-name {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: rgba(42,31,20,.7); padding: .4rem .6rem;
+      font-size: .65rem; color: rgba(255,255,255,.7);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .no-photos {
+      grid-column: 1/-1; text-align: center; padding: 3rem;
+      color: var(--light); font-size: .88rem;
+    }
+
+    /* ─── NEW CLIENT MODAL ─── */
+    .modal-backdrop {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(42,31,20,.5);
+      display: none; align-items: center; justify-content: center;
+      padding: 1rem;
+    }
+    .modal-backdrop.show { display: flex; }
+    .modal {
+      background: var(--white); width: 100%; max-width: 520px;
+      padding: 2.4rem; max-height: 90svh; overflow-y: auto;
+    }
+    .modal-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.6rem; font-weight: 300; margin-bottom: 1.8rem;
+    }
+    .modal-title em { font-style: italic; color: var(--terra); }
+    .field {
+      display: flex; flex-direction: column; gap: .45rem;
+      margin-bottom: 1.3rem;
+    }
+    .field label {
+      font-size: .7rem; letter-spacing: .14em;
+      text-transform: uppercase; color: var(--mid);
+    }
+    .field input, .field select {
+      background: transparent; border: none;
+      border-bottom: 1px solid var(--sand);
+      padding: .65rem 0; min-height: 44px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .95rem; color: var(--dark); outline: none;
+      transition: border-color .25s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--terra); }
+    .field input::placeholder { color: var(--light); }
+    .field-hint { font-size: .72rem; color: var(--light); margin-top: .2rem; }
+    .field.error label { color: #b00020; }
+    .field.error input { border-color: #b00020; }
+    .modal-actions {
+      display: flex; gap: .8rem; margin-top: 2rem;
+      justify-content: flex-end;
+    }
+    .modal-err {
+      background: #fff0f0; border: 1px solid #ffcccc;
+      padding: .7rem .9rem; font-size: .82rem; color: #b00020;
+      margin-bottom: 1rem; display: none;
+    }
+    .modal-err.show { display: block; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 2rem; right: 2rem; z-index: 300;
+      background: var(--dark); color: var(--cream);
+      padding: .9rem 1.4rem; font-size: .82rem;
+      letter-spacing: .06em; opacity: 0;
+      transition: opacity .3s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+
+    /* Spinner */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .page { padding: 1.8rem 1.4rem; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .table-wrap { overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── LOGIN ─── -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-box">
+    <div class="login-logo">mz media</div>
+    <div class="login-sub-label">Admin-Bereich</div>
+    <div class="login-err" id="adminLoginErr" role="alert"></div>
+    <form id="adminLoginForm" novalidate>
+      <label for="adminPw">Admin-Passwort</label>
+      <input type="password" id="adminPw" autocomplete="current-password"
+        placeholder="••••••••" required aria-required="true" />
+      <button type="submit" class="btn-admin-login" id="btnAdminLogin">Anmelden</button>
+    </form>
+  </div>
+</div>
+
+<!-- ─── APP ─── -->
+<div class="app" id="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" aria-label="Admin Navigation">
+    <div class="sidebar-logo">
+      <span class="sidebar-logo-text">mz media</span>
+      <div class="sidebar-role">Admin-Bereich</div>
+    </div>
+    <nav class="sidebar-nav" role="navigation">
+      <button class="sidebar-nav-item active" id="navDashboard" onclick="showPage('dashboard')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Übersicht
+      </button>
+      <button class="sidebar-nav-item" id="navClients" onclick="showPage('clients')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Kunden
+      </button>
+    </nav>
+    <div class="sidebar-bottom">
+      <button class="btn-sidebar-logout" id="btnAdminLogout" type="button">Abmelden</button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- DASHBOARD PAGE -->
+    <div class="page active" id="pageDashboard">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Willkommen, <em>Miguel.</em></h1>
+          <p class="page-subtitle">Hier ist deine aktuelle Übersicht.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openNewClientModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Neuer Kunde
+        </button>
+      </div>
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+          <div class="stat-value" id="statClients">—</div>
+          <div class="stat-label">Kunden gesamt</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statPhotos">—</div>
+          <div class="stat-label">Bilder hochgeladen</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statRecent">—</div>
+          <div class="stat-label">Zuletzt hinzugefügt</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-toolbar">
+          <strong style="font-size:.82rem;letter-spacing:.06em;">Neueste Kunden</strong>
+        </div>
+        <table aria-label="Neueste Kunden">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>E-Mail</th>
+              <th>Shooting</th>
+              <th>Bilder</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="dashboardTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CLIENTS PAGE -->
+    <div class="page" id="pageClients">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title"><em>Alle</em> Kunden</h1>
+          <p class="page-subtitle" id="clientsSubtitle"></p>
+        </div>
+        <button class="btn btn-primary" onclick="openNewClientModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Neuer Kunde
+        </button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-toolbar">
+          <input class="search-input" id="searchInput" type="search"
+            placeholder="Kunde suchen …" aria-label="Kunden durchsuchen" />
+        </div>
+        <table aria-label="Alle Kunden">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>E-Mail</th>
+              <th>Shooting-Art</th>
+              <th>Datum</th>
+              <th>Bilder</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="clientsTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CLIENT DETAIL PAGE -->
+    <div class="page" id="pageDetail">
+      <button class="back-btn" onclick="showPage('clients')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+        Zurück zur Kundenliste
+      </button>
+
+      <div class="client-header-card" id="detailHeader"></div>
+
+      <div class="upload-section">
+        <div class="upload-section-title">Bilder hochladen</div>
+        <div class="drop-zone" id="dropZone">
+          <input type="file" id="fileInput" multiple accept="image/jpeg,image/png,image/webp"
+            aria-label="Bilder auswählen" />
+          <div class="drop-icon" aria-hidden="true">📁</div>
+          <div class="drop-text">Bilder hier ablegen oder klicken zum Auswählen</div>
+          <div class="drop-hint">JPEG, PNG, WebP · max. 50 MB pro Bild</div>
+        </div>
+        <div class="upload-progress" id="uploadProgress"><div class="upload-progress-bar" id="uploadProgressBar"></div></div>
+        <div class="upload-status" id="uploadStatus" role="status" aria-live="polite"></div>
+      </div>
+
+      <div class="photos-section-title" id="photosSectionTitle">Vorhandene Bilder</div>
+      <div class="admin-photo-grid" id="adminPhotoGrid"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ─── NEW CLIENT MODAL ─── -->
+<div class="modal-backdrop" id="newClientModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal">
+    <h2 class="modal-title" id="modalTitle">Neuen <em>Kunden</em> anlegen</h2>
+    <div class="modal-err" id="modalErr" role="alert"></div>
+    <form id="newClientForm" novalidate>
+      <div class="field" id="fldName">
+        <label for="ncName">Name *</label>
+        <input type="text" id="ncName" placeholder="Max Mustermann" required autocomplete="off" />
+      </div>
+      <div class="field" id="fldEmail">
+        <label for="ncEmail">E-Mail *</label>
+        <input type="email" id="ncEmail" placeholder="max@beispiel.de" required autocomplete="off" />
+      </div>
+      <div class="field" id="fldPassword">
+        <label for="ncPassword">Passwort *</label>
+        <input type="text" id="ncPassword" placeholder="z.B. Sommer2025!" required autocomplete="off" />
+        <span class="field-hint">Der Kunde erhält dieses Passwort per E-Mail.</span>
+      </div>
+      <div class="field">
+        <label for="ncType">Shooting-Art</label>
+        <select id="ncType">
+          <option value="">— optional —</option>
+          <option value="Portrait">Portrait</option>
+          <option value="Event">Event</option>
+          <option value="Kreativ">Kreativ</option>
+          <option value="Hochzeit">Hochzeit</option>
+          <option value="Sonstiges">Sonstiges</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="ncDate">Shooting-Datum</label>
+        <input type="date" id="ncDate" />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline" onclick="closeNewClientModal()">Abbrechen</button>
+        <button type="submit" class="btn btn-primary" id="btnCreateClient">Kunde anlegen</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ─── SUCCESS MODAL (credentials) ─── -->
+<div class="modal-backdrop" id="credentialsModal" role="dialog" aria-modal="true" aria-labelledby="credTitle">
+  <div class="modal">
+    <h2 class="modal-title" id="credTitle">Kunde <em>angelegt!</em></h2>
+    <p style="font-size:.88rem;color:var(--mid);margin-bottom:1.6rem;line-height:1.7;">
+      Schick dem Kunden folgende Zugangsdaten. Das Passwort wird nur einmal angezeigt.
+    </p>
+    <div class="credential-box" style="margin-bottom:1.4rem;">
+      <div class="credential-box-label">Zugangsdaten</div>
+      <div class="credential-row">
+        <span class="credential-key">Link</span>
+        <span class="credential-val" id="credLink" style="font-size:.78rem;"></span>
+        <button class="btn-copy" onclick="copyText('credLink')">Kopieren</button>
+      </div>
+      <div class="credential-row">
+        <span class="credential-key">E-Mail</span>
+        <span class="credential-val" id="credEmail"></span>
+        <button class="btn-copy" onclick="copyText('credEmail')">Kopieren</button>
+      </div>
+      <div class="credential-row">
+        <span class="credential-key">Passwort</span>
+        <span class="credential-val" id="credPassword"></span>
+        <button class="btn-copy" onclick="copyText('credPassword')">Kopieren</button>
+      </div>
+    </div>
+    <button class="btn btn-outline" onclick="copyAllCredentials()" style="margin-bottom:.6rem;width:100%;">
+      Alles kopieren (für E-Mail)
+    </button>
+    <button class="btn btn-primary" id="btnSendEmail" onclick="sendCredentialsEmail()" style="margin-bottom:.8rem;width:100%;justify-content:center;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      E-Mail automatisch senden
+    </button>
+    <div id="emailSendStatus" style="font-size:.8rem;text-align:center;min-height:1.2rem;" role="status" aria-live="polite"></div>
+    <div class="modal-actions" style="margin-top:1rem;">
+      <button class="btn btn-primary" onclick="closeCredentialsModal()">Fertig</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── TOAST ─── -->
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+  const ADMIN_TOKEN_KEY = 'mz_admin_token';
+  let adminToken        = localStorage.getItem(ADMIN_TOKEN_KEY) || null;
+  let allClients        = [];
+  let currentClient     = null;
+  let newClientPassword = '';
+  let lastCreatedClient = null;   // for email sending after creation
+
+  // ─── Init ───────────────────────────────────────────────
+  if (adminToken) {
+    showApp();
+  }
+
+  // ─── Admin login ────────────────────────────────────────
+  document.getElementById('adminLoginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const pw  = document.getElementById('adminPw').value;
+    const err = document.getElementById('adminLoginErr');
+    const btn = document.getElementById('btnAdminLogin');
+    err.classList.remove('show');
+    btn.disabled = true; btn.textContent = '…';
+
+    try {
+      const res  = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw })
+      });
+      const data = await res.json();
+      if (!res.ok) { err.textContent = data.error; err.classList.add('show'); return; }
+      adminToken = data.token;
+      localStorage.setItem(ADMIN_TOKEN_KEY, adminToken);
+      showApp();
+    } catch {
+      err.textContent = 'Server nicht erreichbar.';
+      err.classList.add('show');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Anmelden';
+    }
+  });
+
+  // ─── Logout ─────────────────────────────────────────────
+  document.getElementById('btnAdminLogout').addEventListener('click', () => {
+    localStorage.removeItem(ADMIN_TOKEN_KEY);
+    adminToken = null;
+    document.getElementById('app').classList.remove('show');
+    document.getElementById('loginWrap').style.display = '';
+  });
+
+  // ─── Show app shell ─────────────────────────────────────
+  async function showApp() {
+    document.getElementById('loginWrap').style.display = 'none';
+    document.getElementById('app').classList.add('show');
+    await loadClients();
+    renderDashboard();
+    showPage('dashboard');
+  }
+
+  // ─── Load clients ────────────────────────────────────────
+  async function loadClients() {
+    const res  = await adminFetch('/api/admin/clients');
+    const data = await res.json();
+    allClients = data.clients || [];
+    // Count photos for each client from uploads dir
+    for (const c of allClients) {
+      c.photoCount = await getPhotoCount(c.id);
+    }
+  }
+
+  async function getPhotoCount(clientId) {
+    try {
+      const res  = await adminFetch('/api/my-photos-admin/' + clientId);
+      if (!res.ok) return 0;
+      const data = await res.json();
+      return data.photos?.length || 0;
+    } catch { return 0; }
+  }
+
+  // ─── Pages ──────────────────────────────────────────────
+  function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.sidebar-nav-item').forEach(b => b.classList.remove('active'));
+
+    if (name === 'dashboard') {
+      document.getElementById('pageDashboard').classList.add('active');
+      document.getElementById('navDashboard').classList.add('active');
+    } else if (name === 'clients') {
+      document.getElementById('pageClients').classList.add('active');
+      document.getElementById('navClients').classList.add('active');
+      renderClientsTable(allClients);
+    } else if (name === 'detail') {
+      document.getElementById('pageDetail').classList.add('active');
+    }
+  }
+
+  // ─── Dashboard ──────────────────────────────────────────
+  function renderDashboard() {
+    document.getElementById('statClients').textContent = allClients.length;
+    const totalPhotos = allClients.reduce((s, c) => s + (c.photoCount || 0), 0);
+    document.getElementById('statPhotos').textContent = totalPhotos;
+    const latest = allClients[allClients.length - 1];
+    document.getElementById('statRecent').textContent = latest ? latest.name.split(' ')[0] : '—';
+
+    const tbody = document.getElementById('dashboardTable');
+    const recent = [...allClients].reverse().slice(0, 5);
+    tbody.innerHTML = recent.length ? recent.map(clientRow).join('') : emptyRow(5);
+  }
+
+  // ─── Clients table ──────────────────────────────────────
+  function renderClientsTable(clients) {
+    const tbody = document.getElementById('clientsTable');
+    document.getElementById('clientsSubtitle').textContent =
+      clients.length + (clients.length === 1 ? ' Kunde' : ' Kunden');
+    tbody.innerHTML = clients.length ? clients.map(clientRow).join('') : emptyRow(6);
+  }
+
+  function clientRow(c) {
+    const count = c.photoCount || 0;
+    return `<tr>
+      <td class="td-name">${esc(c.name)}</td>
+      <td class="td-email">${esc(c.email)}</td>
+      <td>${c.shootingType ? `<span class="badge badge-green">${esc(c.shootingType)}</span>` : '—'}</td>
+      <td>${c.shootingDate ? formatDate(c.shootingDate) : '—'}</td>
+      <td>${count > 0 ? `<span class="badge badge-green">${count}</span>` : '<span class="badge badge-sand">0</span>'}</td>
+      <td><div class="td-actions">
+        <button class="btn-icon" onclick="openClientDetail('${c.id}')" title="Bilder verwalten" aria-label="Bilder von ${esc(c.name)} verwalten">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+      </div></td>
+    </tr>`;
+  }
+
+  function emptyRow(cols) {
+    return `<tr class="empty-row"><td colspan="${cols}">Noch keine Kunden vorhanden.</td></tr>`;
+  }
+
+  // Search
+  document.getElementById('searchInput').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    renderClientsTable(allClients.filter(c =>
+      c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q)
+    ));
+  });
+
+  // ─── Client detail ──────────────────────────────────────
+  async function openClientDetail(clientId) {
+    currentClient = allClients.find(c => c.id === clientId);
+    if (!currentClient) return;
+    showPage('detail');
+    renderDetailHeader(currentClient);
+    await loadDetailPhotos(currentClient);
+  }
+
+  function renderDetailHeader(c) {
+    const initials = c.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const galleryUrl = window.location.origin + '/gallery.html';
+    document.getElementById('detailHeader').innerHTML = `
+      <div class="client-info-row">
+        <div class="client-avatar" aria-hidden="true">${initials}</div>
+        <div>
+          <div class="client-name-big">${esc(c.name)}</div>
+          <div class="client-meta-row">
+            <div class="client-meta-item">E-Mail: <span>${esc(c.email)}</span></div>
+            ${c.shootingType ? `<div class="client-meta-item">Art: <span>${esc(c.shootingType)}</span></div>` : ''}
+            ${c.shootingDate ? `<div class="client-meta-item">Datum: <span>${formatDate(c.shootingDate)}</span></div>` : ''}
+          </div>
+        </div>
+      </div>
+      <div class="credential-box">
+        <div class="credential-box-label">Zugangsdaten</div>
+        <div class="credential-row">
+          <span class="credential-key">Link</span>
+          <span class="credential-val" style="font-size:.74rem;">${galleryUrl}</span>
+          <button class="btn-copy" onclick="navigator.clipboard.writeText('${galleryUrl}');showToast('Link kopiert')">Kopieren</button>
+        </div>
+        <div class="credential-row">
+          <span class="credential-key">E-Mail</span>
+          <span class="credential-val">${esc(c.email)}</span>
+          <button class="btn-copy" onclick="navigator.clipboard.writeText('${c.email}');showToast('E-Mail kopiert')">Kopieren</button>
+        </div>
+        <div class="credential-row">
+          <span class="credential-key">Passwort</span>
+          <span class="credential-val" style="color:var(--light);font-style:italic;">nicht einsehbar</span>
+        </div>
+      </div>`;
+  }
+
+  async function loadDetailPhotos(c) {
+    const grid  = document.getElementById('adminPhotoGrid');
+    grid.innerHTML = '<div style="color:var(--light);font-size:.82rem;padding:1rem;">Wird geladen …</div>';
+
+    const res  = await adminFetch('/api/admin/clients/' + c.id + '/photos');
+    const data = await res.json();
+    const photos = data.photos || [];
+
+    document.getElementById('photosSectionTitle').textContent =
+      `Vorhandene Bilder (${photos.length})`;
+
+    if (!photos.length) {
+      grid.innerHTML = '<div class="no-photos">Noch keine Bilder hochgeladen.</div>';
+      return;
+    }
+
+    grid.innerHTML = photos.map(p => `
+      <div class="admin-photo-card">
+        <img src="/api/admin/photo/${c.id}/${p.filename}?auth=${encodeURIComponent(adminToken)}"
+          alt="${esc(p.filename)}" loading="lazy" />
+        <div class="admin-photo-overlay">
+          <button class="btn-icon danger"
+            onclick="deletePhoto('${c.id}','${p.filename}')"
+            aria-label="Bild ${esc(p.filename)} löschen"
+            title="Bild löschen">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          </button>
+        </div>
+        <div class="admin-photo-name">${esc(p.filename)}</div>
+      </div>`).join('');
+  }
+
+  // ─── Upload ─────────────────────────────────────────────
+  const dropZone   = document.getElementById('dropZone');
+  const fileInput  = document.getElementById('fileInput');
+
+  dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop',      e  => {
+    e.preventDefault(); dropZone.classList.remove('dragover');
+    uploadFiles(e.dataTransfer.files);
+  });
+  fileInput.addEventListener('change', e => uploadFiles(e.target.files));
+
+  async function uploadFiles(files) {
+    if (!files.length || !currentClient) return;
+    const bar      = document.getElementById('uploadProgressBar');
+    const progress = document.getElementById('uploadProgress');
+    const status   = document.getElementById('uploadStatus');
+    const formData = new FormData();
+    Array.from(files).forEach(f => formData.append('photos', f));
+
+    progress.style.display = 'block';
+    status.style.display   = 'block';
+    status.textContent     = `${files.length} Bild${files.length > 1 ? 'er' : ''} werden hochgeladen …`;
+    bar.style.width = '10%';
+
+    try {
+      const res  = await fetch('/api/admin/clients/' + currentClient.id + '/photos', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + adminToken },
+        body: formData
+      });
+      bar.style.width = '100%';
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+      const data = await res.json();
+      status.textContent = `✓ ${data.uploaded.length} Bild${data.uploaded.length > 1 ? 'er' : ''} hochgeladen.`;
+      showToast(data.uploaded.length + ' Bilder hochgeladen');
+      fileInput.value = '';
+      await loadDetailPhotos(currentClient);
+      // update count
+      currentClient.photoCount = (currentClient.photoCount || 0) + data.uploaded.length;
+    } catch (err) {
+      status.textContent = 'Fehler: ' + err.message;
+    }
+    setTimeout(() => {
+      progress.style.display = 'none';
+      bar.style.width = '0%';
+    }, 2000);
+  }
+
+  // ─── Delete photo ────────────────────────────────────────
+  async function deletePhoto(clientId, filename) {
+    if (!confirm(`Bild "${filename}" wirklich löschen?`)) return;
+    const res = await adminFetch(`/api/admin/clients/${clientId}/photos/${filename}`, { method: 'DELETE' });
+    if (res.ok) {
+      showToast('Bild gelöscht');
+      await loadDetailPhotos(currentClient);
+      currentClient.photoCount = Math.max(0, (currentClient.photoCount || 1) - 1);
+    }
+  }
+
+  // ─── New client modal ────────────────────────────────────
+  function openNewClientModal() {
+    document.getElementById('newClientModal').classList.add('show');
+    document.getElementById('ncName').focus();
+  }
+  function closeNewClientModal() {
+    document.getElementById('newClientModal').classList.remove('show');
+    document.getElementById('newClientForm').reset();
+    document.getElementById('modalErr').classList.remove('show');
+    ['fldName','fldEmail','fldPassword'].forEach(id => document.getElementById(id).classList.remove('error'));
+  }
+  document.getElementById('newClientModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('newClientModal')) closeNewClientModal();
+  });
+
+  document.getElementById('newClientForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const name     = document.getElementById('ncName').value.trim();
+    const email    = document.getElementById('ncEmail').value.trim();
+    const password = document.getElementById('ncPassword').value.trim();
+    const type     = document.getElementById('ncType').value;
+    const date     = document.getElementById('ncDate').value;
+    const errEl    = document.getElementById('modalErr');
+    const btn      = document.getElementById('btnCreateClient');
+    errEl.classList.remove('show');
+
+    // Validation
+    let valid = true;
+    if (!name)     { document.getElementById('fldName').classList.add('error');     valid = false; }
+    else             document.getElementById('fldName').classList.remove('error');
+    if (!email)    { document.getElementById('fldEmail').classList.add('error');    valid = false; }
+    else             document.getElementById('fldEmail').classList.remove('error');
+    if (!password) { document.getElementById('fldPassword').classList.add('error'); valid = false; }
+    else             document.getElementById('fldPassword').classList.remove('error');
+    if (!valid) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div>';
+
+    try {
+      const res  = await adminFetch('/api/admin/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password, shootingDate: date, shootingType: type })
+      });
+      const data = await res.json();
+      if (!res.ok) { errEl.textContent = data.error; errEl.classList.add('show'); return; }
+
+      newClientPassword = password;
+      lastCreatedClient = data;
+      await loadClients();
+      renderDashboard();
+      closeNewClientModal();
+      showCredentials(email, password);
+    } catch {
+      errEl.textContent = 'Fehler beim Anlegen. Bitte erneut versuchen.';
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Kunde anlegen';
+    }
+  });
+
+  // ─── Credentials modal ──────────────────────────────────
+  function showCredentials(email, password) {
+    const url = window.location.origin + '/gallery.html';
+    document.getElementById('credLink').textContent     = url;
+    document.getElementById('credEmail').textContent    = email;
+    document.getElementById('credPassword').textContent = password;
+    document.getElementById('credentialsModal').classList.add('show');
+  }
+  function closeCredentialsModal() {
+    document.getElementById('credentialsModal').classList.remove('show');
+    document.getElementById('emailSendStatus').textContent = '';
+  }
+
+  async function sendCredentialsEmail() {
+    const client = lastCreatedClient || currentClient;
+    if (!client) return;
+
+    const password  = newClientPassword;
+    if (!password) {
+      showToast('Passwort nicht verfügbar — bitte manuell senden.');
+      return;
+    }
+
+    const btn        = document.getElementById('btnSendEmail');
+    const statusEl   = document.getElementById('emailSendStatus');
+    const galleryUrl = window.location.origin + '/gallery.html';
+
+    btn.disabled     = true;
+    btn.innerHTML    = '<div class="spinner" style="border-top-color:#fff;width:14px;height:14px;"></div> Wird gesendet …';
+    statusEl.style.color = 'var(--mid)';
+    statusEl.textContent = '';
+
+    try {
+      const res  = await adminFetch('/api/admin/clients/' + client.id + '/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password, galleryUrl })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        statusEl.style.color = '#b00020';
+        statusEl.textContent = '✗ ' + data.error;
+      } else {
+        statusEl.style.color = 'var(--sage)';
+        statusEl.textContent = '✓ E-Mail gesendet an ' + data.to;
+        showToast('E-Mail gesendet');
+      }
+    } catch {
+      statusEl.style.color = '#b00020';
+      statusEl.textContent = '✗ Server nicht erreichbar.';
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        E-Mail automatisch senden`;
+    }
+  }
+  function copyText(elId) {
+    const text = document.getElementById(elId).textContent;
+    navigator.clipboard.writeText(text);
+    showToast('Kopiert');
+  }
+  function copyAllCredentials() {
+    const url  = document.getElementById('credLink').textContent;
+    const mail = document.getElementById('credEmail').textContent;
+    const pw   = document.getElementById('credPassword').textContent;
+    navigator.clipboard.writeText(
+      `Hallo,\n\ndeine Bilder sind fertig!\n\nLink: ${url}\nE-Mail: ${mail}\nPasswort: ${pw}\n\nViele Grüße,\nMiguel`
+    );
+    showToast('E-Mail-Text kopiert');
+  }
+
+  // ─── Helpers ─────────────────────────────────────────────
+  function adminFetch(url, opts = {}) {
+    return fetch(url, {
+      ...opts,
+      headers: { Authorization: 'Bearer ' + adminToken, ...(opts.headers || {}) }
+    });
+  }
+
+  function esc(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function formatDate(str) {
+    if (!str) return '';
+    return new Date(str).toLocaleDateString('de-DE', { day:'2-digit', month:'long', year:'numeric' });
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  }
+</script>
+</body>
+</html>
