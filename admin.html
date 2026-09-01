@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Admin — mz media</title>
+  <base href="/website/">
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
@@ -12,9 +13,9 @@
     :root {
       --cream:  #F5F0E1;
       --sand:   #D4C4A8;
-      --terra:  #C67B5C;
-      --clay:   #B5651D;
-      --sage:   #6B7B3C;
+      --terra:  #B8AEA6;
+      --clay:   #938B85;
+      --sage:   #8A9A86;
       --dark:   #2A1F14;
       --mid:    #8A7055;
       --light:  #B5A08A;
@@ -366,7 +367,7 @@
     .admin-photo-overlay {
       position: absolute; inset: 0;
       background: rgba(42,31,20,.55);
-      display: flex; align-items: center; justify-content: center;
+      display: flex; align-items: center; justify-content: center; gap: .5rem;
       opacity: 0; transition: opacity .25s;
     }
     .admin-photo-card:hover .admin-photo-overlay { opacity: 1; }
@@ -429,6 +430,30 @@
       margin-bottom: 1rem; display: none;
     }
     .modal-err.show { display: block; }
+
+    /* ─── IMAGE EDITOR MODAL ─── */
+    .img-editor-modal { max-width: 640px; }
+    .img-editor-canvas-wrap {
+      position: relative; margin: 0 auto 1.2rem;
+      background: var(--dark); overflow: hidden;
+      touch-action: none; user-select: none;
+    }
+    .img-editor-canvas-wrap canvas { display: block; }
+    .crop-box {
+      position: absolute; border: 2px solid var(--white);
+      box-shadow: 0 0 0 9999px rgba(0,0,0,.55);
+      cursor: move;
+    }
+    .crop-handle {
+      position: absolute; width: 14px; height: 14px;
+      background: var(--white); border: 2px solid var(--terra);
+      border-radius: 50%;
+    }
+    .crop-handle.nw { top: -8px; left: -8px; cursor: nwse-resize; }
+    .crop-handle.ne { top: -8px; right: -8px; cursor: nesw-resize; }
+    .crop-handle.sw { bottom: -8px; left: -8px; cursor: nesw-resize; }
+    .crop-handle.se { bottom: -8px; right: -8px; cursor: nwse-resize; }
+    .img-editor-controls { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
 
     /* Toast */
     .toast {
@@ -493,6 +518,10 @@
       <button class="sidebar-nav-item" id="navClients" onclick="showPage('clients')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Kunden
+      </button>
+      <button class="sidebar-nav-item" id="navHomeImages" onclick="showPage('homeImages')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        Homepage-Bilder
       </button>
     </nav>
     <div class="sidebar-bottom">
@@ -579,6 +608,43 @@
           <tbody id="clientsTable"></tbody>
         </table>
       </div>
+    </div>
+
+    <!-- HOMEPAGE IMAGES PAGE -->
+    <div class="page" id="pageHomeImages">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Homepage-<em>Bilder</em></h1>
+          <p class="page-subtitle">Hero, About und Portfolio-Galerie der öffentlichen Startseite verwalten.</p>
+        </div>
+      </div>
+
+      <div class="photos-section-title">Feste Bildbereiche</div>
+      <div id="singletonSlots" class="admin-photo-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:2.6rem;"></div>
+
+      <div class="upload-section-title">Portfolio-Galerie — Bilder hinzufügen</div>
+      <div class="upload-section">
+        <label class="field" style="max-width:260px;margin-bottom:1rem;">
+          <span style="font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--mid);display:block;margin-bottom:.4rem;">Kategorie für neue Uploads</span>
+          <select id="galleryCategorySelect" style="width:100%;min-height:40px;background:var(--white);border:1px solid var(--sand);padding:.4rem .6rem;font-family:'DM Sans',sans-serif;font-size:.85rem;color:var(--dark);">
+            <option>Portrait</option>
+            <option>Events</option>
+            <option>Kreativ</option>
+            <option>Natur</option>
+          </select>
+        </label>
+        <div class="drop-zone" id="galleryDropZone">
+          <input type="file" id="galleryFileInput" multiple accept="image/jpeg,image/png,image/webp,image/gif" aria-label="Galerie-Bilder auswählen" />
+          <div class="drop-icon" aria-hidden="true">📁</div>
+          <div class="drop-text">Bilder hier ablegen oder klicken zum Auswählen</div>
+          <div class="drop-hint">JPEG, PNG, WebP · max. 8 MB pro Bild · empfohlen: ca. 2000–2500px breit, komprimiert</div>
+        </div>
+        <div class="upload-progress" id="galleryUploadProgress"><div class="upload-progress-bar" id="galleryUploadProgressBar"></div></div>
+        <div class="upload-status" id="galleryUploadStatus" role="status" aria-live="polite"></div>
+      </div>
+
+      <div class="photos-section-title" id="galleryPhotosTitle">Portfolio-Galerie — vorhandene Bilder</div>
+      <div class="admin-photo-grid" id="galleryPhotoGrid"></div>
     </div>
 
     <!-- CLIENT DETAIL PAGE -->
@@ -691,6 +757,30 @@
   </div>
 </div>
 
+<!-- ─── IMAGE EDITOR MODAL ─── -->
+<div class="modal-backdrop" id="imageEditorModal" role="dialog" aria-modal="true" aria-labelledby="imgEditorTitle">
+  <div class="modal img-editor-modal">
+    <h2 class="modal-title" id="imgEditorTitle">Bild <em>bearbeiten</em></h2>
+    <div class="img-editor-canvas-wrap" id="imgEditorCanvasWrap">
+      <canvas id="imgEditorCanvas"></canvas>
+      <div class="crop-box" id="imgEditorCropBox">
+        <div class="crop-handle nw" data-handle="nw"></div>
+        <div class="crop-handle ne" data-handle="ne"></div>
+        <div class="crop-handle sw" data-handle="sw"></div>
+        <div class="crop-handle se" data-handle="se"></div>
+      </div>
+    </div>
+    <div class="img-editor-controls">
+      <button type="button" class="btn btn-outline btn-sm" onclick="rotateImageEditor(-90)">↺ Drehen</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="rotateImageEditor(90)">↻ Drehen</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="resetImageEditorCrop()">Zuschnitt zurücksetzen</button>
+      <div style="flex:1"></div>
+      <button type="button" class="btn btn-outline" onclick="closeImageEditor()">Abbrechen</button>
+      <button type="button" class="btn btn-primary" id="btnSaveImageEdit" onclick="saveImageEdit()">Speichern</button>
+    </div>
+  </div>
+</div>
+
 <!-- ─── TOAST ─── -->
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -784,6 +874,10 @@
       document.getElementById('pageClients').classList.add('active');
       document.getElementById('navClients').classList.add('active');
       renderClientsTable(allClients);
+    } else if (name === 'homeImages') {
+      document.getElementById('pageHomeImages').classList.add('active');
+      document.getElementById('navHomeImages').classList.add('active');
+      loadHomeImages();
     } else if (name === 'detail') {
       document.getElementById('pageDetail').classList.add('active');
     }
@@ -849,7 +943,7 @@
 
   function renderDetailHeader(c) {
     const initials = c.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-    const galleryUrl = window.location.origin + '/gallery.html';
+    const galleryUrl = window.location.origin + '/website/gallery.html';
     document.getElementById('detailHeader').innerHTML = `
       <div class="client-info-row">
         <div class="client-avatar" aria-hidden="true">${initials}</div>
@@ -973,6 +1067,178 @@
     }
   }
 
+  // ─── Homepage-Bilder ────────────────────────────────────
+  const SINGLETON_SLOTS = [
+    { key: 'hero',         label: 'Hero-Bild' },
+    { key: 'about-main',   label: 'About — Hauptbild' },
+    { key: 'about-accent', label: 'About — Akzentbild' },
+  ];
+  const GALLERY_CATEGORIES = ['Portrait', 'Events', 'Kreativ', 'Natur'];
+  const TRASH_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>';
+  const EDIT_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+
+  async function loadHomeImages() {
+    const res = await adminFetch('/api/admin/home-images');
+    if (!res.ok) {
+      document.getElementById('singletonSlots').innerHTML = '<div class="no-photos">Datenbank aktuell nicht erreichbar.</div>';
+      document.getElementById('galleryPhotoGrid').innerHTML = '';
+      return;
+    }
+    const data = await res.json();
+    const images = data.images || [];
+    renderSingletonSlots(images);
+    renderGalleryGrid(images.filter(i => i.slot === 'gallery'));
+  }
+
+  function renderSingletonSlots(images) {
+    const container = document.getElementById('singletonSlots');
+    container.innerHTML = SINGLETON_SLOTS.map(slot => {
+      const img = images.find(i => i.slot === slot.key);
+      const card = img
+        ? `<div class="admin-photo-card">
+            <img src="${img.url}" alt="${esc(slot.label)}" loading="lazy" />
+            <div class="admin-photo-overlay">
+              <button class="btn-icon" onclick="openImageEditor(${img.id}, '${img.url}')" aria-label="${esc(slot.label)} bearbeiten" title="Bild bearbeiten">${EDIT_ICON}</button>
+              <button class="btn-icon danger" onclick="deleteHomeImage(${img.id})" aria-label="${esc(slot.label)} löschen" title="Bild löschen">${TRASH_ICON}</button>
+            </div>
+            <div class="admin-photo-name">${esc(slot.label)}</div>
+          </div>`
+        : `<div class="admin-photo-card" style="display:flex;align-items:center;justify-content:center;">
+            <div class="no-photos" style="padding:1rem;">Kein Bild</div>
+          </div>`;
+      return `<div>
+        ${card}
+        <label class="btn btn-outline btn-sm" style="margin-top:.6rem;width:100%;justify-content:center;cursor:pointer;">
+          ${img ? 'Ersetzen' : 'Bild hochladen'}
+          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none"
+            onchange="uploadSingletonImage('${slot.key}', this.files[0]); this.value='';" />
+        </label>
+        <div class="field-hint" style="text-align:center;margin-top:.3rem;">${esc(slot.label)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  async function uploadSingletonImage(slot, file) {
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+      const res = await fetch('/api/admin/home-images/' + slot, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + adminToken },
+        body: formData
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+      showToast('Bild gespeichert');
+      await loadHomeImages();
+    } catch (err) {
+      showToast('Fehler: ' + err.message);
+    }
+  }
+
+  async function deleteHomeImage(id) {
+    if (!confirm('Bild wirklich löschen?')) return;
+    const res = await adminFetch('/api/admin/home-images/' + id, { method: 'DELETE' });
+    if (res.ok) {
+      showToast('Bild gelöscht');
+      await loadHomeImages();
+    }
+  }
+
+  function renderGalleryGrid(items) {
+    const grid = document.getElementById('galleryPhotoGrid');
+    document.getElementById('galleryPhotosTitle').textContent =
+      `Portfolio-Galerie — vorhandene Bilder (${items.length})`;
+    if (!items.length) {
+      grid.innerHTML = '<div class="no-photos">Noch keine Galerie-Bilder hochgeladen.</div>';
+      return;
+    }
+    grid.innerHTML = items.map(item => `
+      <div>
+        <div class="admin-photo-card">
+          <img src="${item.url}" alt="${esc(item.category || '')}" loading="lazy" />
+          <div class="admin-photo-overlay">
+            <button class="btn-icon" onclick="openImageEditor(${item.id}, '${item.url}')" aria-label="Bild bearbeiten" title="Bild bearbeiten">${EDIT_ICON}</button>
+            <button class="btn-icon danger" onclick="deleteHomeImage(${item.id})" aria-label="Bild löschen" title="Bild löschen">${TRASH_ICON}</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:.3rem;margin-top:.5rem;align-items:center;">
+          <select onchange="updateGalleryCategory(${item.id}, this.value)" style="flex:1;min-height:32px;font-size:.72rem;background:var(--white);border:1px solid var(--sand);padding:.2rem .4rem;">
+            ${GALLERY_CATEGORIES.map(c => `<option ${c === item.category ? 'selected' : ''}>${c}</option>`).join('')}
+          </select>
+          <button class="btn-icon" onclick="moveGalleryImage(${item.id}, 'up')" aria-label="Nach oben" title="Nach oben">▲</button>
+          <button class="btn-icon" onclick="moveGalleryImage(${item.id}, 'down')" aria-label="Nach unten" title="Nach unten">▼</button>
+        </div>
+      </div>`).join('');
+  }
+
+  async function updateGalleryCategory(id, category) {
+    await adminFetch('/api/admin/home-images/' + id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category })
+    });
+    showToast('Kategorie aktualisiert');
+  }
+
+  async function moveGalleryImage(id, direction) {
+    await adminFetch('/api/admin/home-images/' + id + '/move', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ direction })
+    });
+    await loadHomeImages();
+  }
+
+  // ─── Gallery upload (drop zone) ─────────────────────────
+  const galleryDropZone  = document.getElementById('galleryDropZone');
+  const galleryFileInput = document.getElementById('galleryFileInput');
+
+  galleryDropZone.addEventListener('dragover',  e => { e.preventDefault(); galleryDropZone.classList.add('dragover'); });
+  galleryDropZone.addEventListener('dragleave', ()  => galleryDropZone.classList.remove('dragover'));
+  galleryDropZone.addEventListener('drop',      e  => {
+    e.preventDefault(); galleryDropZone.classList.remove('dragover');
+    uploadGalleryImages(e.dataTransfer.files);
+  });
+  galleryFileInput.addEventListener('change', e => uploadGalleryImages(e.target.files));
+
+  async function uploadGalleryImages(files) {
+    if (!files.length) return;
+    const bar      = document.getElementById('galleryUploadProgressBar');
+    const progress = document.getElementById('galleryUploadProgress');
+    const status   = document.getElementById('galleryUploadStatus');
+    const category = document.getElementById('galleryCategorySelect').value;
+    const formData = new FormData();
+    Array.from(files).forEach(f => formData.append('photos', f));
+    formData.append('category', category);
+
+    progress.style.display = 'block';
+    status.style.display   = 'block';
+    status.textContent     = `${files.length} Bild${files.length > 1 ? 'er' : ''} werden hochgeladen …`;
+    bar.style.width = '10%';
+
+    try {
+      const res = await fetch('/api/admin/home-images/gallery', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + adminToken },
+        body: formData
+      });
+      bar.style.width = '100%';
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+      const data = await res.json();
+      status.textContent = `✓ ${data.uploaded.length} Bild${data.uploaded.length > 1 ? 'er' : ''} hochgeladen.`;
+      showToast(data.uploaded.length + ' Galerie-Bilder hochgeladen');
+      galleryFileInput.value = '';
+      await loadHomeImages();
+    } catch (err) {
+      status.textContent = 'Fehler: ' + err.message;
+    }
+    setTimeout(() => {
+      progress.style.display = 'none';
+      bar.style.width = '0%';
+    }, 2000);
+  }
+
   // ─── New client modal ────────────────────────────────────
   function openNewClientModal() {
     document.getElementById('newClientModal').classList.add('show');
@@ -1061,7 +1327,7 @@
 
     const btn        = document.getElementById('btnSendEmail');
     const statusEl   = document.getElementById('emailSendStatus');
-    const galleryUrl = window.location.origin + '/gallery.html';
+    const galleryUrl = window.location.origin + '/website/gallery.html';
 
     btn.disabled     = true;
     btn.innerHTML    = '<div class="spinner" style="border-top-color:#fff;width:14px;height:14px;"></div> Wird gesendet …';
@@ -1109,9 +1375,179 @@
     showToast('E-Mail-Text kopiert');
   }
 
+  // ─── Bild-Editor (Zuschneiden & Drehen) ─────────────────
+  let imgEditor = { id: null, img: null, rotation: 0, crop: null, dispW: 0, dispH: 0 };
+
+  function openImageEditor(id, url) {
+    imgEditor = { id, img: null, rotation: 0, crop: null, dispW: 0, dispH: 0 };
+    document.getElementById('imageEditorModal').classList.add('show');
+    const img = new Image();
+    img.onload = () => {
+      imgEditor.img = img;
+      renderImageEditor();
+      resetImageEditorCrop();
+    };
+    img.onerror = () => { showToast('Bild konnte nicht geladen werden.'); closeImageEditor(); };
+    img.src = url;
+  }
+
+  function closeImageEditor() {
+    document.getElementById('imageEditorModal').classList.remove('show');
+    imgEditor = { id: null, img: null, rotation: 0, crop: null, dispW: 0, dispH: 0 };
+  }
+
+  function renderImageEditor() {
+    const { img, rotation } = imgEditor;
+    const rotated90 = rotation % 180 !== 0;
+    const rotW = rotated90 ? img.naturalHeight : img.naturalWidth;
+    const rotH = rotated90 ? img.naturalWidth  : img.naturalHeight;
+    const maxW = 560, maxH = 440;
+    const scale = Math.min(maxW / rotW, maxH / rotH, 1);
+    const dispW = Math.round(rotW * scale);
+    const dispH = Math.round(rotH * scale);
+    const drawW = img.naturalWidth * scale;
+    const drawH = img.naturalHeight * scale;
+
+    const canvas = document.getElementById('imgEditorCanvas');
+    canvas.width = dispW;
+    canvas.height = dispH;
+    document.getElementById('imgEditorCanvasWrap').style.cssText = `width:${dispW}px;height:${dispH}px;`;
+
+    const ctx = canvas.getContext('2d');
+    ctx.save();
+    ctx.translate(dispW / 2, dispH / 2);
+    ctx.rotate(rotation * Math.PI / 180);
+    ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+    ctx.restore();
+
+    imgEditor.dispW = dispW;
+    imgEditor.dispH = dispH;
+  }
+
+  function rotateImageEditor(delta) {
+    imgEditor.rotation = (imgEditor.rotation + delta + 360) % 360;
+    renderImageEditor();
+    resetImageEditorCrop();
+  }
+
+  function resetImageEditorCrop() {
+    imgEditor.crop = { x: 0, y: 0, w: imgEditor.dispW, h: imgEditor.dispH };
+    updateCropBoxEl();
+  }
+
+  function updateCropBoxEl() {
+    const box = document.getElementById('imgEditorCropBox');
+    const c = imgEditor.crop;
+    box.style.left   = c.x + 'px';
+    box.style.top    = c.y + 'px';
+    box.style.width  = c.w + 'px';
+    box.style.height = c.h + 'px';
+  }
+
+  (function initImageEditorDrag() {
+    const wrap = document.getElementById('imgEditorCanvasWrap');
+    const box  = document.getElementById('imgEditorCropBox');
+    const MIN_SIZE = 24;
+    let mode = null, startX, startY, startCrop;
+
+    function clampCrop(next) {
+      let { x, y, w, h } = next;
+      w = Math.max(MIN_SIZE, Math.min(w, imgEditor.dispW));
+      h = Math.max(MIN_SIZE, Math.min(h, imgEditor.dispH));
+      x = Math.max(0, Math.min(x, imgEditor.dispW - w));
+      y = Math.max(0, Math.min(y, imgEditor.dispH - h));
+      return { x, y, w, h };
+    }
+
+    wrap.addEventListener('pointerdown', e => {
+      const handle = e.target.closest('.crop-handle');
+      mode = handle ? handle.dataset.handle : (e.target === box ? 'move' : null);
+      if (!mode) return;
+      startX = e.clientX; startY = e.clientY;
+      startCrop = { ...imgEditor.crop };
+      e.preventDefault();
+    });
+
+    window.addEventListener('pointermove', e => {
+      if (!mode) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      let next = { ...startCrop };
+      if (mode === 'move') {
+        next.x = startCrop.x + dx;
+        next.y = startCrop.y + dy;
+      } else {
+        if (mode.includes('n')) { next.y = startCrop.y + dy; next.h = startCrop.h - dy; }
+        if (mode.includes('s')) { next.h = startCrop.h + dy; }
+        if (mode.includes('w')) { next.x = startCrop.x + dx; next.w = startCrop.w - dx; }
+        if (mode.includes('e')) { next.w = startCrop.w + dx; }
+      }
+      imgEditor.crop = clampCrop(next);
+      updateCropBoxEl();
+    });
+
+    window.addEventListener('pointerup', () => { mode = null; });
+  })();
+
+  async function saveImageEdit() {
+    const { img, rotation, crop, dispW } = imgEditor;
+    const rotated90 = rotation % 180 !== 0;
+    const rotW = rotated90 ? img.naturalHeight : img.naturalWidth;
+    const rotH = rotated90 ? img.naturalWidth  : img.naturalHeight;
+
+    const rotCanvas = document.createElement('canvas');
+    rotCanvas.width = rotW;
+    rotCanvas.height = rotH;
+    const rctx = rotCanvas.getContext('2d');
+    rctx.translate(rotW / 2, rotH / 2);
+    rctx.rotate(rotation * Math.PI / 180);
+    rctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+
+    const cropScale = rotW / dispW;
+    const cropX = Math.round(crop.x * cropScale);
+    const cropY = Math.round(crop.y * cropScale);
+    const cropW = Math.max(1, Math.round(crop.w * cropScale));
+    const cropH = Math.max(1, Math.round(crop.h * cropScale));
+
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = cropW;
+    outCanvas.height = cropH;
+    outCanvas.getContext('2d').drawImage(rotCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+    const btn = document.getElementById('btnSaveImageEdit');
+    const imageId = imgEditor.id;
+    btn.disabled = true;
+    btn.textContent = 'Speichert …';
+    outCanvas.toBlob(async blob => {
+      try {
+        const formData = new FormData();
+        formData.append('image', blob, 'bearbeitet.jpg');
+        const res = await fetch('/api/admin/home-images/' + imageId, {
+          method: 'PUT',
+          headers: { Authorization: 'Bearer ' + adminToken },
+          body: formData
+        });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+        showToast('Bild aktualisiert');
+        closeImageEditor();
+        await loadHomeImages();
+      } catch (err) {
+        showToast('Fehler: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Speichern';
+      }
+    }, 'image/jpeg', 0.92);
+  }
+
+  document.getElementById('imageEditorModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('imageEditorModal')) closeImageEditor();
+  });
+
   // ─── Helpers ─────────────────────────────────────────────
+  const BASE = '/website';
   function adminFetch(url, opts = {}) {
-    return fetch(url, {
+    const fullUrl = url.startsWith('/') ? BASE + url : url;
+    return fetch(fullUrl, {
       ...opts,
       headers: { Authorization: 'Bearer ' + adminToken, ...(opts.headers || {}) }
     });

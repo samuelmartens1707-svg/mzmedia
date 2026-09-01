@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Meine Bilder — mz media</title>
+  <base href="/website/">
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
@@ -13,9 +14,9 @@
     :root {
       --cream:   #F5F0E1;
       --sand:    #D4C4A8;
-      --terra:   #C67B5C;
-      --clay:    #B5651D;
-      --sage:    #6B7B3C;
+      --terra:   #B8AEA6;
+      --clay:    #938B85;
+      --sage:    #8A9A86;
       --dark:    #2A1F14;
       --mid:     #8A7055;
       --light:   #B5A08A;
@@ -415,7 +416,7 @@
   </div>
 
   <script>
-    const API = '';   // same origin — server serves this file too
+    const API = '/website';
 
     let token     = localStorage.getItem('mz_token') || null;
     let clientId  = localStorage.getItem('mz_client_id') || null;
