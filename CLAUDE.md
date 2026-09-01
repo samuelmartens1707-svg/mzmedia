@@ -73,7 +73,10 @@ POST /api/login                 – Kunden-Login → JWT
 GET  /api/my-photos             – Fotos des eingeloggten Kunden (auth)
 GET  /api/photo/:id/:file       – Foto abrufen (auth, nur eigene)
 GET  /api/download/:id/:file    – Foto-Download (auth, nur eigene)
-POST /api/admin/login           – Admin-Login → JWT
+POST /api/admin/login            – Admin-Login → JWT
+POST /api/admin/change-password  – Admin-Passwort ändern (auth, Body: currentPassword/newPassword)
+POST /api/admin/forgot-password  – Reset-Link an ADMIN_EMAIL schicken
+POST /api/admin/reset-password   – neues Passwort per Reset-Token setzen
 GET  /api/admin/clients         – Alle Kunden (ohne passwordHash)
 POST /api/admin/clients         – Neuen Kunden anlegen
 POST /api/admin/clients/:id/photos       – Fotos hochladen
@@ -102,6 +105,13 @@ DELETE /api/admin/home-images/:id        – Bild löschen (Einzel-Slot oder Gal
 - Ist die DB nicht erreichbar, liefern die betroffenen Routen `503` (Homepage-Bilder UND jetzt auch Login/Kunden-Fotoportal/Admin-Kundenverwaltung, da Kundendaten nicht mehr im Dateisystem liegen).
 - Migration von der alten `data/clients.json`: `node scripts/migrate-clients-to-db.js` (idempotent, überspringt bereits vorhandene IDs).
 
+### Admin-Passwort (änderbar, mit "Passwort vergessen")
+- Bleibt bewusst ein einziges geteiltes Passwort (kein Admin-User-System wie bei JoTech) — nur der Speicherort ist jetzt änderbar statt fest in `.env`.
+- Liegt in der Tabelle `admin_settings` (einzige Zeile, `id=1`, `password_hash`). Solange dort keine Zeile existiert, vergleicht der Login weiterhin direkt gegen `process.env.ADMIN_PASSWORD` — Admin-Login funktioniert also auch ohne DB-Verbindung.
+- "Passwort ändern" (im Panel unten in der Sidebar) verlangt das aktuelle Passwort und schreibt den neuen Hash in `admin_settings`.
+- "Passwort vergessen" (Link auf dem Login-Screen) schickt einen 1h gültigen Reset-Link an `ADMIN_EMAIL` (Fallback: `CONTACT_EMAIL`, dann `SMTP_USER`) — Tokens liegen in `admin_password_resets`. Der Link öffnet `admin.html?reset=TOKEN` mit einem Passwort-Setzen-Formular.
+- Da es nur einen Admin-Zugang gibt (keine E-Mail-Eingabe nötig), zeigt `/api/admin/forgot-password` anders als beim Kunden-Flow konkrete Fehler (z. B. „SMTP nicht konfiguriert") statt sich generisch zu geben — es gibt hier nichts zu verheimlichen.
+
 ### Wichtige ENV-Variablen (.env)
 ```
 PORT            – Standard 3000
@@ -111,7 +121,8 @@ BASE_PATH       – /website (Reverse-Proxy-Präfix, wird intern gestripped)
 SMTP_HOST / SMTP_PORT / SMTP_SECURE / SMTP_USER / SMTP_PASS
 MAIL_FROM       – Absender-Adresse
 CONTACT_EMAIL   – Empfänger für Kontaktformulare
-DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASS – MySQL-Zugang (home_images + clients)
+ADMIN_EMAIL     – Empfänger für Admin-Passwort-Reset-Links (optional, Fallback: CONTACT_EMAIL → SMTP_USER)
+DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASS – MySQL-Zugang (home_images + clients + admin_settings)
 ```
 
 ## Deployment

@@ -65,4 +65,82 @@ function ensureClientsTable() {
   return ensuredClients;
 }
 
-module.exports = { pool, ensureHomeImagesTable, ensureClientsTable };
+const CREATE_PASSWORD_RESETS_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS password_resets (
+    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    client_id   VARCHAR(32) NOT NULL,
+    token_hash  CHAR(64) NOT NULL,
+    expires_at  DATETIME NOT NULL,
+    used_at     DATETIME NULL,
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+    INDEX idx_password_resets_token_hash (token_hash)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+`;
+
+// Braucht die clients-Tabelle als Fremdschlüssel-Ziel, deshalb erst ensureClientsTable().
+let ensuredPasswordResets = null;
+function ensurePasswordResetsTable() {
+  if (!ensuredPasswordResets) {
+    ensuredPasswordResets = ensureClientsTable()
+      .then(() => pool.query(CREATE_PASSWORD_RESETS_TABLE_SQL))
+      .catch(err => {
+        ensuredPasswordResets = null;
+        throw err;
+      });
+  }
+  return ensuredPasswordResets;
+}
+
+const CREATE_ADMIN_SETTINGS_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS admin_settings (
+    id             TINYINT UNSIGNED PRIMARY KEY DEFAULT 1,
+    password_hash  VARCHAR(255) NOT NULL,
+    updated_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+`;
+
+// Einzige Zeile (id=1) mit dem aktuellen Admin-Passwort-Hash. Solange sie fehlt,
+// fällt der Login weiterhin auf process.env.ADMIN_PASSWORD zurück (siehe server.js) —
+// erst ein "Passwort ändern"/"zurücksetzen" legt diese Zeile an.
+let ensuredAdminSettings = null;
+function ensureAdminSettingsTable() {
+  if (!ensuredAdminSettings) {
+    ensuredAdminSettings = pool.query(CREATE_ADMIN_SETTINGS_TABLE_SQL).catch(err => {
+      ensuredAdminSettings = null;
+      throw err;
+    });
+  }
+  return ensuredAdminSettings;
+}
+
+const CREATE_ADMIN_PASSWORD_RESETS_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS admin_password_resets (
+    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    token_hash  CHAR(64) NOT NULL,
+    expires_at  DATETIME NOT NULL,
+    used_at     DATETIME NULL,
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_admin_password_resets_token_hash (token_hash)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+`;
+
+let ensuredAdminPasswordResets = null;
+function ensureAdminPasswordResetsTable() {
+  if (!ensuredAdminPasswordResets) {
+    ensuredAdminPasswordResets = pool.query(CREATE_ADMIN_PASSWORD_RESETS_TABLE_SQL).catch(err => {
+      ensuredAdminPasswordResets = null;
+      throw err;
+    });
+  }
+  return ensuredAdminPasswordResets;
+}
+
+module.exports = {
+  pool,
+  ensureHomeImagesTable,
+  ensureClientsTable,
+  ensurePasswordResetsTable,
+  ensureAdminSettingsTable,
+  ensureAdminPasswordResetsTable,
+};

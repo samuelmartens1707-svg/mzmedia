@@ -161,6 +161,23 @@
     }
     .login-back:hover { color: var(--terra); }
 
+    .login-forgot-link {
+      display: block; text-align: center;
+      margin-top: 1.2rem;
+      font-size: .78rem; color: var(--mid);
+      background: none; border: none; cursor: pointer;
+      letter-spacing: .08em; text-decoration: underline;
+      transition: color .25s;
+    }
+    .login-forgot-link:hover { color: var(--terra); }
+
+    .login-success {
+      background: #f0f5ee; border: 1px solid var(--sage);
+      padding: .8rem 1rem; font-size: .85rem; color: #4d5c48;
+      margin-bottom: 1.4rem; display: none;
+    }
+    .login-success.show { display: block; }
+
     /* ─── GALLERY SCREEN ─── */
     .gallery-screen { display: none; padding: 4rem; }
     .gallery-screen.show { display: block; }
@@ -336,31 +353,85 @@
     <!-- LOGIN -->
     <section class="login-screen" id="loginScreen" aria-labelledby="loginTitle">
       <div class="login-card">
-        <p class="login-eyebrow" aria-hidden="true">Kundenbereich</p>
-        <h1 class="login-title" id="loginTitle">Deine <em>Bilder.</em></h1>
-        <p class="login-sub">Melde dich mit deinen Zugangsdaten an, um deine fertigen Fotos anzusehen und herunterzuladen.</p>
+        <!-- LOGIN PANE -->
+        <div id="loginPane">
+          <p class="login-eyebrow" aria-hidden="true">Kundenbereich</p>
+          <h1 class="login-title" id="loginTitle">Deine <em>Bilder.</em></h1>
+          <p class="login-sub">Melde dich mit deinen Zugangsdaten an, um deine fertigen Fotos anzusehen und herunterzuladen.</p>
 
-        <div class="login-error" id="loginError" role="alert" aria-live="assertive"></div>
+          <div class="login-error" id="loginError" role="alert" aria-live="assertive"></div>
 
-        <form id="loginForm" novalidate>
-          <div class="form-group" id="grpEmail">
-            <label for="inputEmail">E-Mail-Adresse</label>
-            <input type="email" id="inputEmail" name="email"
-              autocomplete="email" placeholder="deine@email.de"
-              required aria-required="true" aria-describedby="errEmail" />
-            <span class="form-error" id="errEmail" role="alert">Bitte gib deine E-Mail-Adresse ein.</span>
+          <form id="loginForm" novalidate>
+            <div class="form-group" id="grpEmail">
+              <label for="inputEmail">E-Mail-Adresse</label>
+              <input type="email" id="inputEmail" name="email"
+                autocomplete="email" placeholder="deine@email.de"
+                required aria-required="true" aria-describedby="errEmail" />
+              <span class="form-error" id="errEmail" role="alert">Bitte gib deine E-Mail-Adresse ein.</span>
+            </div>
+            <div class="form-group" id="grpPassword">
+              <label for="inputPassword">Passwort</label>
+              <input type="password" id="inputPassword" name="password"
+                autocomplete="current-password" placeholder="••••••••"
+                required aria-required="true" aria-describedby="errPassword" />
+              <span class="form-error" id="errPassword" role="alert">Bitte gib dein Passwort ein.</span>
+            </div>
+            <button type="submit" class="btn-login" id="btnLogin">Anmelden</button>
+          </form>
+
+          <button type="button" class="login-forgot-link" id="btnShowForgot">Passwort vergessen?</button>
+          <a href="/" class="login-back">← Zurück zur Website</a>
+        </div>
+
+        <!-- FORGOT PASSWORD PANE -->
+        <div id="forgotPane" style="display:none">
+          <p class="login-eyebrow" aria-hidden="true">Kundenbereich</p>
+          <h1 class="login-title">Passwort <em>vergessen.</em></h1>
+          <p class="login-sub">Gib deine E-Mail-Adresse ein — wir schicken dir einen Link, mit dem du ein neues Passwort vergeben kannst.</p>
+
+          <div class="login-error" id="forgotError" role="alert" aria-live="assertive"></div>
+          <div class="login-success" id="forgotSuccess" role="status" aria-live="polite">
+            Falls ein Konto mit dieser E-Mail-Adresse existiert, haben wir dir soeben einen Link geschickt. Bitte prüfe auch deinen Spam-Ordner.
           </div>
-          <div class="form-group" id="grpPassword">
-            <label for="inputPassword">Passwort</label>
-            <input type="password" id="inputPassword" name="password"
-              autocomplete="current-password" placeholder="••••••••"
-              required aria-required="true" aria-describedby="errPassword" />
-            <span class="form-error" id="errPassword" role="alert">Bitte gib dein Passwort ein.</span>
-          </div>
-          <button type="submit" class="btn-login" id="btnLogin">Anmelden</button>
-        </form>
 
-        <a href="/" class="login-back">← Zurück zur Website</a>
+          <form id="forgotForm" novalidate>
+            <div class="form-group" id="grpForgotEmail">
+              <label for="inputForgotEmail">E-Mail-Adresse</label>
+              <input type="email" id="inputForgotEmail" name="email"
+                autocomplete="email" placeholder="deine@email.de"
+                required aria-required="true" aria-describedby="errForgotEmail" />
+              <span class="form-error" id="errForgotEmail" role="alert">Bitte gib deine E-Mail-Adresse ein.</span>
+            </div>
+            <button type="submit" class="btn-login" id="btnForgotSubmit">Link anfordern</button>
+          </form>
+
+          <button type="button" class="login-forgot-link" id="btnBackToLoginFromForgot">← Zurück zum Login</button>
+        </div>
+
+        <!-- RESET PASSWORD PANE -->
+        <div id="resetPane" style="display:none">
+          <p class="login-eyebrow" aria-hidden="true">Kundenbereich</p>
+          <h1 class="login-title">Neues <em>Passwort.</em></h1>
+          <p class="login-sub">Vergib ein neues Passwort für dein Konto.</p>
+
+          <div class="login-error" id="resetError" role="alert" aria-live="assertive"></div>
+          <div class="login-success" id="resetSuccess" role="status" aria-live="polite">
+            Dein Passwort wurde geändert. Du kannst dich jetzt anmelden.
+          </div>
+
+          <form id="resetForm" novalidate>
+            <div class="form-group" id="grpNewPassword">
+              <label for="inputNewPassword">Neues Passwort</label>
+              <input type="password" id="inputNewPassword" name="password"
+                autocomplete="new-password" placeholder="Mind. 8 Zeichen"
+                required minlength="8" aria-required="true" aria-describedby="errNewPassword" />
+              <span class="form-error" id="errNewPassword" role="alert">Mindestens 8 Zeichen.</span>
+            </div>
+            <button type="submit" class="btn-login" id="btnResetSubmit">Passwort setzen</button>
+          </form>
+
+          <a href="/" class="login-back">← Zurück zur Website</a>
+        </div>
       </div>
     </section>
 
@@ -427,6 +498,15 @@
     const galleryScreen = document.getElementById('galleryScreen');
     const loginForm     = document.getElementById('loginForm');
     const loginError    = document.getElementById('loginError');
+    const loginPane      = document.getElementById('loginPane');
+    const forgotPane     = document.getElementById('forgotPane');
+    const resetPane      = document.getElementById('resetPane');
+    const forgotForm     = document.getElementById('forgotForm');
+    const forgotError    = document.getElementById('forgotError');
+    const forgotSuccess  = document.getElementById('forgotSuccess');
+    const resetForm      = document.getElementById('resetForm');
+    const resetError     = document.getElementById('resetError');
+    const resetSuccess   = document.getElementById('resetSuccess');
     const btnLogout     = document.getElementById('btnLogout');
     const navClientName = document.getElementById('navClientName');
     const photoGrid     = document.getElementById('photoGrid');
@@ -438,9 +518,108 @@
     const lightboxDl    = document.getElementById('lightboxDl');
 
     // ─── Auth check on load ───
-    if (token) {
+    const resetToken = new URLSearchParams(location.search).get('reset');
+    if (resetToken) {
+      loginPane.style.display = 'none';
+      resetPane.style.display = '';
+    } else if (token) {
       showGallery();
     }
+
+    // ─── Pane switching (Login ↔ Passwort vergessen) ───
+    document.getElementById('btnShowForgot').addEventListener('click', () => {
+      loginError.classList.remove('show');
+      loginPane.style.display = 'none';
+      forgotPane.style.display = '';
+    });
+    document.getElementById('btnBackToLoginFromForgot').addEventListener('click', () => {
+      forgotError.classList.remove('show');
+      forgotSuccess.classList.remove('show');
+      forgotForm.reset();
+      forgotPane.style.display = 'none';
+      loginPane.style.display = '';
+    });
+
+    // ─── Forgot password ───
+    forgotForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      forgotError.classList.remove('show');
+      forgotSuccess.classList.remove('show');
+
+      const email = document.getElementById('inputForgotEmail').value.trim();
+      if (!email) { document.getElementById('grpForgotEmail').classList.add('error'); return; }
+      document.getElementById('grpForgotEmail').classList.remove('error');
+
+      const btn = document.getElementById('btnForgotSubmit');
+      btn.disabled = true;
+      btn.textContent = 'Wird gesendet …';
+
+      try {
+        const res  = await fetch('/api/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          forgotError.textContent = data.error || 'Anfrage fehlgeschlagen.';
+          forgotError.classList.add('show');
+          return;
+        }
+        forgotSuccess.classList.add('show');
+        forgotForm.reset();
+      } catch {
+        forgotError.textContent = 'Server nicht erreichbar. Bitte später versuchen.';
+        forgotError.classList.add('show');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Link anfordern';
+      }
+    });
+
+    // ─── Reset password ───
+    resetForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      resetError.classList.remove('show');
+
+      const password = document.getElementById('inputNewPassword').value;
+      if (!password || password.length < 8) {
+        document.getElementById('grpNewPassword').classList.add('error');
+        return;
+      }
+      document.getElementById('grpNewPassword').classList.remove('error');
+
+      const btn = document.getElementById('btnResetSubmit');
+      btn.disabled = true;
+      btn.textContent = 'Wird gespeichert …';
+
+      try {
+        const res  = await fetch('/api/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: resetToken, password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          resetError.textContent = data.error || 'Passwort konnte nicht gesetzt werden.';
+          resetError.classList.add('show');
+          return;
+        }
+        resetSuccess.classList.add('show');
+        resetForm.reset();
+        history.replaceState(null, '', location.pathname);
+        setTimeout(() => {
+          resetPane.style.display = 'none';
+          loginPane.style.display = '';
+        }, 2500);
+      } catch {
+        resetError.textContent = 'Server nicht erreichbar. Bitte später versuchen.';
+        resetError.classList.add('show');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Passwort setzen';
+      }
+    });
 
     // ─── Login ───
     loginForm.addEventListener('submit', async e => {

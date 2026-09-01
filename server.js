@@ -8,7 +8,15 @@ const multer     = require('multer');
 const nodemailer = require('nodemailer');
 const path       = require('path');
 const fs         = require('fs');
-const { pool, ensureHomeImagesTable, ensureClientsTable } = require('./db');
+const crypto     = require('crypto');
+const {
+  pool,
+  ensureHomeImagesTable,
+  ensureClientsTable,
+  ensurePasswordResetsTable,
+  ensureAdminSettingsTable,
+  ensureAdminPasswordResetsTable,
+} = require('./db');
 
 const app      = express();
 const PORT     = process.env.PORT || 3000;
@@ -25,6 +33,18 @@ ensureHomeImagesTable()
 ensureClientsTable()
   .then(() => console.log('[DB] clients Tabelle bereit.'))
   .catch(err => console.warn('[DB] Verbindung fehlgeschlagen — Kunden-Login/Verwaltung vorübergehend deaktiviert:', err.message));
+
+ensurePasswordResetsTable()
+  .then(() => console.log('[DB] password_resets Tabelle bereit.'))
+  .catch(err => console.warn('[DB] Verbindung fehlgeschlagen — Passwort-vergessen vorübergehend deaktiviert:', err.message));
+
+ensureAdminSettingsTable()
+  .then(() => console.log('[DB] admin_settings Tabelle bereit.'))
+  .catch(err => console.warn('[DB] Verbindung fehlgeschlagen — Admin-Passwort-Änderung vorübergehend deaktiviert (Login läuft über ADMIN_PASSWORD weiter):', err.message));
+
+ensureAdminPasswordResetsTable()
+  .then(() => console.log('[DB] admin_password_resets Tabelle bereit.'))
+  .catch(err => console.warn('[DB] Verbindung fehlgeschlagen — Admin-Passwort-vergessen vorübergehend deaktiviert:', err.message));
 
 // Log every incoming request so container logs show the raw URL
 app.use((req, res, next) => {
@@ -228,6 +248,79 @@ app.post('/api/login', async (req, res) => {
   res.json({ token, name: client.name, shootingDate: client.shootingDate, shootingType: client.shootingType });
 });
 
+// POST /api/forgot-password — Body: { email }
+// Antwortet immer mit { ok: true }, egal ob die E-Mail existiert (kein Leak, welche
+// Adressen registriert sind). Existiert sie, wird ein Reset-Link per Mail verschickt.
+app.post('/api/forgot-password', async (req, res) => {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
+  if (isRateLimited(ip)) {
+    return res.status(429).json({ error: 'Zu viele Anfragen. Bitte warte einen Moment.' });
+  }
+
+  const { email } = req.body;
+  if (!email?.trim()) return res.status(400).json({ error: 'Bitte eine E-Mail-Adresse eingeben.' });
+
+  try {
+    await ensurePasswordResetsTable();
+    const client = await findClientByEmail(email);
+
+    if (client && process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+      const token     = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1h
+
+      await pool.query(
+        'INSERT INTO password_resets (client_id, token_hash, expires_at) VALUES (?, ?, ?)',
+        [client.id, tokenHash, expiresAt]
+      );
+
+      const resetUrl = `${req.protocol}://${req.get('host')}${BASE_PATH}/gallery.html?reset=${token}`;
+      await transporter.sendMail({
+        from:    process.env.MAIL_FROM || process.env.SMTP_USER,
+        to:      client.email,
+        subject: 'Passwort zurücksetzen — mz media',
+        html: `
+          <p style="font-family:sans-serif;">Hallo ${escapeHtml(client.name)},</p>
+          <p style="font-family:sans-serif;">du kannst dein Passwort über den folgenden Link zurücksetzen (gültig für 1 Stunde):</p>
+          <p style="font-family:sans-serif;"><a href="${resetUrl}">${resetUrl}</a></p>
+          <p style="font-family:sans-serif;">Wenn du das nicht angefordert hast, kannst du diese Mail ignorieren.</p>
+        `,
+        text: `Hallo ${client.name},\n\nPasswort zurücksetzen (gültig 1 Stunde): ${resetUrl}\n\nWenn du das nicht angefordert hast, ignoriere diese Mail.`,
+      });
+    }
+  } catch (err) {
+    console.error('[FORGOT-PASSWORD] Fehler:', err.message);
+    // Bewusst trotzdem { ok: true } — kein Hinweis nach außen, ob ein Fehler DB- oder Mail-seitig war.
+  }
+
+  res.json({ ok: true });
+});
+
+// POST /api/reset-password — Body: { token, password }
+app.post('/api/reset-password', async (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) return res.status(400).json({ error: 'Token und neues Passwort erforderlich.' });
+  if (password.length < 8) return res.status(400).json({ error: 'Passwort muss mindestens 8 Zeichen haben.' });
+
+  try {
+    await ensurePasswordResetsTable();
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const [[reset]] = await pool.query(
+      'SELECT id, client_id FROM password_resets WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW()',
+      [tokenHash]
+    );
+    if (!reset) return res.status(400).json({ error: 'Link ist ungültig oder abgelaufen. Bitte fordere einen neuen an.' });
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    await pool.query('UPDATE clients SET password_hash = ? WHERE id = ?', [passwordHash, reset.client_id]);
+    await pool.query('UPDATE password_resets SET used_at = NOW() WHERE id = ?', [reset.id]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
+  }
+});
+
 // GET /api/my-photos  — returns list of photo filenames for logged-in client
 app.get('/api/my-photos', authMiddleware, async (req, res) => {
   let client;
@@ -269,10 +362,31 @@ app.get('/api/download/:clientId/:filename', authMiddleware, (req, res) => {
 
 // ─── Admin routes (einfacher Auth über separates Admin-Passwort) ──────────
 
+// Admin-Passwort liegt normalerweise in admin_settings (DB), damit es über das Panel
+// änderbar ist. Solange dort keine Zeile existiert (frisches Deployment / DB down),
+// fällt der Vergleich auf process.env.ADMIN_PASSWORD zurück — Admin-Login bleibt so
+// auch ohne DB-Verbindung nutzbar.
+async function getAdminPasswordHash() {
+  await ensureAdminSettingsTable();
+  const [[row]] = await pool.query('SELECT password_hash FROM admin_settings WHERE id = 1');
+  return row ? row.password_hash : null;
+}
+
+async function verifyAdminPassword(password) {
+  try {
+    const hash = await getAdminPasswordHash();
+    if (hash) return bcrypt.compare(password, hash);
+  } catch (err) {
+    console.warn('[ADMIN] admin_settings nicht erreichbar, Fallback auf ADMIN_PASSWORD:', err.message);
+  }
+  return password === (process.env.ADMIN_PASSWORD || 'admin1234');
+}
+
 // POST /api/admin/login
-app.post('/api/admin/login', (req, res) => {
-  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin1234';
-  if (req.body.password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Falsches Passwort.' });
+app.post('/api/admin/login', async (req, res) => {
+  if (!(await verifyAdminPassword(req.body.password || ''))) {
+    return res.status(401).json({ error: 'Falsches Passwort.' });
+  }
   const token = jwt.sign({ role: 'admin' }, SECRET, { expiresIn: '1d' });
   res.json({ token });
 });
@@ -288,6 +402,105 @@ function adminMiddleware(req, res, next) {
     res.status(401).json({ error: 'Kein Zugriff.' });
   }
 }
+
+// POST /api/admin/change-password — Body: { currentPassword, newPassword }
+app.post('/api/admin/change-password', adminMiddleware, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Aktuelles und neues Passwort erforderlich.' });
+  }
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: 'Neues Passwort muss mindestens 8 Zeichen haben.' });
+  }
+  if (!(await verifyAdminPassword(currentPassword))) {
+    return res.status(401).json({ error: 'Aktuelles Passwort ist falsch.' });
+  }
+
+  try {
+    await ensureAdminSettingsTable();
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await pool.query(
+      'INSERT INTO admin_settings (id, password_hash) VALUES (1, ?) ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash)',
+      [passwordHash]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar — Passwort konnte nicht gespeichert werden.' });
+  }
+});
+
+// POST /api/admin/forgot-password — schickt einen Reset-Link an die konfigurierte Admin-Mail.
+// Anders als beim Kunden-Login gibt es hier keine E-Mail-Eingabe (nur ein Admin-Zugang),
+// daher darf die Antwort auch konkrete Fehler zeigen statt sich generisch zu geben.
+app.post('/api/admin/forgot-password', async (req, res) => {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
+  if (isRateLimited(ip)) {
+    return res.status(429).json({ error: 'Zu viele Anfragen. Bitte warte einen Moment.' });
+  }
+
+  const adminEmail = process.env.ADMIN_EMAIL || process.env.CONTACT_EMAIL || process.env.SMTP_USER;
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS || !adminEmail) {
+    return res.status(503).json({ error: 'E-Mail-Versand ist nicht konfiguriert (SMTP/ADMIN_EMAIL in .env).' });
+  }
+
+  try {
+    await ensureAdminPasswordResetsTable();
+    const token     = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1h
+
+    await pool.query(
+      'INSERT INTO admin_password_resets (token_hash, expires_at) VALUES (?, ?)',
+      [tokenHash, expiresAt]
+    );
+
+    const resetUrl = `${req.protocol}://${req.get('host')}${BASE_PATH}/admin.html?reset=${token}`;
+    await transporter.sendMail({
+      from:    process.env.MAIL_FROM || process.env.SMTP_USER,
+      to:      adminEmail,
+      subject: 'Admin-Passwort zurücksetzen — mz media',
+      html: `
+        <p style="font-family:sans-serif;">Für das Admin-Panel wurde ein Passwort-Reset angefordert.</p>
+        <p style="font-family:sans-serif;">Link (gültig für 1 Stunde): <a href="${resetUrl}">${resetUrl}</a></p>
+        <p style="font-family:sans-serif;">Wenn du das nicht warst, kannst du diese Mail ignorieren.</p>
+      `,
+      text: `Admin-Passwort zurücksetzen (gültig 1 Stunde): ${resetUrl}\n\nWenn du das nicht warst, ignoriere diese Mail.`,
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[ADMIN-FORGOT-PASSWORD] Fehler:', err.message);
+    res.status(503).json({ error: 'Link konnte nicht verschickt werden. Bitte später erneut versuchen.' });
+  }
+});
+
+// POST /api/admin/reset-password — Body: { token, password }
+app.post('/api/admin/reset-password', async (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) return res.status(400).json({ error: 'Token und neues Passwort erforderlich.' });
+  if (password.length < 8) return res.status(400).json({ error: 'Passwort muss mindestens 8 Zeichen haben.' });
+
+  try {
+    await ensureAdminPasswordResetsTable();
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const [[reset]] = await pool.query(
+      'SELECT id FROM admin_password_resets WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW()',
+      [tokenHash]
+    );
+    if (!reset) return res.status(400).json({ error: 'Link ist ungültig oder abgelaufen. Bitte fordere einen neuen an.' });
+
+    await ensureAdminSettingsTable();
+    const passwordHash = await bcrypt.hash(password, 10);
+    await pool.query(
+      'INSERT INTO admin_settings (id, password_hash) VALUES (1, ?) ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash)',
+      [passwordHash]
+    );
+    await pool.query('UPDATE admin_password_resets SET used_at = NOW() WHERE id = ?', [reset.id]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
+  }
+});
 
 // GET /api/admin/clients
 app.get('/api/admin/clients', adminMiddleware, async (req, res) => {

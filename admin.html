@@ -92,6 +92,21 @@
       display: none;
     }
     .login-err.show { display: block; }
+    .login-success {
+      background: rgba(138,154,134,.18); border: 1px solid rgba(138,154,134,.4);
+      color: var(--cream); padding: .7rem .9rem;
+      font-size: .82rem; margin-bottom: 1rem;
+      display: none;
+    }
+    .login-success.show { display: block; }
+    .login-forgot-link {
+      display: block; text-align: center; width: 100%;
+      margin-top: 1rem; background: none; border: none; cursor: pointer;
+      font-size: .76rem; letter-spacing: .06em;
+      color: var(--light); text-decoration: underline;
+      transition: color .25s;
+    }
+    .login-forgot-link:hover { color: var(--terra); }
 
     /* ─── APP SHELL ─── */
     .app { display: none; min-height: 100svh; }
@@ -489,15 +504,50 @@
 <!-- ─── LOGIN ─── -->
 <div class="login-wrap" id="loginWrap">
   <div class="login-box">
-    <div class="login-logo">mz media</div>
-    <div class="login-sub-label">Admin-Bereich</div>
-    <div class="login-err" id="adminLoginErr" role="alert"></div>
-    <form id="adminLoginForm" novalidate>
-      <label for="adminPw">Admin-Passwort</label>
-      <input type="password" id="adminPw" autocomplete="current-password"
-        placeholder="••••••••" required aria-required="true" />
-      <button type="submit" class="btn-admin-login" id="btnAdminLogin">Anmelden</button>
-    </form>
+    <!-- LOGIN PANE -->
+    <div id="adminLoginPane">
+      <div class="login-logo">mz media</div>
+      <div class="login-sub-label">Admin-Bereich</div>
+      <div class="login-err" id="adminLoginErr" role="alert"></div>
+      <form id="adminLoginForm" novalidate>
+        <label for="adminPw">Admin-Passwort</label>
+        <input type="password" id="adminPw" autocomplete="current-password"
+          placeholder="••••••••" required aria-required="true" />
+        <button type="submit" class="btn-admin-login" id="btnAdminLogin">Anmelden</button>
+      </form>
+      <button type="button" class="login-forgot-link" id="btnShowAdminForgot">Passwort vergessen?</button>
+    </div>
+
+    <!-- FORGOT PASSWORD PANE -->
+    <div id="adminForgotPane" style="display:none">
+      <div class="login-logo">mz media</div>
+      <div class="login-sub-label">Passwort vergessen</div>
+      <div class="login-err" id="adminForgotErr" role="alert"></div>
+      <div class="login-success" id="adminForgotSuccess" role="status" aria-live="polite">
+        Falls E-Mail-Versand konfiguriert ist, wurde dir gerade ein Reset-Link geschickt.
+      </div>
+      <p style="font-size:.82rem;color:var(--light);margin-bottom:1.4rem;line-height:1.6;">
+        Wir schicken einen Link zum Zurücksetzen an die hinterlegte Admin-Mail-Adresse.
+      </p>
+      <button type="button" class="btn-admin-login" id="btnAdminForgotSubmit">Link anfordern</button>
+      <button type="button" class="login-forgot-link" id="btnBackToAdminLogin">← Zurück zum Login</button>
+    </div>
+
+    <!-- RESET PASSWORD PANE -->
+    <div id="adminResetPane" style="display:none">
+      <div class="login-logo">mz media</div>
+      <div class="login-sub-label">Neues Passwort</div>
+      <div class="login-err" id="adminResetErr" role="alert"></div>
+      <div class="login-success" id="adminResetSuccess" role="status" aria-live="polite">
+        Passwort geändert. Du kannst dich jetzt anmelden.
+      </div>
+      <form id="adminResetForm" novalidate>
+        <label for="adminNewPw">Neues Passwort</label>
+        <input type="password" id="adminNewPw" autocomplete="new-password"
+          placeholder="Mind. 8 Zeichen" required minlength="8" aria-required="true" />
+        <button type="submit" class="btn-admin-login" id="btnAdminResetSubmit">Passwort setzen</button>
+      </form>
+    </div>
   </div>
 </div>
 
@@ -525,6 +575,7 @@
       </button>
     </nav>
     <div class="sidebar-bottom">
+      <button class="btn-sidebar-logout" id="btnOpenChangePassword" type="button" style="margin-bottom:.6rem;">Passwort ändern</button>
       <button class="btn-sidebar-logout" id="btnAdminLogout" type="button">Abmelden</button>
     </div>
   </aside>
@@ -718,6 +769,33 @@
   </div>
 </div>
 
+<!-- ─── CHANGE PASSWORD MODAL ─── -->
+<div class="modal-backdrop" id="changePasswordModal" role="dialog" aria-modal="true" aria-labelledby="changePwTitle">
+  <div class="modal">
+    <h2 class="modal-title" id="changePwTitle">Admin-Passwort <em>ändern</em></h2>
+    <div class="modal-err" id="changePwErr" role="alert"></div>
+    <form id="changePasswordForm" novalidate>
+      <div class="field" id="fldCurrentPw">
+        <label for="cpCurrent">Aktuelles Passwort *</label>
+        <input type="password" id="cpCurrent" required autocomplete="current-password" />
+      </div>
+      <div class="field" id="fldNewPw">
+        <label for="cpNew">Neues Passwort *</label>
+        <input type="password" id="cpNew" required minlength="8" autocomplete="new-password" />
+        <span class="field-hint">Mindestens 8 Zeichen.</span>
+      </div>
+      <div class="field" id="fldNewPwRepeat">
+        <label for="cpNewRepeat">Neues Passwort wiederholen *</label>
+        <input type="password" id="cpNewRepeat" required minlength="8" autocomplete="new-password" />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline" onclick="closeChangePasswordModal()">Abbrechen</button>
+        <button type="submit" class="btn btn-primary" id="btnChangePassword">Speichern</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- ─── SUCCESS MODAL (credentials) ─── -->
 <div class="modal-backdrop" id="credentialsModal" role="dialog" aria-modal="true" aria-labelledby="credTitle">
   <div class="modal">
@@ -793,9 +871,95 @@
   let lastCreatedClient = null;   // for email sending after creation
 
   // ─── Init ───────────────────────────────────────────────
-  if (adminToken) {
+  const adminResetToken = new URLSearchParams(location.search).get('reset');
+  if (adminResetToken) {
+    document.getElementById('adminLoginPane').style.display = 'none';
+    document.getElementById('adminResetPane').style.display = '';
+  } else if (adminToken) {
     showApp();
   }
+
+  // ─── Login ↔ Passwort vergessen ──────────────────────────
+  document.getElementById('btnShowAdminForgot').addEventListener('click', () => {
+    document.getElementById('adminLoginErr').classList.remove('show');
+    document.getElementById('adminLoginPane').style.display = 'none';
+    document.getElementById('adminForgotPane').style.display = '';
+  });
+  document.getElementById('btnBackToAdminLogin').addEventListener('click', () => {
+    document.getElementById('adminForgotErr').classList.remove('show');
+    document.getElementById('adminForgotSuccess').classList.remove('show');
+    document.getElementById('adminForgotPane').style.display = 'none';
+    document.getElementById('adminLoginPane').style.display = '';
+  });
+
+  // ─── Admin: Passwort vergessen ───────────────────────────
+  document.getElementById('btnAdminForgotSubmit').addEventListener('click', async () => {
+    const errEl  = document.getElementById('adminForgotErr');
+    const okEl   = document.getElementById('adminForgotSuccess');
+    const btn    = document.getElementById('btnAdminForgotSubmit');
+    errEl.classList.remove('show');
+    okEl.classList.remove('show');
+    btn.disabled = true; btn.textContent = 'Wird gesendet …';
+
+    try {
+      const res  = await fetch('/api/admin/forgot-password', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        errEl.textContent = data.error || 'Anfrage fehlgeschlagen.';
+        errEl.classList.add('show');
+        return;
+      }
+      okEl.classList.add('show');
+    } catch {
+      errEl.textContent = 'Server nicht erreichbar.';
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Link anfordern';
+    }
+  });
+
+  // ─── Admin: Passwort zurücksetzen (via ?reset=TOKEN) ─────
+  document.getElementById('adminResetForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const errEl = document.getElementById('adminResetErr');
+    const okEl  = document.getElementById('adminResetSuccess');
+    const btn   = document.getElementById('btnAdminResetSubmit');
+    const password = document.getElementById('adminNewPw').value;
+    errEl.classList.remove('show');
+
+    if (password.length < 8) {
+      errEl.textContent = 'Passwort muss mindestens 8 Zeichen haben.';
+      errEl.classList.add('show');
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Wird gespeichert …';
+    try {
+      const res  = await fetch('/api/admin/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: adminResetToken, password })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errEl.textContent = data.error || 'Passwort konnte nicht gesetzt werden.';
+        errEl.classList.add('show');
+        return;
+      }
+      okEl.classList.add('show');
+      document.getElementById('adminResetForm').reset();
+      history.replaceState(null, '', location.pathname);
+      setTimeout(() => {
+        document.getElementById('adminResetPane').style.display = 'none';
+        document.getElementById('adminLoginPane').style.display = '';
+      }, 2500);
+    } catch {
+      errEl.textContent = 'Server nicht erreichbar.';
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Passwort setzen';
+    }
+  });
 
   // ─── Admin login ────────────────────────────────────────
   document.getElementById('adminLoginForm').addEventListener('submit', async e => {
@@ -1252,6 +1416,65 @@
   }
   document.getElementById('newClientModal').addEventListener('click', e => {
     if (e.target === document.getElementById('newClientModal')) closeNewClientModal();
+  });
+
+  // ─── Change password modal ───────────────────────────────
+  function openChangePasswordModal() {
+    document.getElementById('changePasswordModal').classList.add('show');
+    document.getElementById('cpCurrent').focus();
+  }
+  function closeChangePasswordModal() {
+    document.getElementById('changePasswordModal').classList.remove('show');
+    document.getElementById('changePasswordForm').reset();
+    document.getElementById('changePwErr').classList.remove('show');
+    ['fldCurrentPw','fldNewPw','fldNewPwRepeat'].forEach(id => document.getElementById(id).classList.remove('error'));
+  }
+  document.getElementById('btnOpenChangePassword').addEventListener('click', openChangePasswordModal);
+  document.getElementById('changePasswordModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('changePasswordModal')) closeChangePasswordModal();
+  });
+
+  document.getElementById('changePasswordForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const current    = document.getElementById('cpCurrent').value;
+    const next       = document.getElementById('cpNew').value;
+    const nextRepeat = document.getElementById('cpNewRepeat').value;
+    const errEl = document.getElementById('changePwErr');
+    const btn   = document.getElementById('btnChangePassword');
+    errEl.classList.remove('show');
+
+    if (next.length < 8) {
+      errEl.textContent = 'Neues Passwort muss mindestens 8 Zeichen haben.';
+      errEl.classList.add('show');
+      return;
+    }
+    if (next !== nextRepeat) {
+      errEl.textContent = 'Die beiden neuen Passwörter stimmen nicht überein.';
+      errEl.classList.add('show');
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Wird gespeichert …';
+    try {
+      const res  = await adminFetch('/api/admin/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: current, newPassword: next })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errEl.textContent = data.error || 'Passwort konnte nicht geändert werden.';
+        errEl.classList.add('show');
+        return;
+      }
+      showToast('Admin-Passwort geändert');
+      closeChangePasswordModal();
+    } catch {
+      errEl.textContent = 'Server nicht erreichbar.';
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Speichern';
+    }
   });
 
   document.getElementById('newClientForm').addEventListener('submit', async e => {
