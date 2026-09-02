@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Galerie | Miguel Zimmermann · mz media</title>
+  <meta name="description" content="Portfolio-Galerie von Miguel Zimmermann – Portraits, Events, kreative Shootings und mehr. Alle Projekte nach Kategorie filterbar." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://www.mzmedia.de/galerie.html" />
+  <base href="/">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.mzmedia.de/galerie.html" />
+  <meta property="og:title" content="Galerie | Miguel Zimmermann · mz media" />
+  <meta property="og:description" content="Portfolio-Galerie – Portraits, Events, kreative Shootings und mehr." />
+  <meta property="og:locale" content="de_DE" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ─── Design Tokens (identisch zu index.html) ─── */
+    :root {
+      --cream:      #F6F1E4;
+      --sand:       #DCD2B8;
+      --terra:      #B8AEA6;
+      --clay:       #938B85;
+      --sage:       #46603F;
+      --dark:       #23271F;
+      --mid:        #6E7A63;
+      --light-mid:  #A3AE97;
+      --white:      #FDFAF4;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--cream);
+      color: var(--dark);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      font-size: 16px;
+      line-height: 1.6;
+      overflow-x: hidden;
+      cursor: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    /* ─── Custom Cursor ─── */
+    .cursor {
+      position: fixed; width: 10px; height: 10px;
+      background: var(--terra); border-radius: 50%;
+      pointer-events: none; z-index: 9999;
+      transform: translate(-50%, -50%);
+      transition: width .25s, height .25s;
+      will-change: transform;
+    }
+    .cursor-ring {
+      position: fixed; width: 34px; height: 34px;
+      border: 1.5px solid var(--terra); border-radius: 50%;
+      pointer-events: none; z-index: 9998;
+      transform: translate(-50%, -50%);
+      opacity: .45;
+      transition: width .25s, height .25s, opacity .25s;
+      will-change: transform;
+    }
+    @media (hover: none) { .cursor, .cursor-ring { display: none; } }
+
+    /* ─── Grain overlay ─── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 1000; opacity: .3;
+    }
+
+    /* ─── Light leak ─── */
+    body::after {
+      content: '';
+      position: fixed; top: -20%; right: -10%;
+      width: 55vw; height: 55vw;
+      background: radial-gradient(ellipse, rgba(212,165,116,.12) 0%, transparent 65%);
+      pointer-events: none; z-index: 999;
+    }
+
+    :focus { outline: none; }
+    :focus-visible { outline: 2px solid var(--terra); outline-offset: 4px; }
+
+    /* ─── NAV ─── */
+    .nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1.6rem 4rem;
+      mix-blend-mode: multiply;
+    }
+    .nav-logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.25rem; font-weight: 600;
+      letter-spacing: .14em; text-transform: uppercase;
+      color: var(--dark); text-decoration: none;
+      min-height: 44px; display: flex; align-items: center;
+    }
+    .nav-links { display: flex; gap: 2rem; list-style: none; }
+    .nav-links a {
+      font-size: .78rem; letter-spacing: .16em; text-transform: uppercase;
+      color: var(--mid); text-decoration: none;
+      min-height: 44px; display: inline-flex; align-items: center;
+      padding: 0 .25rem;
+      transition: color .3s;
+    }
+    .nav-links a:hover { color: var(--terra); }
+
+    /* ─── Buttons / labels ─── */
+    .btn-ghost {
+      display: inline-flex; align-items: center;
+      min-height: 44px;
+      font-size: .78rem; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--mid); text-decoration: none;
+      border-bottom: 1px solid var(--sand);
+      padding-bottom: 2px;
+      transition: color .3s, border-color .3s;
+    }
+    .btn-ghost:hover { color: var(--terra); border-color: var(--terra); }
+
+    .section-label {
+      font-size: .7rem; letter-spacing: .24em;
+      text-transform: uppercase; color: var(--terra);
+      display: flex; align-items: center; gap: .9rem;
+      margin-bottom: 1.8rem;
+    }
+    .section-label::before {
+      content: ''; flex-shrink: 0;
+      width: 28px; height: 1px; background: var(--terra);
+    }
+
+    /* ─── GALERIE ─── */
+    .galerie-hero { padding: 9rem 4rem 3rem; }
+    .galerie-hero h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2.8rem, 5vw, 4.4rem);
+      font-weight: 300; line-height: 1.1;
+    }
+    .galerie-hero h1 em { font-style: italic; color: var(--terra); }
+    .galerie-hero p { margin-top: 1rem; color: var(--mid); max-width: 520px; }
+
+    .galerie-filters {
+      display: flex; gap: .5rem; flex-wrap: wrap;
+      padding: 0 4rem 2.5rem;
+    }
+    .filter-btn {
+      min-height: 44px; padding: 0 1.4rem;
+      border: 1px solid var(--sand);
+      background: transparent; cursor: none;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .72rem; letter-spacing: .14em;
+      text-transform: uppercase; color: var(--mid);
+      transition: background .25s, border-color .25s, color .25s;
+    }
+    .filter-btn:hover,
+    .filter-btn[aria-pressed="true"] {
+      background: var(--terra); border-color: var(--terra); color: #fff;
+    }
+
+    .galerie-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: .9rem;
+      padding: 0 4rem 6rem;
+      min-height: 20vh;
+    }
+    .galerie-item {
+      position: relative; overflow: hidden;
+      background: var(--sand); aspect-ratio: 4/5;
+      cursor: none; border: none; padding: 0;
+    }
+    .galerie-item img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+      transition: transform .6s ease;
+    }
+    .galerie-item:hover img { transform: scale(1.05); }
+    .galerie-item::after {
+      content: attr(data-label);
+      position: absolute; bottom: .8rem; left: .8rem;
+      font-size: .66rem; letter-spacing: .14em; text-transform: uppercase;
+      color: rgba(255,255,255,.85);
+      opacity: 0; transition: opacity .3s;
+      text-shadow: 0 1px 4px rgba(0,0,0,.4);
+    }
+    .galerie-item:hover::after { opacity: 1; }
+    .galerie-empty { grid-column: 1/-1; padding: 4rem; text-align: center; color: var(--mid); }
+
+    /* ─── Lightbox ─── */
+    .lightbox {
+      position: fixed; inset: 0; z-index: 2000;
+      background: rgba(35,39,31,.94);
+      display: none; align-items: center; justify-content: center;
+      padding: 2rem;
+    }
+    .lightbox.open { display: flex; }
+    .lightbox-img { max-width: 90vw; max-height: 80vh; object-fit: contain; }
+    .lightbox-caption {
+      position: absolute; bottom: 1.5rem; left: 0; right: 0;
+      text-align: center; color: var(--white);
+      font-size: .78rem; letter-spacing: .1em; text-transform: uppercase;
+    }
+    .lightbox-close, .lightbox-prev, .lightbox-next {
+      position: absolute; background: transparent; border: none;
+      color: var(--white); cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .lightbox-close { top: 1.5rem; right: 2rem; font-size: 1.6rem; min-height: 44px; min-width: 44px; }
+    .lightbox-prev { left: 1rem; top: 50%; transform: translateY(-50%); font-size: 2.2rem; min-height: 44px; min-width: 44px; }
+    .lightbox-next { right: 1rem; top: 50%; transform: translateY(-50%); font-size: 2.2rem; min-height: 44px; min-width: 44px; }
+    .lightbox-prev:hover, .lightbox-next:hover, .lightbox-close:hover { color: var(--terra); }
+
+    /* ─── FOOTER ─── */
+    footer {
+      padding: 2.8rem 4rem;
+      border-top: 1px solid var(--sand);
+      display: flex;
+      justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 1.2rem;
+    }
+    .footer-logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.1rem; font-weight: 600;
+      letter-spacing: .14em; text-transform: uppercase;
+      color: var(--dark);
+    }
+    .footer-copy { font-size: .74rem; color: var(--mid); letter-spacing: .04em; }
+    .footer-social { display: flex; gap: 1.6rem; }
+    .footer-social a {
+      font-size: .72rem; letter-spacing: .14em;
+      text-transform: uppercase; color: var(--mid);
+      text-decoration: none;
+      min-height: 44px; display: inline-flex; align-items: center;
+      transition: color .3s;
+    }
+    .footer-social a:hover { color: var(--terra); }
+
+    /* ─── Animations ─── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(22px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .reveal {
+      opacity: 0; transform: translateY(28px);
+      transition: opacity .9s ease, transform .9s ease;
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 960px) {
+      .nav { padding: 1.4rem 1.6rem; }
+      .nav-links { display: none; }
+      .galerie-hero { padding: 7rem 1.6rem 2rem; }
+      .galerie-filters, .galerie-grid { padding-left: 1.6rem; padding-right: 1.6rem; }
+      .galerie-grid { grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); }
+      footer {
+        flex-direction: column; align-items: center;
+        text-align: center; padding: 2rem 1.6rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Custom cursor (desktop only) -->
+  <div class="cursor" id="cursor" aria-hidden="true"></div>
+  <div class="cursor-ring" id="cursorRing" aria-hidden="true"></div>
+
+  <!-- ─── NAV ─── -->
+  <header>
+    <nav class="nav" role="navigation" aria-label="Hauptnavigation">
+      <a href="/" class="nav-logo" aria-label="mz media — zur Startseite">mz media</a>
+      <ul class="nav-links" role="list">
+        <li><a href="/#about">Über mich</a></li>
+        <li><a href="/#services">Leistungen</a></li>
+        <li><a href="galerie.html" aria-current="page" style="color:var(--terra);border-bottom:1px solid var(--terra);padding-bottom:1px;">Galerie</a></li>
+        <li><a href="/#kontakt">Kontakt</a></li>
+        <li><a href="gallery.html" style="color:var(--terra);border-bottom:1px solid var(--terra);padding-bottom:1px;">Meine Bilder</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <section class="galerie-hero reveal">
+      <div class="section-label" aria-hidden="true">Portfolio</div>
+      <h1>Alle <em>Projekte.</em></h1>
+      <p>Eine Übersicht aller bisherigen Arbeiten — nach Kategorie filterbar.</p>
+    </section>
+
+    <div class="galerie-filters reveal" id="galerieFilters" role="group" aria-label="Galerie-Filter"></div>
+
+    <div class="galerie-grid" id="galerieGrid" role="list" aria-label="Fotogalerie"></div>
+  </main>
+
+  <!-- ─── FOOTER ─── -->
+  <footer>
+    <span class="footer-logo">mz media</span>
+    <span class="footer-copy">© 2025 Miguel Zimmermann · Alle Rechte vorbehalten</span>
+    <nav class="footer-social" aria-label="Social Media Links">
+      <a href="#" aria-label="Instagram">Instagram</a>
+      <a href="#" aria-label="TikTok">TikTok</a>
+      <a href="#" aria-label="LinkedIn">LinkedIn</a>
+    </nav>
+    <nav class="footer-legal" aria-label="Rechtliches" style="margin-top:0.8rem; font-size:0.8rem;">
+      <a href="impressum.html" style="color:var(--mid);">Impressum</a>
+      <span style="color:var(--sand); margin:0 0.5em;">·</span>
+      <a href="datenschutz.html" style="color:var(--mid);">Datenschutz</a>
+      <span style="color:var(--sand); margin:0 0.5em;">·</span>
+      <a href="agb.html" style="color:var(--mid);">AGB</a>
+    </nav>
+  </footer>
+
+  <!-- ─── LIGHTBOX ─── -->
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Bildvorschau">
+    <button class="lightbox-close" id="lightboxClose" aria-label="Schließen">×</button>
+    <button class="lightbox-prev" id="lightboxPrev" aria-label="Vorheriges Bild">‹</button>
+    <img class="lightbox-img" id="lightboxImg" src="" alt="" />
+    <button class="lightbox-next" id="lightboxNext" aria-label="Nächstes Bild">›</button>
+    <div class="lightbox-caption" id="lightboxCaption"></div>
+  </div>
+
+  <script>
+    // ─── Custom cursor (desktop only) ───
+    const cursor    = document.getElementById('cursor');
+    const cursorRing = document.getElementById('cursorRing');
+
+    if (window.matchMedia('(hover: hover)').matches) {
+      let mx = 0, my = 0, rx = 0, ry = 0;
+
+      document.addEventListener('mousemove', e => {
+        mx = e.clientX; my = e.clientY;
+        cursor.style.left = mx + 'px';
+        cursor.style.top  = my + 'px';
+      });
+
+      (function loop() {
+        rx += (mx - rx) * .12;
+        ry += (my - ry) * .12;
+        cursorRing.style.left = rx + 'px';
+        cursorRing.style.top  = ry + 'px';
+        requestAnimationFrame(loop);
+      })();
+
+      document.querySelectorAll('a, button').forEach(el => {
+        el.addEventListener('mouseenter', () => {
+          cursor.style.width = cursor.style.height = '16px';
+          cursorRing.style.width = cursorRing.style.height = '52px';
+          cursorRing.style.opacity = '.22';
+        });
+        el.addEventListener('mouseleave', () => {
+          cursor.style.width = cursor.style.height = '10px';
+          cursorRing.style.width = cursorRing.style.height = '34px';
+          cursorRing.style.opacity = '.45';
+        });
+      });
+    }
+
+    // ─── Scroll reveal ───
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach((entry, i) => {
+        if (entry.isIntersecting) {
+          setTimeout(() => entry.target.classList.add('visible'), i * 75);
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: .15 });
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // ─── Galerie ───
+    let allItems = [];
+    let filteredItems = [];
+    let currentIndex = -1;
+
+    const grid = document.getElementById('galerieGrid');
+    const filtersEl = document.getElementById('galerieFilters');
+
+    function esc(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function getParamCategory() {
+      return new URLSearchParams(location.search).get('kategorie') || 'Alle';
+    }
+    function setParamCategory(cat) {
+      const url = new URL(location.href);
+      if (cat === 'Alle') url.searchParams.delete('kategorie');
+      else url.searchParams.set('kategorie', cat);
+      history.replaceState(null, '', url.pathname + url.search);
+    }
+
+    function renderFilters(categories, active) {
+      const all = ['Alle', ...categories];
+      filtersEl.innerHTML = all.map(cat => `
+        <button class="filter-btn" type="button" data-cat="${esc(cat)}" aria-pressed="${cat === active}">${esc(cat)}</button>
+      `).join('');
+      filtersEl.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => applyFilter(btn.dataset.cat));
+      });
+    }
+
+    function applyFilter(cat) {
+      filtersEl.querySelectorAll('.filter-btn').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cat === cat)));
+      setParamCategory(cat);
+      renderGrid(cat);
+    }
+
+    function renderGrid(cat) {
+      filteredItems = cat === 'Alle' ? allItems : allItems.filter(i => (i.category || 'Sonstiges') === cat);
+      if (!filteredItems.length) {
+        grid.innerHTML = `<div class="galerie-empty">Für „${esc(cat)}" sind aktuell keine Bilder vorhanden.</div>`;
+        return;
+      }
+      grid.innerHTML = filteredItems.map((item, i) => {
+        const label = item.category || 'Sonstiges';
+        return `<article class="galerie-item" role="listitem" data-index="${i}" data-label="${esc(label)}" tabindex="0" aria-label="Bild ansehen: ${esc(label)}">
+          <img src="${item.url}" alt="${esc(label)}" loading="lazy">
+        </article>`;
+      }).join('');
+      grid.querySelectorAll('.galerie-item').forEach(el => {
+        el.addEventListener('click', () => openLightbox(Number(el.dataset.index)));
+        el.addEventListener('keydown', e => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLightbox(Number(el.dataset.index)); }
+        });
+      });
+    }
+
+    // ─── Lightbox ───
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightboxImg');
+    const lightboxCaption = document.getElementById('lightboxCaption');
+    let lastFocusedEl = null;
+
+    function openLightbox(index) {
+      currentIndex = index;
+      lastFocusedEl = document.activeElement;
+      updateLightboxImage();
+      lightbox.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      document.getElementById('lightboxClose').focus();
+      document.addEventListener('keydown', onLightboxKeydown);
+    }
+    function closeLightbox() {
+      lightbox.classList.remove('open');
+      document.body.style.overflow = '';
+      document.removeEventListener('keydown', onLightboxKeydown);
+      if (lastFocusedEl) lastFocusedEl.focus();
+    }
+    function updateLightboxImage() {
+      const item = filteredItems[currentIndex];
+      lightboxImg.src = item.url;
+      lightboxImg.alt = item.category || 'Sonstiges';
+      lightboxCaption.textContent = item.category || 'Sonstiges';
+    }
+    function showPrev() { currentIndex = (currentIndex - 1 + filteredItems.length) % filteredItems.length; updateLightboxImage(); }
+    function showNext() { currentIndex = (currentIndex + 1) % filteredItems.length; updateLightboxImage(); }
+
+    function onLightboxKeydown(e) {
+      if (e.key === 'Escape') closeLightbox();
+      else if (e.key === 'ArrowLeft') showPrev();
+      else if (e.key === 'ArrowRight') showNext();
+      else if (e.key === 'Tab') {
+        const focusables = [document.getElementById('lightboxClose'), document.getElementById('lightboxPrev'), document.getElementById('lightboxNext')];
+        const idx = focusables.indexOf(document.activeElement);
+        e.preventDefault();
+        const next = e.shiftKey ? (idx <= 0 ? focusables.length - 1 : idx - 1) : (idx === focusables.length - 1 ? 0 : idx + 1);
+        focusables[next].focus();
+      }
+    }
+    document.getElementById('lightboxClose').addEventListener('click', closeLightbox);
+    document.getElementById('lightboxPrev').addEventListener('click', showPrev);
+    document.getElementById('lightboxNext').addEventListener('click', showNext);
+    lightbox.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
+
+    // ─── Laden ───
+    fetch('/api/home-images')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => {
+        allItems = data.gallery || [];
+        const categories = [...new Set(allItems.map(i => i.category || 'Sonstiges'))].sort((a,b) => a.localeCompare(b, 'de'));
+        const requested = getParamCategory();
+        const active = requested === 'Alle' || categories.includes(requested) ? requested : 'Alle';
+        renderFilters(categories, active);
+        renderGrid(active);
+      })
+      .catch(() => {
+        grid.innerHTML = '<div class="galerie-empty">Die Galerie ist aktuell nicht verfügbar. Bitte versuche es später erneut.</div>';
+      });
+  </script>
+</body>
+</html>

@@ -7,7 +7,8 @@ Fotografen-Website für **Miguel Zimmermann** (mz media), Espelkamp. Öffentlich
 
 ## Datei-Struktur
 ```
-index.html      – Öffentliche Hauptseite (Hero, Portfolio, Services, Kontakt)
+index.html      – Öffentliche Hauptseite (Hero, Portfolio-Ausschnitt, Services, Kontakt)
+galerie.html    – Öffentliche Portfolio-Galerie (alle Bilder, Kategorie-Filter per Datalist, Lightbox)
 gallery.html    – Kunden-Galerie (Login erforderlich, JWT-Auth)
 admin.html      – Admin-Panel (separates Passwort, noindex)
 server.js       – Express-Server (alle API-Routen)
@@ -93,13 +94,15 @@ GET  /api/admin/home-images              – Homepage-Bilder-Metadaten (admin)
 POST /api/admin/home-images/:slot        – Einzel-Slot hochladen (hero|about-main|about-accent, ersetzt vorhandenes)
 POST /api/admin/home-images/gallery      – Galerie-Bilder hochladen (beliebig viele, mit Kategorie)
 PATCH /api/admin/home-images/:id         – Kategorie eines Galerie-Bilds ändern
+PUT  /api/admin/home-images/:id          – Bilddaten eines vorhandenen Bilds ersetzen (Crop/Rotate-Editor)
 POST /api/admin/home-images/:id/move     – Galerie-Bild rauf/runter sortieren
 DELETE /api/admin/home-images/:id        – Bild löschen (Einzel-Slot oder Galerie)
 ```
 
 ### Homepage-Bilder (DB-Speicherung)
 - Hero-, About- und Portfolio-Galerie-Bilder werden als `MEDIUMBLOB` in der Tabelle `home_images` (MySQL) gespeichert, nicht als Dateien — analog zur JoTech-Website, damit Bilder auch bei Neuaufbau des Containers/Dateisystems erhalten bleiben.
-- `hero`, `about-main`, `about-accent` sind feste Einzel-Slots (max. 1 Zeile je Slot, Ersetzen = Löschen + neu Einfügen). `gallery` ist eine beliebig große, sortierbare Liste mit Kategorie (Portrait/Events/Kreativ/Natur).
+- `hero`, `about-main`, `about-accent` sind feste Einzel-Slots (max. 1 Zeile je Slot, Ersetzen = Löschen + neu Einfügen). `gallery` ist eine beliebig große, sortierbare Liste mit frei vergebbarer Kategorie (Freitext, `VARCHAR(40)`, im Admin-Panel per `<datalist>` als Autocomplete-Vorschläge aus bestehenden Kategorien angeboten — keine feste Werteliste mehr).
+- `galerie.html` zeigt öffentlich alle `gallery`-Bilder aus `GET /api/home-images`, mit clientseitigem Kategorie-Filter (inkl. `?kategorie=`-Deep-Link) und Lightbox. Nutzt dieselben Daten wie der Portfolio-Ausschnitt auf `index.html` — keine eigene Tabelle/Route.
 - `uploads/` (Kundenfotos) sind von dieser Änderung nicht betroffen — die bleiben Dateien.
 
 ### Kundendaten (DB-Speicherung, seit dieser Umstellung)

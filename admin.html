@@ -677,12 +677,9 @@
       <div class="upload-section">
         <label class="field" style="max-width:260px;margin-bottom:1rem;">
           <span style="font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--mid);display:block;margin-bottom:.4rem;">Kategorie für neue Uploads</span>
-          <select id="galleryCategorySelect" style="width:100%;min-height:40px;background:var(--white);border:1px solid var(--sand);padding:.4rem .6rem;font-family:'DM Sans',sans-serif;font-size:.85rem;color:var(--dark);">
-            <option>Portrait</option>
-            <option>Events</option>
-            <option>Kreativ</option>
-            <option>Natur</option>
-          </select>
+          <input id="galleryCategoryInput" list="galleryCategoryList" maxlength="40" placeholder="z. B. Portrait"
+            style="width:100%;min-height:40px;background:var(--white);border:1px solid var(--sand);padding:.4rem .6rem;font-family:'DM Sans',sans-serif;font-size:.85rem;color:var(--dark);" />
+          <datalist id="galleryCategoryList"></datalist>
         </label>
         <div class="drop-zone" id="galleryDropZone">
           <input type="file" id="galleryFileInput" multiple accept="image/jpeg,image/png,image/webp,image/gif" aria-label="Galerie-Bilder auswählen" />
@@ -1237,7 +1234,6 @@
     { key: 'about-main',   label: 'About — Hauptbild' },
     { key: 'about-accent', label: 'About — Akzentbild' },
   ];
-  const GALLERY_CATEGORIES = ['Portrait', 'Events', 'Kreativ', 'Natur'];
   const TRASH_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>';
   const EDIT_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 
@@ -1246,12 +1242,21 @@
     if (!res.ok) {
       document.getElementById('singletonSlots').innerHTML = '<div class="no-photos">Datenbank aktuell nicht erreichbar.</div>';
       document.getElementById('galleryPhotoGrid').innerHTML = '';
+      document.getElementById('galleryCategoryList').innerHTML = '';
       return;
     }
     const data = await res.json();
     const images = data.images || [];
     renderSingletonSlots(images);
-    renderGalleryGrid(images.filter(i => i.slot === 'gallery'));
+    const galleryItems = images.filter(i => i.slot === 'gallery');
+    updateCategoryDatalist(galleryItems);
+    renderGalleryGrid(galleryItems);
+  }
+
+  function updateCategoryDatalist(items) {
+    const categories = [...new Set(items.map(i => i.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'de'));
+    document.getElementById('galleryCategoryList').innerHTML =
+      categories.map(c => `<option value="${esc(c)}"></option>`).join('');
   }
 
   function renderSingletonSlots(images) {
@@ -1327,9 +1332,9 @@
           </div>
         </div>
         <div style="display:flex;gap:.3rem;margin-top:.5rem;align-items:center;">
-          <select onchange="updateGalleryCategory(${item.id}, this.value)" style="flex:1;min-height:32px;font-size:.72rem;background:var(--white);border:1px solid var(--sand);padding:.2rem .4rem;">
-            ${GALLERY_CATEGORIES.map(c => `<option ${c === item.category ? 'selected' : ''}>${c}</option>`).join('')}
-          </select>
+          <input list="galleryCategoryList" maxlength="40" value="${esc(item.category || '')}"
+            onchange="updateGalleryCategory(${item.id}, this.value)"
+            style="flex:1;min-height:32px;font-size:.72rem;background:var(--white);border:1px solid var(--sand);padding:.2rem .4rem;" />
           <button class="btn-icon" onclick="moveGalleryImage(${item.id}, 'up')" aria-label="Nach oben" title="Nach oben">▲</button>
           <button class="btn-icon" onclick="moveGalleryImage(${item.id}, 'down')" aria-label="Nach unten" title="Nach unten">▼</button>
         </div>
@@ -1337,12 +1342,15 @@
   }
 
   async function updateGalleryCategory(id, category) {
+    const trimmed = category.trim();
+    if (!trimmed) { showToast('Kategorie darf nicht leer sein.'); await loadHomeImages(); return; }
     await adminFetch('/api/admin/home-images/' + id, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ category })
+      body: JSON.stringify({ category: trimmed })
     });
     showToast('Kategorie aktualisiert');
+    await loadHomeImages();
   }
 
   async function moveGalleryImage(id, direction) {
@@ -1371,7 +1379,7 @@
     const bar      = document.getElementById('galleryUploadProgressBar');
     const progress = document.getElementById('galleryUploadProgress');
     const status   = document.getElementById('galleryUploadStatus');
-    const category = document.getElementById('galleryCategorySelect').value;
+    const category = document.getElementById('galleryCategoryInput').value.trim() || 'Sonstiges';
     const formData = new FormData();
     Array.from(files).forEach(f => formData.append('photos', f));
     formData.append('category', category);
