@@ -92,7 +92,7 @@ function buildEmailHtml(client, password, galleryUrl) {
     .replace(/{{GALLERY_URL}}/g,    galleryUrl)
     .replace(/{{FROM_EMAIL}}/g,     process.env.SMTP_USER || '')
     .replace(/{{#if SHOOTING_INFO}}[\s\S]*?{{\/if}}/g,
-      shootingInfo ? `vom Shooting <strong style="color:#2A1F14;">${shootingInfo}</strong>` : '');
+      shootingInfo ? `vom Shooting <strong style="color:#23271F;">${shootingInfo}</strong>` : '');
 
   return html;
 }
@@ -211,7 +211,7 @@ app.post('/api/contact', async (req, res) => {
       replyTo: email,
       subject: `Neue Kontaktanfrage von ${name} — mz media`,
       html: `
-        <h2 style="font-family:sans-serif;color:#2A1F14;">Neue Anfrage über das Kontaktformular</h2>
+        <h2 style="font-family:sans-serif;color:#23271F;">Neue Anfrage über das Kontaktformular</h2>
         <p style="font-family:sans-serif;"><strong>Name:</strong> ${escapeHtml(name)}</p>
         <p style="font-family:sans-serif;"><strong>E-Mail:</strong> ${escapeHtml(email)}</p>
         <p style="font-family:sans-serif;"><strong>Projektart:</strong> ${escapeHtml(type || '—')}</p>

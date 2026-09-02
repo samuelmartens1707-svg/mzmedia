@@ -35,17 +35,21 @@ templates/
 ## Design-System ("Nature Distilled × boho editorial")
 
 ### Farb-Tokens (überall identisch in allen 3 HTML-Dateien)
+"Waldrand" — Terra bleibt fixer Markenanker, Sage wurde zu einem eigenständigen, satteren Waldgrün
+vertieft statt im selben matten Taupe wie Terra mitzuschwimmen (vorher lagen Terra/Clay/Sage/Light-Mid
+alle zu nah beieinander). `--light-mid` heißt in gallery.html/admin.html `--light`.
 ```css
---cream:      #F5F0E1   /* Hintergrund */
---sand:       #D4C4A8   /* Borders, dezente Elemente */
---terra:      #B8AEA6   /* Primary-Akzent: Buttons, Hover, Labels */
---clay:       #938B85   /* Dunklerer Akzent (Button:hover) */
---sage:       #8A9A86   /* Sekundär-Akzent (Grün-Ton) */
---dark:       #2A1F14   /* Haupttext */
---mid:        #8A7055   /* Sekundärtext, Nav-Links */
---light-mid:  #B5A08A   /* Helle Variante */
+--cream:      #F6F1E4   /* Hintergrund (Warmpapier) */
+--sand:       #DCD2B8   /* Borders, dezente Elemente */
+--terra:      #B8AEA6   /* Primary-Akzent: Buttons, Hover, Labels — unverändert, Marken-Fixpunkt */
+--clay:       #938B85   /* Dunklerer Akzent (Button:hover), an Terra gekoppelt */
+--sage:       #46603F   /* Sekundär-Akzent (Waldgrün, eigenständiger Charakter) */
+--dark:       #23271F   /* Haupttext (Tannenschwarz) */
+--mid:        #6E7A63   /* Sekundärtext, Nav-Links (Moos) */
+--light-mid:  #A3AE97   /* Helle Variante (frisches Moos) */
 --white:      #FDFAF4   /* Fast-Weiß */
 ```
+Admin-Login-Box (`admin.html`, `.login-box`, liegt auf `--dark`): `#323C2B`.
 
 ### Typografie
 - **Display/Headlines:** Cormorant Garamond (serif) – Gewichte 300, 400, 600, inkl. kursiv
