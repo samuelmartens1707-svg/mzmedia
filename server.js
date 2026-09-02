@@ -267,11 +267,10 @@ app.post('/api/forgot-password', async (req, res) => {
     if (client && process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
       const token     = crypto.randomBytes(32).toString('hex');
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1h
 
       await pool.query(
-        'INSERT INTO password_resets (client_id, token_hash, expires_at) VALUES (?, ?, ?)',
-        [client.id, tokenHash, expiresAt]
+        'INSERT INTO password_resets (client_id, token_hash, expires_at) VALUES (?, ?, NOW() + INTERVAL 1 HOUR)',
+        [client.id, tokenHash]
       );
 
       const resetUrl = `${req.protocol}://${req.get('host')}${BASE_PATH}/gallery.html?reset=${token}`;
@@ -447,11 +446,10 @@ app.post('/api/admin/forgot-password', async (req, res) => {
     await ensureAdminPasswordResetsTable();
     const token     = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1h
 
     await pool.query(
-      'INSERT INTO admin_password_resets (token_hash, expires_at) VALUES (?, ?)',
-      [tokenHash, expiresAt]
+      'INSERT INTO admin_password_resets (token_hash, expires_at) VALUES (?, NOW() + INTERVAL 1 HOUR)',
+      [tokenHash]
     );
 
     const resetUrl = `${req.protocol}://${req.get('host')}${BASE_PATH}/admin.html?reset=${token}`;
