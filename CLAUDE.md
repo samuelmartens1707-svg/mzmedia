@@ -7,10 +7,15 @@ Fotografen-Website für **Miguel Zimmermann** (mz media), Espelkamp. Öffentlich
 
 ## Datei-Struktur
 ```
-index.html      – Öffentliche Hauptseite (Hero, Portfolio-Ausschnitt, Services, Kontakt)
-galerie.html    – Öffentliche Portfolio-Galerie (alle Bilder, Kategorie-Filter per Datalist, Lightbox)
-gallery.html    – Kunden-Galerie (Login erforderlich, JWT-Auth)
-admin.html      – Admin-Panel (separates Passwort, noindex)
+public/                 – EINZIGER Ordner, den express.static() öffentlich ausliefert (server.js)
+  index.html            – Öffentliche Hauptseite (Hero, Portfolio-Ausschnitt, Services, Kontakt)
+  galerie.html          – Öffentliche Portfolio-Galerie (alle Bilder, Kategorie-Filter per Datalist, Lightbox)
+  gallery.html          – Kunden-Galerie (Login erforderlich, JWT-Auth)
+  admin.html            – Admin-Panel (separates Passwort, noindex)
+  impressum.html / datenschutz.html / agb.html – Rechtliche Pflichtseiten (noindex, follow)
+  robots.txt / sitemap.xml
+  favicon.svg / site.webmanifest / og-image.jpg
+  fonts/                – Selbst gehostete Cormorant-Garamond-/DM-Sans-Dateien (.woff2)
 server.js       – Express-Server (alle API-Routen)
 db.js           – MySQL-Verbindungspool + Auto-Init für home_images und clients
 Dockerfile      – Node 20 Alpine, Port 3000
@@ -19,10 +24,17 @@ scripts/
 data/
   clients.json  – NUR NOCH Backup/Legacy, wird zur Laufzeit nicht mehr gelesen
 uploads/
-  <clientId>/   – Fotos je Kunde (bis 50 MB, JPEG/PNG/WebP/GIF)
+  <clientId>/   – Fotos je Kunde (bis 50 MB, JPEG/PNG/WebP/GIF) — NICHT öffentlich, nur über
+                  authentifizierte Routen (/api/photo, /api/download, /api/admin/photo) erreichbar
 templates/
   credentials-email.html – E-Mail-Template für Zugangsdaten
 ```
+
+**Wichtig (Sicherheit):** `server.js` liefert ausschließlich `public/` über `express.static()` aus
+(`app.use(express.static(path.join(__dirname, 'public')))`). Alles außerhalb von `public/`
+(`server.js`, `db.js`, `package.json`, `scripts/`, `templates/`, `data/`, `uploads/` …) ist damit
+nicht mehr per URL abrufbar. Neue öffentlich erreichbare Dateien (Bilder, Fonts, Icons) gehören
+immer nach `public/`, alles andere niemals dorthin.
 
 ## Tech-Stack
 - **Backend:** Node.js + Express 5, CommonJS
