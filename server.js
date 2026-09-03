@@ -649,7 +649,7 @@ app.get('/api/home-images', async (req, res) => {
   try {
     await ensureHomeImagesTable();
     const [rows] = await pool.query(
-      'SELECT id, slot, category, sort_order FROM home_images ORDER BY sort_order ASC, id ASC'
+      'SELECT id, slot, category, alt_text, sort_order FROM home_images ORDER BY sort_order ASC, id ASC'
     );
     const bySlot = s => rows.find(r => r.slot === s);
     const hero         = bySlot('hero');
@@ -660,7 +660,7 @@ app.get('/api/home-images', async (req, res) => {
       aboutMain:   aboutMain   ? { id: aboutMain.id,    url: homeImageUrl(aboutMain.id) }   : null,
       aboutAccent: aboutAccent ? { id: aboutAccent.id,  url: homeImageUrl(aboutAccent.id) } : null,
       gallery: rows.filter(r => r.slot === 'gallery')
-                   .map(r => ({ id: r.id, category: r.category, url: homeImageUrl(r.id) })),
+                   .map(r => ({ id: r.id, category: r.category, altText: r.alt_text, url: homeImageUrl(r.id) })),
     });
   } catch (err) {
     res.status(503).json({ error: 'Bilder aktuell nicht verfügbar.' });
@@ -686,7 +686,7 @@ app.get('/api/admin/home-images', adminMiddleware, async (req, res) => {
   try {
     await ensureHomeImagesTable();
     const [rows] = await pool.query(
-      'SELECT id, slot, category, filename, mime_type, sort_order, created_at FROM home_images ORDER BY sort_order ASC, id ASC'
+      'SELECT id, slot, category, alt_text AS altText, filename, mime_type, sort_order, created_at FROM home_images ORDER BY sort_order ASC, id ASC'
     );
     res.json({ images: rows.map(r => ({ ...r, url: homeImageUrl(r.id) })) });
   } catch (err) {
@@ -740,15 +740,25 @@ app.post('/api/admin/home-images/:slot', adminMiddleware, uploadMemory.single('i
   }
 });
 
-// PATCH /api/admin/home-images/:id — admin, Kategorie eines Galerie-Bilds ändern
+// PATCH /api/admin/home-images/:id — admin, Kategorie und/oder Alt-Text eines Galerie-Bilds ändern
 app.patch('/api/admin/home-images/:id', adminMiddleware, async (req, res) => {
-  const { category } = req.body;
-  if (!category?.trim()) return res.status(400).json({ error: 'Kategorie erforderlich.' });
+  const { category, altText } = req.body;
+  if (category === undefined && altText === undefined) {
+    return res.status(400).json({ error: 'Kategorie oder Alt-Text erforderlich.' });
+  }
+  if (category !== undefined && !category.trim()) {
+    return res.status(400).json({ error: 'Kategorie erforderlich.' });
+  }
+  const sets = [];
+  const values = [];
+  if (category !== undefined) { sets.push('category = ?'); values.push(category.trim()); }
+  if (altText !== undefined)  { sets.push('alt_text = ?'); values.push(altText.trim() || null); }
+  values.push(req.params.id);
   try {
     await ensureHomeImagesTable();
     const [result] = await pool.query(
-      "UPDATE home_images SET category = ? WHERE id = ? AND slot = 'gallery'",
-      [category.trim(), req.params.id]
+      `UPDATE home_images SET ${sets.join(', ')} WHERE id = ? AND slot = 'gallery'`,
+      values
     );
     if (!result.affectedRows) return res.status(404).json({ error: 'Galerie-Bild nicht gefunden.' });
     res.json({ ok: true });

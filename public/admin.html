@@ -1351,7 +1351,7 @@
     grid.innerHTML = items.map(item => `
       <div>
         <div class="admin-photo-card">
-          <img src="${item.url}" alt="${esc(item.category || '')}" loading="lazy" />
+          <img src="${item.url}" alt="${esc(item.altText || item.category || '')}" loading="lazy" />
           <div class="admin-photo-overlay">
             <button class="btn-icon" onclick="openImageEditor(${item.id}, '${item.url}')" aria-label="Bild bearbeiten" title="Bild bearbeiten">${EDIT_ICON}</button>
             <button class="btn-icon danger" onclick="deleteHomeImage(${item.id})" aria-label="Bild löschen" title="Bild löschen">${TRASH_ICON}</button>
@@ -1360,9 +1360,16 @@
         <div style="display:flex;gap:.3rem;margin-top:.5rem;align-items:center;">
           <input list="galleryCategoryList" maxlength="40" value="${esc(item.category || '')}"
             onchange="updateGalleryCategory(${item.id}, this.value)"
+            title="Kategorie"
             style="flex:1;min-height:32px;font-size:.72rem;background:var(--white);border:1px solid var(--sand);padding:.2rem .4rem;" />
           <button class="btn-icon" onclick="moveGalleryImage(${item.id}, 'up')" aria-label="Nach oben" title="Nach oben">▲</button>
           <button class="btn-icon" onclick="moveGalleryImage(${item.id}, 'down')" aria-label="Nach unten" title="Nach unten">▼</button>
+        </div>
+        <div style="margin-top:.3rem;">
+          <input type="text" maxlength="160" value="${esc(item.altText || '')}"
+            onchange="updateGalleryAltText(${item.id}, this.value)"
+            placeholder="Alt-Text (Bildbeschreibung, optional)" title="Alt-Text (Bildbeschreibung)"
+            style="width:100%;min-height:32px;font-size:.72rem;background:var(--white);border:1px solid var(--sand);padding:.2rem .4rem;" />
         </div>
       </div>`).join('');
   }
@@ -1376,6 +1383,16 @@
       body: JSON.stringify({ category: trimmed })
     });
     showToast('Kategorie aktualisiert');
+    await loadHomeImages();
+  }
+
+  async function updateGalleryAltText(id, altText) {
+    await adminFetch('/api/admin/home-images/' + id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ altText: altText.trim() })
+    });
+    showToast('Alt-Text aktualisiert');
     await loadHomeImages();
   }
 

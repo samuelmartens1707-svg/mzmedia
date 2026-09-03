@@ -1000,16 +1000,21 @@
       { span: 3, ar: '1' },   { span: 5, ar: '5/4' }, { span: 4, ar: '3/2' },
     ];
 
+    function esc(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
     function renderDynamicGallery(items) {
       const grid = document.querySelector('.gallery-grid');
       grid.innerHTML = items.map((item, i) => {
         const p = GALLERY_PATTERN[i % GALLERY_PATTERN.length];
         const label = item.category || 'Sonstiges';
-        return `<article class="gal-item" role="listitem" data-label="${label}"
+        const altText = item.altText || label;
+        return `<article class="gal-item" role="listitem" data-label="${esc(label)}"
             style="grid-column:span ${p.span};aspect-ratio:${p.ar}"
-            aria-label="Fotoprojekt: ${label}">
-          <div class="gal-inner" role="img" aria-label="${label}">
-            <img src="${item.url}" alt="${label}" loading="lazy">
+            aria-label="Fotoprojekt: ${esc(label)}">
+          <div class="gal-inner" role="img" aria-label="${esc(altText)}">
+            <img src="${item.url}" alt="${esc(altText)}" loading="lazy">
           </div>
         </article>`;
       }).join('');

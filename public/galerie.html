@@ -449,8 +449,9 @@
       }
       grid.innerHTML = filteredItems.map((item, i) => {
         const label = item.category || 'Sonstiges';
-        return `<article class="galerie-item" role="listitem" data-index="${i}" data-label="${esc(label)}" tabindex="0" aria-label="Bild ansehen: ${esc(label)}">
-          <img src="${item.url}" alt="${esc(label)}" loading="lazy">
+        const altText = item.altText || label;
+        return `<article class="galerie-item" role="listitem" data-index="${i}" data-label="${esc(label)}" tabindex="0" aria-label="Bild ansehen: ${esc(altText)}">
+          <img src="${item.url}" alt="${esc(altText)}" loading="lazy">
         </article>`;
       }).join('');
       grid.querySelectorAll('.galerie-item').forEach(el => {
@@ -485,7 +486,7 @@
     function updateLightboxImage() {
       const item = filteredItems[currentIndex];
       lightboxImg.src = item.url;
-      lightboxImg.alt = item.category || 'Sonstiges';
+      lightboxImg.alt = item.altText || item.category || 'Sonstiges';
       lightboxCaption.textContent = item.category || 'Sonstiges';
     }
     function showPrev() { currentIndex = (currentIndex - 1 + filteredItems.length) % filteredItems.length; updateLightboxImage(); }

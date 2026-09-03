@@ -41,6 +41,7 @@ const CREATE_TABLE_SQL = `
     id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     slot        ENUM('hero','about-main','about-accent','gallery') NOT NULL,
     category    VARCHAR(40) NULL,
+    alt_text    VARCHAR(160) NULL,
     filename    VARCHAR(255) NOT NULL,
     mime_type   VARCHAR(64) NOT NULL,
     data        MEDIUMBLOB NOT NULL,
