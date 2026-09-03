@@ -9,7 +9,32 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit:    5,
   charset:            'utf8mb4',
+  enableKeepAlive:    true,
 });
+
+// Der MySQL-Server (wait_timeout) kann eine im Pool ruhende Verbindung serverseitig
+// schließen, ohne dass mysql2 das bemerkt — der nächste Query darüber schlägt dann mit
+// PROTOCOL_CONNECTION_LOST/ECONNRESET/EPIPE fehl, obwohl die DB längst wieder erreichbar
+// ist. mysql2 wirft die kaputte Verbindung danach selbst aus dem Pool, ein zweiter Versuch
+// bekommt also automatisch eine frische Verbindung. Deshalb hier einmalig automatisch
+// wiederholen, statt den Fehler ungefiltert an die Route durchzureichen.
+const TRANSIENT_ERROR_CODES = new Set([
+  'PROTOCOL_CONNECTION_LOST',
+  'ECONNRESET',
+  'ETIMEDOUT',
+  'EPIPE',
+]);
+const rawQuery = pool.query.bind(pool);
+pool.query = async (...args) => {
+  try {
+    return await rawQuery(...args);
+  } catch (err) {
+    if (TRANSIENT_ERROR_CODES.has(err.code)) {
+      return await rawQuery(...args);
+    }
+    throw err;
+  }
+};
 
 const CREATE_TABLE_SQL = `
   CREATE TABLE IF NOT EXISTS home_images (

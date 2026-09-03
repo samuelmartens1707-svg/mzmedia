@@ -1007,6 +1007,10 @@
   async function loadClients() {
     const res  = await adminFetch('/api/admin/clients');
     const data = await res.json();
+    if (!res.ok) {
+      showToast(data.error || 'Kunden konnten nicht geladen werden.');
+      return;
+    }
     allClients = data.clients || [];
     // Count photos for each client from uploads dir
     for (const c of allClients) {
