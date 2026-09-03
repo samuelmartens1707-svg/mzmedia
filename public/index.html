@@ -19,6 +19,13 @@
   <meta property="og:title" content="Fotograf Espelkamp | Miguel Zimmermann · mz media" />
   <meta property="og:description" content="Miguel Zimmermann – Fotograf aus Espelkamp. Professionelle Portraits, Events und kreative Shootings in der Region Minden-Lübbecke." />
   <meta property="og:locale" content="de_DE" />
+  <meta property="og:image" content="https://www.mzmedia.de/og-image.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Fotograf Espelkamp | Miguel Zimmermann · mz media" />
+  <meta name="twitter:description" content="Miguel Zimmermann – Fotograf aus Espelkamp. Professionelle Portraits, Events und kreative Shootings in der Region Minden-Lübbecke." />
+  <meta name="twitter:image" content="https://www.mzmedia.de/og-image.jpg" />
 
   <!-- Structured Data: LocalBusiness -->
   <script type="application/ld+json">
@@ -28,6 +35,9 @@
     "name": "mz media – Miguel Zimmermann Fotografie",
     "url": "https://www.mzmedia.de/",
     "email": "info@mzmedia.de",
+    "telephone": "+49 1514 1898946",
+    "sameAs": ["https://www.instagram.com/mz.media_/"],
+    "image": "https://www.mzmedia.de/og-image.jpg",
     "description": "Fotograf aus Espelkamp – professionelle Portraits, Events und kreative Shootings in Espelkamp, Lübbecke, Minden und Umgebung.",
     "address": {
       "@type": "PostalAddress",
@@ -273,6 +283,11 @@
       opacity: 0; animation: fadeUp .9s .5s forwards;
     }
     .hero-title em { font-style: italic; color: var(--terra); }
+    .hero-location {
+      font-size: .78rem; letter-spacing: .1em;
+      color: var(--sage); margin-top: 1rem;
+      opacity: 0; animation: fadeUp .9s .6s forwards;
+    }
     .hero-sub {
       margin-top: 1.8rem;
       font-size: 1rem; line-height: 1.75;
@@ -702,6 +717,7 @@
           Momente,<br>
           die <em>bleiben.</em>
         </h1>
+        <p class="hero-location">Fotograf in Espelkamp · Minden-Lübbecke</p>
         <p class="hero-sub">
           Miguel Zimmermann — Fotograf aus Espelkamp. Authentische Bilder, die Geschichten erzählen und Gefühle wecken.
         </p>
@@ -712,7 +728,7 @@
       </div>
       <div class="hero-right" aria-hidden="true">
         <div class="hero-img">
-          <img class="hero-img-real" id="heroImgReal" alt="Miguel Zimmermann – Fotograf" loading="eager">
+          <img class="hero-img-real" id="heroImgReal" alt="Miguel Zimmermann – Fotograf" loading="eager" fetchpriority="high">
           <div class="hero-img-placeholder" id="heroPlaceholder">
             <span>Miguel Zimmermann</span>
           </div>
@@ -731,7 +747,7 @@
             <em>Projekte.</em>
           </h2>
         </div>
-        <a href="galerie.html" class="btn-ghost">Alle ansehen →</a>
+        <a href="galerie.html" class="btn-ghost">Alle Projekte ansehen →</a>
       </div>
 
       <!-- Filter tabs -->
@@ -851,7 +867,7 @@
           </div>
           <div class="contact-item">
             <p class="contact-item-label">Instagram</p>
-            <p class="contact-item-value">@mzmedia</p>
+            <a class="contact-item-value" href="https://www.instagram.com/mz.media_/" target="_blank" rel="noopener noreferrer">@mz.media_</a>
           </div>
           <div class="contact-item">
             <p class="contact-item-label">Standort</p>
@@ -921,9 +937,7 @@
     <span class="footer-logo">mz media</span>
     <span class="footer-copy">© 2025 Miguel Zimmermann · Alle Rechte vorbehalten</span>
     <nav class="footer-social" aria-label="Social Media Links">
-      <a href="#" aria-label="Instagram">Instagram</a>
-      <a href="#" aria-label="TikTok">TikTok</a>
-      <a href="#" aria-label="LinkedIn">LinkedIn</a>
+      <a href="https://www.instagram.com/mz.media_/" target="_blank" rel="noopener noreferrer" aria-label="Instagram">Instagram</a>
     </nav>
     <nav class="footer-legal" aria-label="Rechtliches" style="margin-top:0.8rem; font-size:0.8rem;">
       <a href="impressum.html" style="color:var(--mid);">Impressum</a>

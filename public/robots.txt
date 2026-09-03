@@ -1,4 +1,10 @@
 User-agent: *
 Allow: /
 
+Disallow: /api/
+Disallow: /uploads/
+Disallow: /scripts/
+Disallow: /templates/
+Disallow: /data/
+
 Sitemap: https://www.mzmedia.de/sitemap.xml
