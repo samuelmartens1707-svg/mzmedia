@@ -1,0 +1,10 @@
+{
+  "name": "mz media – Miguel Zimmermann Fotografie",
+  "short_name": "mz media",
+  "icons": [
+    { "src": "favicon.svg", "type": "image/svg+xml", "sizes": "any" }
+  ],
+  "theme_color": "#F6F1E4",
+  "background_color": "#F6F1E4",
+  "display": "standalone"
+}

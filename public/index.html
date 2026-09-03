@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="manifest" href="site.webmanifest" />
+  <meta name="theme-color" content="#F6F1E4" />
   <title>Fotograf Espelkamp | Miguel Zimmermann · mz media</title>
   <meta name="description" content="Miguel Zimmermann – Fotograf aus Espelkamp. Professionelle Portraits, Events und kreative Shootings in Espelkamp, Lübbecke und Minden. Jetzt unverbindlich anfragen." />
   <meta name="keywords" content="Fotograf Espelkamp, Fotografie Espelkamp, Portrait Fotograf Espelkamp, Event Fotograf Espelkamp, Shooting Espelkamp, mz media, Miguel Zimmermann Fotograf, Fotograf Minden-Lübbecke" />
@@ -49,13 +52,30 @@
   }
   </script>
 
-  <!-- Performance: preconnect before font load -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <!-- Cormorant Garamond (display) + DM Sans (body) — boho editorial pairing -->
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
-
   <style>
+    /* ─── Selbst gehostete Schriftarten (kein Request an Google) ─── */
+    @font-face {
+      font-family: 'Cormorant Garamond';
+      font-style: normal;
+      font-weight: 300 600;
+      font-display: swap;
+      src: url(fonts/cormorant-garamond-normal.woff2) format('woff2');
+    }
+    @font-face {
+      font-family: 'Cormorant Garamond';
+      font-style: italic;
+      font-weight: 300 400;
+      font-display: swap;
+      src: url(fonts/cormorant-garamond-italic.woff2) format('woff2');
+    }
+    @font-face {
+      font-family: 'DM Sans';
+      font-style: normal;
+      font-weight: 300 500;
+      font-display: swap;
+      src: url(fonts/dm-sans-normal.woff2) format('woff2');
+    }
+
     /* ─── Design Tokens (Nature Distilled × ui-ux-pro-max) ─── */
     :root {
       --cream:      #F6F1E4;
