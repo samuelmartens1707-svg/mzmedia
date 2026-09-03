@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const express    = require('express');
+const compression = require('compression');
 const jwt        = require('jsonwebtoken');
 const bcrypt     = require('bcryptjs');
 const cors       = require('cors');
@@ -45,6 +46,10 @@ ensureAdminSettingsTable()
 ensureAdminPasswordResetsTable()
   .then(() => console.log('[DB] admin_password_resets Tabelle bereit.'))
   .catch(err => console.warn('[DB] Verbindung fehlgeschlagen — Admin-Passwort-vergessen vorübergehend deaktiviert:', err.message));
+
+// Gzip/Brotli-Kompression für Text-Antworten (HTML/CSS/JS/JSON/SVG) — Bilder
+// (image/*) sind vom Default-Filter ausgenommen, bleiben also unangetastet.
+app.use(compression());
 
 // Log every incoming request so container logs show the raw URL
 app.use((req, res, next) => {
