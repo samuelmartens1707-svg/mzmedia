@@ -39,7 +39,7 @@ pool.query = async (...args) => {
 const CREATE_TABLE_SQL = `
   CREATE TABLE IF NOT EXISTS home_images (
     id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    slot        ENUM('hero','about-main','about-accent','gallery') NOT NULL,
+    slot        ENUM('hero','about-main','about-accent','gallery','mediabox-hero','mediabox-gallery') NOT NULL,
     category    VARCHAR(40) NULL,
     alt_text    VARCHAR(160) NULL,
     filename    VARCHAR(255) NOT NULL,
@@ -162,6 +162,62 @@ function ensureAdminPasswordResetsTable() {
   return ensuredAdminPasswordResets;
 }
 
+const CREATE_INVOICES_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS invoices (
+    id                 INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    client_id          VARCHAR(32) NOT NULL,
+    sevdesk_invoice_id VARCHAR(32) NOT NULL,
+    invoice_number     VARCHAR(60) NOT NULL DEFAULT '',
+    total_amount       DECIMAL(10,2) NOT NULL,
+    currency           VARCHAR(3) NOT NULL DEFAULT 'EUR',
+    header             VARCHAR(255) NOT NULL DEFAULT '',
+    sent_to_email      VARCHAR(190) NOT NULL,
+    created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+    INDEX idx_invoices_client_id (client_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+`;
+
+// Lokales Audit-Log gesendeter Rechnungen — sevDesk selbst ist die "Quelle der Wahrheit"
+// für Rechnungsinhalt/PDF, diese Tabelle ist nur für die "Rechnungen"-Übersicht im Admin-Panel.
+// Braucht clients als Fremdschlüssel-Ziel, deshalb erst ensureClientsTable().
+let ensuredInvoices = null;
+function ensureInvoicesTable() {
+  if (!ensuredInvoices) {
+    ensuredInvoices = ensureClientsTable()
+      .then(() => pool.query(CREATE_INVOICES_TABLE_SQL))
+      .catch(err => {
+        ensuredInvoices = null;
+        throw err;
+      });
+  }
+  return ensuredInvoices;
+}
+
+const CREATE_MEDIABOX_BOOKINGS_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS mediabox_bookings (
+    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    booked_date DATE NOT NULL UNIQUE,
+    note        VARCHAR(160) NULL,
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_mediabox_bookings_date (booked_date)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+`;
+
+// Belegte Termine der Mediabox (Fotobox-Vermietung) — ein Datum ist entweder frei oder
+// belegt, keine Uhrzeiten/Slots. Eigene, schlanke Tabelle statt externem Kalenderdienst
+// (Exchange ist bei Mittwald-Mailhosting nicht verfügbar).
+let ensuredMediaboxBookings = null;
+function ensureMediaboxBookingsTable() {
+  if (!ensuredMediaboxBookings) {
+    ensuredMediaboxBookings = pool.query(CREATE_MEDIABOX_BOOKINGS_TABLE_SQL).catch(err => {
+      ensuredMediaboxBookings = null;
+      throw err;
+    });
+  }
+  return ensuredMediaboxBookings;
+}
+
 module.exports = {
   pool,
   ensureHomeImagesTable,
@@ -169,4 +225,6 @@ module.exports = {
   ensurePasswordResetsTable,
   ensureAdminSettingsTable,
   ensureAdminPasswordResetsTable,
+  ensureInvoicesTable,
+  ensureMediaboxBookingsTable,
 };

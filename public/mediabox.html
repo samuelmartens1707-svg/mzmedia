@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="manifest" href="site.webmanifest" />
+  <meta name="theme-color" content="#F6F1E4" />
+  <title>Mediabox mieten | Fotobox für Hochzeit &amp; Events · Miguel Zimmermann</title>
+  <meta name="description" content="Die Mediabox von Miguel Zimmermann — Fotobox mieten für Hochzeit, Geburtstag, Firmenfeier und mehr. Verfügbarkeit direkt online prüfen." />
+  <meta name="keywords" content="Fotobox mieten, Mediabox, Fotobox Hochzeit, Fotobox Espelkamp, Fotobox Minden, Fotobox Lübbecke, Fotobox Firmenfeier" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://www.miguelzimmermann.de/mediabox.html" />
+  <base href="/">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.miguelzimmermann.de/mediabox.html" />
+  <meta property="og:title" content="Mediabox mieten | Fotobox für Hochzeit & Events · Miguel Zimmermann" />
+  <meta property="og:description" content="Fotobox mieten für Hochzeit, Geburtstag, Firmenfeier und mehr — Verfügbarkeit direkt online prüfen." />
+  <meta property="og:locale" content="de_DE" />
+  <meta property="og:image" content="https://www.miguelzimmermann.de/og-image.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Mediabox mieten | Fotobox für Hochzeit & Events · Miguel Zimmermann" />
+  <meta name="twitter:description" content="Fotobox mieten für Hochzeit, Geburtstag, Firmenfeier und mehr — Verfügbarkeit direkt online prüfen." />
+  <meta name="twitter:image" content="https://www.miguelzimmermann.de/og-image.jpg" />
+
+  <style>
+    /* ─── Selbst gehostete Schriftarten ─── */
+    @font-face {
+      font-family: 'Cormorant Garamond';
+      font-style: normal;
+      font-weight: 300 600;
+      font-display: swap;
+      src: url(fonts/cormorant-garamond-normal.woff2) format('woff2');
+    }
+    @font-face {
+      font-family: 'Cormorant Garamond';
+      font-style: italic;
+      font-weight: 300 400;
+      font-display: swap;
+      src: url(fonts/cormorant-garamond-italic.woff2) format('woff2');
+    }
+    @font-face {
+      font-family: 'DM Sans';
+      font-style: normal;
+      font-weight: 300 500;
+      font-display: swap;
+      src: url(fonts/dm-sans-normal.woff2) format('woff2');
+    }
+
+    /* ─── Design Tokens (identisch zu index.html/galerie.html) ─── */
+    :root {
+      --cream:      #F6F1E4;
+      --sand:       #DCD2B8;
+      --terra:      #B8AEA6;
+      --clay:       #938B85;
+      --sage:       #46603F;
+      --dark:       #23271F;
+      --mid:        #6E7A63;
+      --light-mid:  #A3AE97;
+      --white:      #FDFAF4;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--cream);
+      color: var(--dark);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      font-size: 16px;
+      line-height: 1.6;
+      overflow-x: hidden;
+      cursor: none;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    /* ─── Custom Cursor ─── */
+    .cursor {
+      position: fixed; width: 10px; height: 10px;
+      background: var(--terra); border-radius: 50%;
+      pointer-events: none; z-index: 9999;
+      transform: translate(-50%, -50%);
+      transition: width .25s, height .25s;
+      will-change: transform;
+    }
+    .cursor-ring {
+      position: fixed; width: 34px; height: 34px;
+      border: 1.5px solid var(--terra); border-radius: 50%;
+      pointer-events: none; z-index: 9998;
+      transform: translate(-50%, -50%);
+      opacity: .45;
+      transition: width .25s, height .25s, opacity .25s;
+      will-change: transform;
+    }
+    @media (hover: none) { .cursor, .cursor-ring { display: none; } }
+
+    /* ─── Grain overlay ─── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 1000; opacity: .3;
+    }
+
+    /* ─── Light leak ─── */
+    body::after {
+      content: '';
+      position: fixed; top: -20%; right: -10%;
+      width: 55vw; height: 55vw;
+      background: radial-gradient(ellipse, rgba(212,165,116,.12) 0%, transparent 65%);
+      pointer-events: none; z-index: 999;
+    }
+
+    :focus { outline: none; }
+    :focus-visible { outline: 2px solid var(--terra); outline-offset: 4px; }
+
+    /* ─── NAV ─── */
+    .nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1.6rem 4rem;
+      mix-blend-mode: multiply;
+    }
+    .nav-logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.25rem; font-weight: 600;
+      letter-spacing: .14em; text-transform: uppercase;
+      color: var(--dark); text-decoration: none;
+      min-height: 44px; display: flex; align-items: center;
+    }
+    .nav-links { display: flex; gap: 2rem; list-style: none; }
+    .nav-links a {
+      font-size: .78rem; letter-spacing: .16em; text-transform: uppercase;
+      color: var(--mid); text-decoration: none;
+      min-height: 44px; display: inline-flex; align-items: center;
+      padding: 0 .25rem;
+      transition: color .3s;
+    }
+    .nav-links a:hover { color: var(--terra); }
+
+    /* ─── Buttons / labels ─── */
+    .btn-primary {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 44px; padding: .75rem 2.2rem;
+      background: var(--terra); color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .78rem; font-weight: 500;
+      letter-spacing: .14em; text-transform: uppercase;
+      text-decoration: none; border: none; cursor: none;
+      transition: background .3s, transform .2s;
+    }
+    .btn-primary:hover { background: var(--clay); transform: translateY(-2px); }
+    .btn-ghost {
+      display: inline-flex; align-items: center;
+      min-height: 44px;
+      font-size: .78rem; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--mid); text-decoration: none;
+      border-bottom: 1px solid var(--sand);
+      padding-bottom: 2px;
+      transition: color .3s, border-color .3s;
+    }
+    .btn-ghost:hover { color: var(--terra); border-color: var(--terra); }
+
+    .section-label {
+      font-size: .7rem; letter-spacing: .24em;
+      text-transform: uppercase; color: var(--terra);
+      display: flex; align-items: center; gap: .9rem;
+      margin-bottom: 1.8rem;
+    }
+    .section-label::before {
+      content: ''; flex-shrink: 0;
+      width: 28px; height: 1px; background: var(--terra);
+    }
+
+    /* ─── HERO ─── */
+    .mb-hero {
+      min-height: 88svh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      position: relative; overflow: hidden;
+    }
+    .mb-hero-left {
+      display: flex; flex-direction: column;
+      justify-content: flex-end;
+      padding: 8rem 4rem 6rem;
+      position: relative; z-index: 2;
+    }
+    .mb-hero-eyebrow {
+      font-size: .72rem; letter-spacing: .22em;
+      text-transform: uppercase; color: var(--terra);
+      margin-bottom: 1.6rem;
+    }
+    .mb-hero-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(3rem, 5.4vw, 5rem);
+      font-weight: 300; line-height: 1.05;
+    }
+    .mb-hero-title em { font-style: italic; color: var(--terra); }
+    .mb-hero-sub {
+      margin-top: 1.8rem;
+      font-size: 1rem; line-height: 1.75;
+      color: var(--mid); max-width: 420px;
+    }
+    .mb-hero-actions {
+      margin-top: 2.8rem;
+      display: flex; align-items: center;
+      gap: 2rem; flex-wrap: wrap;
+    }
+    .mb-hero-right { position: relative; overflow: hidden; }
+    .mb-hero-img {
+      position: absolute; inset: 4rem 2rem 4rem 0;
+      background: linear-gradient(150deg, var(--sage) 0%, var(--terra) 55%, var(--clay) 100%);
+      overflow: hidden;
+    }
+    .mb-hero-img-placeholder {
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .mb-hero-img-placeholder span {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: .8rem; letter-spacing: .22em;
+      text-transform: uppercase; color: rgba(255,255,255,.55);
+      writing-mode: vertical-rl;
+    }
+    .mb-hero-img-real { display: none; width: 100%; height: 100%; object-fit: cover; }
+
+    /* ─── ANLASS / OCCASIONS ─── */
+    .occasions { padding: 7rem 4rem; }
+    .occasions-heading {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2.2rem, 3.6vw, 3.2rem);
+      font-weight: 300; line-height: 1.15;
+      margin-bottom: 3rem; max-width: 620px;
+    }
+    .occasions-heading em { font-style: italic; color: var(--terra); }
+    .occasions-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 1px; background: var(--sand);
+    }
+    .occasion-card { background: var(--white); padding: 2.6rem 2.2rem; }
+    .occasion-num {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2.8rem; font-weight: 300;
+      color: var(--sand); line-height: 1; margin-bottom: 1.2rem;
+    }
+    .occasion-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.3rem; font-weight: 400;
+      color: var(--dark); margin-bottom: .8rem;
+    }
+    .occasion-desc { font-size: .85rem; line-height: 1.75; color: var(--mid); }
+
+    /* ─── GALERIE ─── */
+    .mb-gallery { padding: 2rem 4rem 7rem; }
+    .mb-gallery-heading {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2.2rem, 3.6vw, 3.2rem);
+      font-weight: 300; line-height: 1.15;
+      margin-bottom: .8rem;
+    }
+    .mb-gallery-heading em { font-style: italic; color: var(--terra); }
+    .mb-gallery-sub { color: var(--mid); max-width: 520px; margin-bottom: 2.5rem; }
+    .galerie-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: .9rem;
+      min-height: 10vh;
+    }
+    .galerie-item {
+      position: relative; overflow: hidden;
+      background: var(--sand); aspect-ratio: 4/5;
+      cursor: none; border: none; padding: 0;
+    }
+    .galerie-item img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+      transition: transform .6s ease;
+    }
+    .galerie-item:hover img { transform: scale(1.05); }
+    .galerie-item::after {
+      content: attr(data-label);
+      position: absolute; bottom: .8rem; left: .8rem;
+      font-size: .66rem; letter-spacing: .14em; text-transform: uppercase;
+      color: rgba(255,255,255,.85);
+      opacity: 0; transition: opacity .3s;
+      text-shadow: 0 1px 4px rgba(0,0,0,.4);
+    }
+    .galerie-item:hover::after { opacity: 1; }
+    .galerie-empty { grid-column: 1/-1; padding: 3rem 0; color: var(--mid); }
+
+    /* ─── Lightbox ─── */
+    .lightbox {
+      position: fixed; inset: 0; z-index: 2000;
+      background: rgba(35,39,31,.94);
+      display: none; align-items: center; justify-content: center;
+      padding: 2rem;
+    }
+    .lightbox.open { display: flex; }
+    .lightbox-img { max-width: 90vw; max-height: 80vh; object-fit: contain; }
+    .lightbox-caption {
+      position: absolute; bottom: 1.5rem; left: 0; right: 0;
+      text-align: center; color: var(--white);
+      font-size: .78rem; letter-spacing: .1em; text-transform: uppercase;
+    }
+    .lightbox-close, .lightbox-prev, .lightbox-next {
+      position: absolute; background: transparent; border: none;
+      color: var(--white); cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .lightbox-close { top: 1.5rem; right: 2rem; font-size: 1.6rem; min-height: 44px; min-width: 44px; }
+    .lightbox-prev { left: 1rem; top: 50%; transform: translateY(-50%); font-size: 2.2rem; min-height: 44px; min-width: 44px; }
+    .lightbox-next { right: 1rem; top: 50%; transform: translateY(-50%); font-size: 2.2rem; min-height: 44px; min-width: 44px; }
+    .lightbox-prev:hover, .lightbox-next:hover, .lightbox-close:hover { color: var(--terra); }
+
+    /* ─── KALENDER ─── */
+    .calendar-section { padding: 7rem 4rem; background: var(--white); }
+    .calendar-heading {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2.2rem, 3.6vw, 3.2rem);
+      font-weight: 300; line-height: 1.15;
+      margin-bottom: .8rem; text-align: center;
+    }
+    .calendar-heading em { font-style: italic; color: var(--terra); }
+    .calendar-sub { color: var(--mid); text-align: center; max-width: 520px; margin: 0 auto 3rem; }
+    .calendar-wrap { max-width: 620px; margin: 0 auto; }
+    .calendar-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.8rem;
+    }
+    .calendar-nav-btn {
+      background: transparent; border: 1px solid var(--sand);
+      min-height: 44px; min-width: 44px;
+      cursor: none; color: var(--mid); font-size: 1.1rem;
+      transition: border-color .3s, color .3s;
+    }
+    .calendar-nav-btn:hover { border-color: var(--terra); color: var(--terra); }
+    .calendar-month-label {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.5rem; font-weight: 400; text-transform: capitalize;
+    }
+    .calendar-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      gap: .4rem;
+    }
+    .calendar-weekday {
+      font-size: .64rem; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--mid); text-align: center; padding-bottom: .5rem;
+    }
+    .calendar-day {
+      aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+      font-size: .84rem; color: var(--dark);
+      border: 1px solid var(--sand); background: var(--cream);
+      cursor: none; transition: background .25s, border-color .25s, color .25s;
+    }
+    .calendar-day.is-empty { border: none; background: transparent; cursor: default; }
+    .calendar-day.is-past { color: var(--sand); border-color: var(--sand); background: transparent; cursor: default; }
+    .calendar-day.is-booked { background: var(--terra); color: #fff; border-color: var(--terra); cursor: default; }
+    .calendar-day.is-free:hover { border-color: var(--sage); color: var(--sage); }
+    .calendar-day.is-today { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+    .calendar-legend {
+      display: flex; justify-content: center; gap: 2rem; margin-top: 2rem;
+      font-size: .74rem; letter-spacing: .04em; color: var(--mid);
+    }
+    .calendar-legend span { display: inline-flex; align-items: center; gap: .5rem; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .legend-dot.free { background: var(--cream); border: 1px solid var(--sand); }
+    .legend-dot.booked { background: var(--terra); }
+    .calendar-status { text-align: center; margin-top: 1.2rem; font-size: .78rem; color: var(--mid); }
+
+    /* ─── ANFRAGE ─── */
+    .booking { padding: 8rem 4rem; }
+    .booking-inner {
+      max-width: 620px; margin: 0 auto;
+      display: flex; flex-direction: column; align-items: center; text-align: center;
+    }
+    .booking-heading {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2.4rem, 4vw, 3.6rem);
+      font-weight: 300; line-height: 1.1; margin-bottom: 1.2rem;
+    }
+    .booking-heading em { font-style: italic; color: var(--terra); }
+    .booking-body { color: var(--mid); max-width: 480px; margin-bottom: 2.8rem; }
+    .booking-form { width: 100%; display: flex; flex-direction: column; gap: 1.6rem; text-align: left; }
+    .booking-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.6rem; }
+    .form-group { display: flex; flex-direction: column; gap: .5rem; }
+    .form-group label {
+      font-size: .7rem; letter-spacing: .16em; text-transform: uppercase; color: var(--mid);
+    }
+    .form-group input, .form-group textarea {
+      background: transparent; border: none; border-bottom: 1px solid var(--sand);
+      padding: .7rem 0; font-family: 'DM Sans', sans-serif;
+      font-size: .97rem; font-weight: 300; color: var(--dark); outline: none;
+      transition: border-color .3s; resize: none; -webkit-appearance: none; min-height: 44px;
+    }
+    .form-group textarea { min-height: 96px; }
+    .form-group input:focus, .form-group textarea:focus { border-color: var(--terra); }
+    .form-group input::placeholder, .form-group textarea::placeholder { color: var(--light-mid); }
+    .form-group.error label { color: #b00020; }
+    .form-group.error input, .form-group.error textarea { border-color: #b00020; }
+    .form-error-msg { font-size: .75rem; color: #b00020; margin-top: .25rem; display: none; }
+    .form-group.error .form-error-msg { display: block; }
+    .hp-field { position: absolute; left: -9999px; top: -9999px; }
+    .form-submit { margin-top: .5rem; }
+    .btn-submit {
+      min-height: 44px; padding: .75rem 2.2rem;
+      background: var(--terra); color: #fff; border: none;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .78rem; font-weight: 500;
+      letter-spacing: .14em; text-transform: uppercase;
+      cursor: none; transition: background .3s, transform .2s;
+    }
+    .btn-submit:hover { background: var(--clay); transform: translateY(-2px); }
+    .btn-submit[aria-busy="true"] { opacity: .65; }
+
+    /* ─── FOOTER ─── */
+    footer {
+      padding: 2.8rem 4rem;
+      border-top: 1px solid var(--sand);
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 1.2rem;
+    }
+    .footer-logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.1rem; font-weight: 600;
+      letter-spacing: .14em; text-transform: uppercase; color: var(--dark);
+    }
+    .footer-copy { font-size: .74rem; color: var(--mid); letter-spacing: .04em; }
+    .footer-social { display: flex; gap: 1.6rem; }
+    .footer-social a {
+      font-size: .72rem; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--mid); text-decoration: none;
+      min-height: 44px; display: inline-flex; align-items: center;
+      transition: color .3s;
+    }
+    .footer-social a:hover { color: var(--terra); }
+
+    /* ─── Animations ─── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(22px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .reveal { opacity: 0; transform: translateY(28px); transition: opacity .9s ease, transform .9s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 960px) {
+      .nav { padding: 1.4rem 1.6rem; }
+      .nav-links { display: none; }
+
+      .mb-hero { grid-template-columns: 1fr; min-height: auto; }
+      .mb-hero-left { padding: 7rem 1.6rem 3rem; }
+      .mb-hero-right { height: 60vw; }
+      .mb-hero-img { inset: 0; }
+
+      .occasions, .mb-gallery, .calendar-section, .booking { padding: 4.5rem 1.6rem; }
+      .occasions-grid { grid-template-columns: 1fr; }
+      .galerie-grid { grid-template-columns: repeat(auto-fill, minmax(150px,1fr)); }
+      .booking-form-row { grid-template-columns: 1fr; }
+
+      footer { flex-direction: column; align-items: center; text-align: center; padding: 2rem 1.6rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Custom cursor (desktop only) -->
+  <div class="cursor" id="cursor" aria-hidden="true"></div>
+  <div class="cursor-ring" id="cursorRing" aria-hidden="true"></div>
+
+  <!-- ─── NAV ─── -->
+  <header>
+    <nav class="nav" role="navigation" aria-label="Hauptnavigation">
+      <a href="/" class="nav-logo" aria-label="mz media — zur Startseite">mz media</a>
+      <ul class="nav-links" role="list">
+        <li><a href="/#about">Über mich</a></li>
+        <li><a href="galerie.html">Galerie</a></li>
+        <li><a href="mediabox.html" aria-current="page" style="color:var(--terra);border-bottom:1px solid var(--terra);padding-bottom:1px;">Mediabox</a></li>
+        <li><a href="/#kontakt">Kontakt</a></li>
+        <li><a href="gallery.html" style="color:var(--terra);border-bottom:1px solid var(--terra);padding-bottom:1px;">Meine Bilder</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ─── HERO ─── -->
+    <section class="mb-hero" aria-label="Hero">
+      <div class="mb-hero-left">
+        <p class="mb-hero-eyebrow reveal" aria-hidden="true">Mediabox · Fotobox zum Mieten</p>
+        <h1 class="mb-hero-title reveal">
+          Deine Feier,<br>
+          <em>festgehalten.</em>
+        </h1>
+        <p class="mb-hero-sub reveal">
+          Spontane Schnappschüsse, jede Menge gute Laune: Die Mediabox von mz media sorgt bei
+          Hochzeiten, Geburtstagen und Firmenfeiern für bleibende Erinnerungen.
+        </p>
+        <div class="mb-hero-actions reveal">
+          <a href="#kalender" class="btn-primary">Verfügbarkeit prüfen</a>
+          <a href="#anfrage" class="btn-ghost">Jetzt anfragen →</a>
+        </div>
+      </div>
+      <div class="mb-hero-right reveal" aria-hidden="true">
+        <div class="mb-hero-img">
+          <img class="mb-hero-img-real" id="mbHeroImgReal" alt="Mediabox im Einsatz" loading="eager" fetchpriority="high">
+          <div class="mb-hero-img-placeholder" id="mbHeroPlaceholder">
+            <span>Mediabox</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── FÜR WELCHEN ANLASS ─── -->
+    <section class="occasions" id="anlass" aria-labelledby="occasions-heading">
+      <div class="section-label reveal" aria-hidden="true">Für welchen Anlass</div>
+      <h2 class="occasions-heading reveal" id="occasions-heading">
+        Passt zu <em>jedem</em> Fest.
+      </h2>
+      <div class="occasions-grid">
+        <article class="occasion-card reveal">
+          <div class="occasion-num" aria-hidden="true">01</div>
+          <h3 class="occasion-title">Hochzeiten</h3>
+          <p class="occasion-desc">Ein Hingucker beim Sektempfang und auf der Feier — eure Gäste halten spontane Momente fest, ihr bekommt danach eine bleibende Erinnerung an den schönsten Tag.</p>
+        </article>
+        <article class="occasion-card reveal">
+          <div class="occasion-num" aria-hidden="true">02</div>
+          <h3 class="occasion-title">Geburtstage &amp; Jubiläen</h3>
+          <p class="occasion-desc">Vom 18. bis zum 80. Geburtstag — die Mediabox sorgt für gute Laune und lustige Schnappschüsse, die noch lange nach der Feier für Gesprächsstoff sorgen.</p>
+        </article>
+        <article class="occasion-card reveal">
+          <div class="occasion-num" aria-hidden="true">03</div>
+          <h3 class="occasion-title">Firmenfeiern</h3>
+          <p class="occasion-desc">Ob Sommerfest, Weihnachtsfeier oder Produktlaunch — mit individuellem Branding wird die Mediabox zum charmanten Eyecatcher und Marketing-Tool zugleich.</p>
+        </article>
+        <article class="occasion-card reveal">
+          <div class="occasion-num" aria-hidden="true">04</div>
+          <h3 class="occasion-title">Vereinsfeste &amp; Abibälle</h3>
+          <p class="occasion-desc">Von der Jubiläumsfeier bis zum Abiball — die Mediabox bringt Stimmung und liefert allen Teilnehmenden ein Andenken zum Mitnehmen.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ─── GALERIE ─── -->
+    <section class="mb-gallery" aria-labelledby="mb-gallery-heading">
+      <div class="section-label reveal" aria-hidden="true">Bisherige Events</div>
+      <h2 class="mb-gallery-heading reveal" id="mb-gallery-heading">
+        So sah's bei <em>anderen</em> Events aus.
+      </h2>
+      <p class="mb-gallery-sub reveal">Ein paar Eindrücke aus vergangenen Einsätzen der Mediabox.</p>
+      <div class="galerie-grid reveal" id="mbGalerieGrid" role="list" aria-label="Mediabox-Bilder vergangener Events"></div>
+    </section>
+
+    <!-- ─── KALENDER ─── -->
+    <section class="calendar-section" id="kalender" aria-labelledby="calendar-heading">
+      <div class="section-label reveal" aria-hidden="true" style="justify-content:center;">Verfügbarkeit</div>
+      <h2 class="calendar-heading reveal" id="calendar-heading">
+        Ist dein Termin <em>frei?</em>
+      </h2>
+      <p class="calendar-sub reveal">Hier siehst du, ob die Mediabox an einem bestimmten Datum schon gebucht ist.</p>
+      <div class="calendar-wrap reveal">
+        <div class="calendar-nav">
+          <button class="calendar-nav-btn" type="button" id="calPrev" aria-label="Vorheriger Monat">‹</button>
+          <div class="calendar-month-label" id="calMonthLabel"></div>
+          <button class="calendar-nav-btn" type="button" id="calNext" aria-label="Nächster Monat">›</button>
+        </div>
+        <div class="calendar-grid" id="calGrid" role="grid" aria-label="Belegungskalender"></div>
+        <div class="calendar-legend">
+          <span><span class="legend-dot free" aria-hidden="true"></span>Frei</span>
+          <span><span class="legend-dot booked" aria-hidden="true"></span>Belegt</span>
+        </div>
+        <div class="calendar-status" id="calStatus" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <!-- ─── ANFRAGE ─── -->
+    <section class="booking" id="anfrage" aria-labelledby="booking-heading">
+      <div class="booking-inner">
+        <div class="section-label reveal" aria-hidden="true" style="justify-content:center;">Anfrage</div>
+        <h2 class="booking-heading reveal" id="booking-heading">Verfügbarkeit <em>anfragen.</em></h2>
+        <p class="booking-body reveal">
+          Du hast ein freies Datum gefunden? Schick mir eine kurze Nachricht mit deinem Wunschtermin —
+          ich melde mich schnellstmöglich zurück.
+        </p>
+
+        <form class="booking-form reveal" id="booking-form" novalidate aria-labelledby="booking-heading">
+          <div class="booking-form-row">
+            <div class="form-group" id="mb-group-name">
+              <label for="mb-input-name">Dein Name</label>
+              <input type="text" id="mb-input-name" name="name" autocomplete="name" placeholder="Max Mustermann"
+                required aria-required="true" aria-describedby="mb-error-name" />
+              <span class="form-error-msg" id="mb-error-name" role="alert">Bitte gib deinen Namen ein.</span>
+            </div>
+            <div class="form-group" id="mb-group-email">
+              <label for="mb-input-email">Email</label>
+              <input type="email" id="mb-input-email" name="email" autocomplete="email" placeholder="max@beispiel.de"
+                required aria-required="true" aria-describedby="mb-error-email" />
+              <span class="form-error-msg" id="mb-error-email" role="alert">Bitte gib eine gültige Email ein.</span>
+            </div>
+          </div>
+          <div class="form-group" id="mb-group-date">
+            <label for="mb-input-date">Wunschtermin</label>
+            <input type="date" id="mb-input-date" name="date" />
+          </div>
+          <div class="form-group" id="mb-group-message">
+            <label for="mb-input-message">Nachricht</label>
+            <textarea id="mb-input-message" name="message" placeholder="Erzähl mir von deinem Fest …"
+              required aria-required="true" aria-describedby="mb-error-message"></textarea>
+            <span class="form-error-msg" id="mb-error-message" role="alert">Bitte schreib mir eine kurze Nachricht.</span>
+          </div>
+          <!-- Honeypot: für Menschen unsichtbar, Bots füllen es aus -->
+          <div class="hp-field" aria-hidden="true">
+            <label for="mb-hp-website">Website</label>
+            <input type="text" id="mb-hp-website" name="website" tabindex="-1" autocomplete="off" />
+          </div>
+
+          <div class="form-submit">
+            <button type="submit" class="btn-submit" id="mb-btn-submit">Anfrage senden</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <!-- ─── FOOTER ─── -->
+  <footer>
+    <span class="footer-logo">mz media</span>
+    <span class="footer-copy">© 2025 Miguel Zimmermann · Alle Rechte vorbehalten</span>
+    <nav class="footer-social" aria-label="Social Media Links">
+      <a href="https://www.instagram.com/mz.media_/" target="_blank" rel="noopener noreferrer" aria-label="Instagram">Instagram</a>
+    </nav>
+    <nav class="footer-legal" aria-label="Rechtliches" style="margin-top:0.8rem; font-size:0.8rem;">
+      <a href="impressum.html" style="color:var(--mid);">Impressum</a>
+      <span style="color:var(--sand); margin:0 0.5em;">·</span>
+      <a href="datenschutz.html" style="color:var(--mid);">Datenschutz</a>
+      <span style="color:var(--sand); margin:0 0.5em;">·</span>
+      <a href="agb.html" style="color:var(--mid);">AGB</a>
+    </nav>
+  </footer>
+
+  <!-- ─── LIGHTBOX ─── -->
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Bildvorschau">
+    <button class="lightbox-close" id="lightboxClose" aria-label="Schließen">×</button>
+    <button class="lightbox-prev" id="lightboxPrev" aria-label="Vorheriges Bild">‹</button>
+    <img class="lightbox-img" id="lightboxImg" src="" alt="" />
+    <button class="lightbox-next" id="lightboxNext" aria-label="Nächstes Bild">›</button>
+    <div class="lightbox-caption" id="lightboxCaption"></div>
+  </div>
+
+  <script>
+    // ─── Custom cursor (desktop only) ───
+    const cursor    = document.getElementById('cursor');
+    const cursorRing = document.getElementById('cursorRing');
+
+    if (window.matchMedia('(hover: hover)').matches) {
+      let mx = 0, my = 0, rx = 0, ry = 0;
+
+      document.addEventListener('mousemove', e => {
+        mx = e.clientX; my = e.clientY;
+        cursor.style.left = mx + 'px';
+        cursor.style.top  = my + 'px';
+      });
+
+      (function loop() {
+        rx += (mx - rx) * .12;
+        ry += (my - ry) * .12;
+        cursorRing.style.left = rx + 'px';
+        cursorRing.style.top  = ry + 'px';
+        requestAnimationFrame(loop);
+      })();
+
+      document.querySelectorAll('a, button').forEach(el => {
+        el.addEventListener('mouseenter', () => {
+          cursor.style.width = cursor.style.height = '16px';
+          cursorRing.style.width = cursorRing.style.height = '52px';
+          cursorRing.style.opacity = '.22';
+        });
+        el.addEventListener('mouseleave', () => {
+          cursor.style.width = cursor.style.height = '10px';
+          cursorRing.style.width = cursorRing.style.height = '34px';
+          cursorRing.style.opacity = '.45';
+        });
+      });
+    }
+
+    // ─── Scroll reveal ───
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach((entry, i) => {
+        if (entry.isIntersecting) {
+          setTimeout(() => entry.target.classList.add('visible'), i * 60);
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: .15 });
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    function esc(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ─── Mediabox-Bilder (Titelbild + Event-Galerie) ───
+    let mbGalleryItems = [];
+    let mbLightboxIndex = -1;
+
+    fetch('/api/mediabox-images')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => {
+        if (data.hero) {
+          document.getElementById('mbHeroImgReal').src = data.hero.url;
+          document.getElementById('mbHeroImgReal').style.display = 'block';
+          document.getElementById('mbHeroPlaceholder').style.display = 'none';
+        }
+        mbGalleryItems = data.gallery || [];
+        renderMbGallery();
+      })
+      .catch(() => {
+        document.getElementById('mbGalerieGrid').innerHTML =
+          '<div class="galerie-empty">Die Galerie ist aktuell nicht verfügbar.</div>';
+      });
+
+    function renderMbGallery() {
+      const grid = document.getElementById('mbGalerieGrid');
+      if (!mbGalleryItems.length) {
+        grid.innerHTML = '<div class="galerie-empty">Hier erscheinen bald Bilder vergangener Mediabox-Events.</div>';
+        return;
+      }
+      grid.innerHTML = mbGalleryItems.map((item, i) => {
+        const label = item.category || 'Event';
+        const altText = item.altText || label;
+        return `<article class="galerie-item" role="listitem" data-index="${i}" data-label="${esc(label)}" tabindex="0" aria-label="Bild ansehen: ${esc(altText)}">
+          <img src="${item.url}" alt="${esc(altText)}" loading="lazy">
+        </article>`;
+      }).join('');
+      grid.querySelectorAll('.galerie-item').forEach(el => {
+        el.addEventListener('click', () => openLightbox(Number(el.dataset.index)));
+        el.addEventListener('keydown', e => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLightbox(Number(el.dataset.index)); }
+        });
+      });
+    }
+
+    // ─── Lightbox ───
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightboxImg');
+    const lightboxCaption = document.getElementById('lightboxCaption');
+    let lastFocusedEl = null;
+
+    function openLightbox(index) {
+      mbLightboxIndex = index;
+      lastFocusedEl = document.activeElement;
+      updateLightboxImage();
+      lightbox.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      document.getElementById('lightboxClose').focus();
+      document.addEventListener('keydown', onLightboxKeydown);
+    }
+    function closeLightbox() {
+      lightbox.classList.remove('open');
+      document.body.style.overflow = '';
+      document.removeEventListener('keydown', onLightboxKeydown);
+      if (lastFocusedEl) lastFocusedEl.focus();
+    }
+    function updateLightboxImage() {
+      const item = mbGalleryItems[mbLightboxIndex];
+      lightboxImg.src = item.url;
+      lightboxImg.alt = item.altText || item.category || 'Event';
+      lightboxCaption.textContent = item.category || 'Event';
+    }
+    function showPrev() { mbLightboxIndex = (mbLightboxIndex - 1 + mbGalleryItems.length) % mbGalleryItems.length; updateLightboxImage(); }
+    function showNext() { mbLightboxIndex = (mbLightboxIndex + 1) % mbGalleryItems.length; updateLightboxImage(); }
+
+    function onLightboxKeydown(e) {
+      if (e.key === 'Escape') closeLightbox();
+      else if (e.key === 'ArrowLeft') showPrev();
+      else if (e.key === 'ArrowRight') showNext();
+      else if (e.key === 'Tab') {
+        const focusables = [document.getElementById('lightboxClose'), document.getElementById('lightboxPrev'), document.getElementById('lightboxNext')];
+        const idx = focusables.indexOf(document.activeElement);
+        e.preventDefault();
+        const next = e.shiftKey ? (idx <= 0 ? focusables.length - 1 : idx - 1) : (idx === focusables.length - 1 ? 0 : idx + 1);
+        focusables[next].focus();
+      }
+    }
+    document.getElementById('lightboxClose').addEventListener('click', closeLightbox);
+    document.getElementById('lightboxPrev').addEventListener('click', showPrev);
+    document.getElementById('lightboxNext').addEventListener('click', showNext);
+    lightbox.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
+
+    // ─── Belegungskalender ───
+    const WEEKDAYS = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+    const MONTH_NAMES = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    let calYear  = today.getFullYear();
+    let calMonth = today.getMonth() + 1; // 1-12
+
+    function pad(n) { return String(n).padStart(2, '0'); }
+    function isoDate(y, m, d) { return `${y}-${pad(m)}-${pad(d)}`; }
+
+    async function loadCalendar() {
+      const label = document.getElementById('calMonthLabel');
+      label.textContent = `${MONTH_NAMES[calMonth - 1]} ${calYear}`;
+      const status = document.getElementById('calStatus');
+      status.textContent = '';
+
+      let bookedDates = [];
+      try {
+        const res = await fetch(`/api/mediabox-availability?year=${calYear}&month=${calMonth}`);
+        if (res.ok) {
+          const data = await res.json();
+          bookedDates = data.bookedDates || [];
+        } else {
+          status.textContent = 'Belegungskalender aktuell nicht verfügbar.';
+        }
+      } catch {
+        status.textContent = 'Belegungskalender aktuell nicht verfügbar.';
+      }
+      renderCalendar(bookedDates);
+    }
+
+    function renderCalendar(bookedDates) {
+      const grid = document.getElementById('calGrid');
+      const bookedSet = new Set(bookedDates);
+      const firstOfMonth = new Date(calYear, calMonth - 1, 1);
+      // JS: 0=So..6=Sa → auf Mo-Start (0=Mo..6=So) verschieben
+      const leadingEmpty = (firstOfMonth.getDay() + 6) % 7;
+      const daysInMonth = new Date(calYear, calMonth, 0).getDate();
+
+      let html = WEEKDAYS.map(w => `<div class="calendar-weekday">${w}</div>`).join('');
+      for (let i = 0; i < leadingEmpty; i++) html += '<div class="calendar-day is-empty"></div>';
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateObj = new Date(calYear, calMonth - 1, d);
+        const iso = isoDate(calYear, calMonth, d);
+        const isPast = dateObj < today;
+        const isBooked = bookedSet.has(iso);
+        const isToday = dateObj.getTime() === today.getTime();
+        const classes = ['calendar-day'];
+        if (isPast) classes.push('is-past');
+        else if (isBooked) classes.push('is-booked');
+        else classes.push('is-free');
+        if (isToday) classes.push('is-today');
+        const label = isPast ? 'vergangen' : (isBooked ? 'belegt' : 'frei');
+        html += `<button type="button" class="${classes.join(' ')}" ${isPast || isBooked ? 'disabled' : ''}
+          data-date="${iso}" aria-label="${d}. ${MONTH_NAMES[calMonth-1]}, ${label}" title="${label}">${d}</button>`;
+      }
+      grid.innerHTML = html;
+
+      grid.querySelectorAll('.calendar-day.is-free').forEach(el => {
+        el.addEventListener('click', () => {
+          const dateInput = document.getElementById('mb-input-date');
+          dateInput.value = el.dataset.date;
+          document.getElementById('anfrage').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+    }
+
+    document.getElementById('calPrev').addEventListener('click', () => {
+      calMonth--; if (calMonth < 1) { calMonth = 12; calYear--; }
+      loadCalendar();
+    });
+    document.getElementById('calNext').addEventListener('click', () => {
+      calMonth++; if (calMonth > 12) { calMonth = 1; calYear++; }
+      loadCalendar();
+    });
+    loadCalendar();
+
+    // ─── Anfrageformular ───
+    const bookingForm = document.getElementById('booking-form');
+    const bookingSubmitBtn = document.getElementById('mb-btn-submit');
+
+    bookingForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      let valid = true;
+
+      [
+        { groupId: 'mb-group-name',    inputId: 'mb-input-name',    check: v => v.trim().length > 0 },
+        { groupId: 'mb-group-email',   inputId: 'mb-input-email',   check: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) },
+        { groupId: 'mb-group-message', inputId: 'mb-input-message', check: v => v.trim().length > 0 },
+      ].forEach(({ groupId, inputId, check }) => {
+        const group = document.getElementById(groupId);
+        const val   = document.getElementById(inputId).value;
+        if (!check(val)) { group.classList.add('error'); valid = false; }
+        else             { group.classList.remove('error'); }
+      });
+
+      if (!valid) return;
+
+      bookingSubmitBtn.setAttribute('aria-busy', 'true');
+      bookingSubmitBtn.textContent = 'Wird gesendet …';
+      bookingSubmitBtn.disabled = true;
+
+      try {
+        const res = await fetch('/api/mediabox-anfrage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name:    document.getElementById('mb-input-name').value,
+            email:   document.getElementById('mb-input-email').value,
+            date:    document.getElementById('mb-input-date').value,
+            message: document.getElementById('mb-input-message').value,
+            website: document.getElementById('mb-hp-website').value,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          bookingSubmitBtn.removeAttribute('aria-busy');
+          bookingSubmitBtn.disabled = false;
+          bookingSubmitBtn.textContent = 'Anfrage senden';
+          alert(data.error || 'Fehler beim Senden. Bitte versuche es erneut.');
+          return;
+        }
+
+        bookingSubmitBtn.removeAttribute('aria-busy');
+        bookingSubmitBtn.textContent = 'Gesendet ✓';
+        bookingForm.reset();
+      } catch {
+        bookingSubmitBtn.removeAttribute('aria-busy');
+        bookingSubmitBtn.disabled = false;
+        bookingSubmitBtn.textContent = 'Anfrage senden';
+        alert('Netzwerkfehler. Bitte prüfe deine Verbindung und versuche es erneut.');
+      }
+    });
+
+    bookingForm.querySelectorAll('input, textarea').forEach(el => {
+      el.addEventListener('input', () => {
+        el.closest('.form-group')?.classList.remove('error');
+      });
+    });
+  </script>
+</body>
+</html>

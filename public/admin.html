@@ -595,6 +595,14 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
         Homepage-Bilder
       </button>
+      <button class="sidebar-nav-item" id="navInvoices" onclick="showPage('invoices')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Rechnungen
+      </button>
+      <button class="sidebar-nav-item" id="navMediabox" onclick="showPage('mediabox')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><circle cx="12" cy="15" r="3.2"/></svg>
+        Mediabox
+      </button>
     </nav>
     <div class="sidebar-bottom">
       <button class="btn-sidebar-logout" id="btnOpenChangePassword" type="button" style="margin-bottom:.6rem;">Passwort ändern</button>
@@ -717,6 +725,88 @@
       <div class="admin-photo-grid" id="galleryPhotoGrid"></div>
     </div>
 
+    <!-- MEDIABOX PAGE -->
+    <div class="page" id="pageMediabox">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Mediabox<em> verwalten</em></h1>
+          <p class="page-subtitle">Bilder vergangener Events und den Belegungskalender der Fotobox pflegen.</p>
+        </div>
+      </div>
+
+      <div class="photos-section-title">Titelbild</div>
+      <div id="mediaboxHeroSlot" class="admin-photo-grid" style="grid-template-columns:repeat(3,1fr);max-width:33%;margin-bottom:2.6rem;"></div>
+
+      <div class="upload-section-title">Event-Galerie — Bilder hinzufügen</div>
+      <div class="upload-section">
+        <label class="field" style="max-width:260px;margin-bottom:1rem;">
+          <span style="font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--mid);display:block;margin-bottom:.4rem;">Anlass/Event für neue Uploads</span>
+          <input id="mediaboxCategoryInput" list="mediaboxCategoryList" maxlength="40" placeholder="z. B. Hochzeit Meyer 2025"
+            style="width:100%;min-height:40px;background:var(--white);border:1px solid var(--sand);padding:.4rem .6rem;font-family:'DM Sans',sans-serif;font-size:.85rem;color:var(--dark);" />
+          <datalist id="mediaboxCategoryList"></datalist>
+        </label>
+        <div class="drop-zone" id="mediaboxDropZone">
+          <input type="file" id="mediaboxFileInput" multiple accept="image/jpeg,image/png,image/webp,image/gif" aria-label="Mediabox-Bilder auswählen" />
+          <div class="drop-icon" aria-hidden="true">📁</div>
+          <div class="drop-text">Bilder hier ablegen oder klicken zum Auswählen</div>
+          <div class="drop-hint">JPEG, PNG, WebP · max. 8 MB pro Bild · empfohlen: ca. 2000–2500px breit, komprimiert</div>
+        </div>
+        <div class="upload-progress" id="mediaboxUploadProgress"><div class="upload-progress-bar" id="mediaboxUploadProgressBar"></div></div>
+        <div class="upload-status" id="mediaboxUploadStatus" role="status" aria-live="polite"></div>
+      </div>
+
+      <div class="photos-section-title" id="mediaboxPhotosTitle">Event-Galerie — vorhandene Bilder</div>
+      <div class="admin-photo-grid" id="mediaboxPhotoGrid"></div>
+
+      <div class="photos-section-title" style="margin-top:2.6rem;">Belegungskalender</div>
+      <div class="upload-section" style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;">
+        <label class="field" style="margin-bottom:0;">
+          <span style="font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--mid);display:block;margin-bottom:.4rem;">Datum</span>
+          <input type="date" id="mediaboxBookingDate"
+            style="min-height:40px;background:var(--white);border:1px solid var(--sand);padding:.4rem .6rem;font-family:'DM Sans',sans-serif;font-size:.85rem;color:var(--dark);" />
+        </label>
+        <label class="field" style="margin-bottom:0;flex:1;min-width:220px;">
+          <span style="font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--mid);display:block;margin-bottom:.4rem;">Notiz (optional)</span>
+          <input type="text" id="mediaboxBookingNote" maxlength="160" placeholder="z. B. Hochzeit Meyer"
+            style="width:100%;min-height:40px;background:var(--white);border:1px solid var(--sand);padding:.4rem .6rem;font-family:'DM Sans',sans-serif;font-size:.85rem;color:var(--dark);" />
+        </label>
+        <button class="btn btn-primary" type="button" onclick="addMediaboxBooking()">Als belegt markieren</button>
+      </div>
+      <div class="upload-status" id="mediaboxBookingStatus" role="status" aria-live="polite"></div>
+
+      <div class="table-wrap" style="margin-top:1.4rem;">
+        <div class="table-toolbar">
+          <strong style="font-size:.82rem;letter-spacing:.06em;" id="mediaboxBookingsTitle">Belegte Termine</strong>
+        </div>
+        <table aria-label="Belegte Mediabox-Termine">
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Notiz</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="mediaboxBookingsTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- INVOICES PAGE -->
+    <div class="page" id="pageInvoices">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title"><em>Alle</em> Rechnungen</h1>
+          <p class="page-subtitle" id="invoicesSubtitle"></p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table aria-label="Alle Rechnungen">
+          <thead><tr><th>Kunde</th><th>Rechnungs-Nr.</th><th>Betrag</th><th>Gesendet an</th><th>Datum</th></tr></thead>
+          <tbody id="invoicesTable"></tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- CLIENT DETAIL PAGE -->
     <div class="page" id="pageDetail">
       <button class="back-btn" onclick="showPage('clients')">
@@ -810,6 +900,60 @@
       <div class="modal-actions">
         <button type="button" class="btn btn-outline" onclick="closeChangePasswordModal()">Abbrechen</button>
         <button type="submit" class="btn btn-primary" id="btnChangePassword">Speichern</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ─── INVOICE MODAL ─── -->
+<div class="modal-backdrop" id="invoiceModal" role="dialog" aria-modal="true" aria-labelledby="invoiceModalTitle">
+  <div class="modal" style="max-width:640px;">
+    <h2 class="modal-title" id="invoiceModalTitle">Rechnung <em>erstellen</em></h2>
+    <div class="modal-err" id="invoiceModalErr" role="alert"></div>
+    <form id="invoiceForm" novalidate>
+      <div class="field" id="fldInvCompany">
+        <label for="invCompany">Firma (optional, für Firmenkunden)</label>
+        <input type="text" id="invCompany" autocomplete="off" />
+      </div>
+      <div class="field" id="fldInvStreet">
+        <label for="invStreet">Straße + Hausnummer *</label>
+        <input type="text" id="invStreet" required autocomplete="off" />
+      </div>
+      <div style="display:flex;gap:.8rem;">
+        <div class="field" id="fldInvZip" style="flex:0 0 120px;">
+          <label for="invZip">PLZ *</label>
+          <input type="text" id="invZip" required autocomplete="off" />
+        </div>
+        <div class="field" id="fldInvCity" style="flex:1;">
+          <label for="invCity">Ort *</label>
+          <input type="text" id="invCity" required autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="invHeader">Rechnungstitel</label>
+        <input type="text" id="invHeader" placeholder="z. B. Fotoshooting Hochzeit" />
+      </div>
+
+      <div class="field">
+        <label>Positionen *</label>
+        <div id="invoiceItems"></div>
+        <button type="button" class="btn btn-outline" style="margin-top:.5rem;" onclick="addInvoiceItemRow()">+ Position hinzufügen</button>
+      </div>
+
+      <div style="text-align:right;font-size:.9rem;margin:1rem 0;">
+        Gesamt (Vorschau): <strong id="invoiceTotalPreview">0,00 €</strong>
+        <div class="field-hint">Nur Vorschau — die verbindliche Summe berechnet sevDesk.</div>
+      </div>
+
+      <div class="field">
+        <label for="invFooter">Fußtext / Hinweis (optional)</label>
+        <textarea id="invFooter" rows="2" placeholder="z. B. Gemäß §19 UStG wird keine Umsatzsteuer berechnet." style="width:100%;background:transparent;border:1px solid var(--sand);padding:.6rem;font-family:'DM Sans',sans-serif;font-size:.88rem;color:var(--dark);resize:vertical;"></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline" onclick="closeInvoiceModal()">Abbrechen</button>
+        <button type="submit" class="btn btn-primary" id="btnSendInvoice">Rechnung senden</button>
       </div>
     </form>
   </div>
@@ -1065,6 +1209,15 @@
       document.getElementById('pageHomeImages').classList.add('active');
       document.getElementById('navHomeImages').classList.add('active');
       loadHomeImages();
+    } else if (name === 'invoices') {
+      document.getElementById('pageInvoices').classList.add('active');
+      document.getElementById('navInvoices').classList.add('active');
+      loadInvoices();
+    } else if (name === 'mediabox') {
+      document.getElementById('pageMediabox').classList.add('active');
+      document.getElementById('navMediabox').classList.add('active');
+      loadMediaboxImages();
+      loadMediaboxBookings();
     } else if (name === 'detail') {
       document.getElementById('pageDetail').classList.add('active');
     }
@@ -1102,6 +1255,9 @@
       <td><div class="td-actions">
         <button class="btn-icon" onclick="openClientDetail('${c.id}')" title="Bilder verwalten" aria-label="Bilder von ${esc(c.name)} verwalten">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="btn-icon" onclick="openInvoiceModal('${c.id}')" title="Rechnung erstellen" aria-label="Rechnung für ${esc(c.name)} erstellen">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         </button>
       </div></td>
     </tr>`;
@@ -1143,6 +1299,7 @@
           </div>
         </div>
       </div>
+      <button class="btn btn-primary" style="margin:1rem 0;" onclick="openInvoiceModal('${c.id}')">Rechnung erstellen</button>
       <div class="credential-box">
         <div class="credential-box-label">Zugangsdaten</div>
         <div class="credential-row">
@@ -1454,6 +1611,246 @@
     }, 2000);
   }
 
+  // ─── Mediabox: Bilder (Titelbild + Event-Galerie) ────────
+  async function loadMediaboxImages() {
+    const res = await adminFetch('/api/admin/home-images');
+    if (!res.ok) {
+      document.getElementById('mediaboxHeroSlot').innerHTML = '<div class="no-photos">Datenbank aktuell nicht erreichbar.</div>';
+      document.getElementById('mediaboxPhotoGrid').innerHTML = '';
+      document.getElementById('mediaboxCategoryList').innerHTML = '';
+      return;
+    }
+    const data = await res.json();
+    const images = data.images || [];
+    renderMediaboxHeroSlot(images.find(i => i.slot === 'mediabox-hero'));
+    const galleryItems = images.filter(i => i.slot === 'mediabox-gallery');
+    updateMediaboxCategoryDatalist(galleryItems);
+    renderMediaboxGrid(galleryItems);
+  }
+
+  function updateMediaboxCategoryDatalist(items) {
+    const categories = [...new Set(items.map(i => i.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'de'));
+    document.getElementById('mediaboxCategoryList').innerHTML =
+      categories.map(c => `<option value="${esc(c)}"></option>`).join('');
+  }
+
+  function renderMediaboxHeroSlot(img) {
+    const container = document.getElementById('mediaboxHeroSlot');
+    const card = img
+      ? `<div class="admin-photo-card">
+          <img src="${img.url}" alt="Mediabox Titelbild" loading="lazy" />
+          <div class="admin-photo-overlay">
+            <button class="btn-icon" onclick="openImageEditor(${img.id}, '${img.url}')" aria-label="Titelbild bearbeiten" title="Bild bearbeiten">${EDIT_ICON}</button>
+            <button class="btn-icon danger" onclick="deleteMediaboxImage(${img.id})" aria-label="Titelbild löschen" title="Bild löschen">${TRASH_ICON}</button>
+          </div>
+          <div class="admin-photo-name">Titelbild</div>
+        </div>`
+      : `<div class="admin-photo-card" style="display:flex;align-items:center;justify-content:center;">
+          <div class="no-photos" style="padding:1rem;">Kein Bild</div>
+        </div>`;
+    container.innerHTML = `<div>
+      ${card}
+      <label class="btn btn-outline btn-sm" style="margin-top:.6rem;width:100%;justify-content:center;cursor:pointer;">
+        ${img ? 'Ersetzen' : 'Bild hochladen'}
+        <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none"
+          onchange="uploadMediaboxHeroImage(this.files[0]); this.value='';" />
+      </label>
+      <div class="field-hint" style="text-align:center;margin-top:.3rem;">Titelbild der Mediabox-Seite</div>
+    </div>`;
+  }
+
+  async function uploadMediaboxHeroImage(file) {
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+      const res = await fetch('/api/admin/home-images/mediabox-hero', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + adminToken },
+        body: formData
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+      showToast('Bild gespeichert');
+      await loadMediaboxImages();
+    } catch (err) {
+      showToast('Fehler: ' + err.message);
+    }
+  }
+
+  async function deleteMediaboxImage(id) {
+    if (!confirm('Bild wirklich löschen?')) return;
+    const res = await adminFetch('/api/admin/home-images/' + id, { method: 'DELETE' });
+    if (res.ok) {
+      showToast('Bild gelöscht');
+      await loadMediaboxImages();
+    }
+  }
+
+  function renderMediaboxGrid(items) {
+    const grid = document.getElementById('mediaboxPhotoGrid');
+    document.getElementById('mediaboxPhotosTitle').textContent =
+      `Event-Galerie — vorhandene Bilder (${items.length})`;
+    if (!items.length) {
+      grid.innerHTML = '<div class="no-photos">Noch keine Mediabox-Bilder hochgeladen.</div>';
+      return;
+    }
+    grid.innerHTML = items.map(item => `
+      <div>
+        <div class="admin-photo-card">
+          <img src="${item.url}" alt="${esc(item.altText || item.category || '')}" loading="lazy" />
+          <div class="admin-photo-overlay">
+            <button class="btn-icon" onclick="openImageEditor(${item.id}, '${item.url}')" aria-label="Bild bearbeiten" title="Bild bearbeiten">${EDIT_ICON}</button>
+            <button class="btn-icon danger" onclick="deleteMediaboxImage(${item.id})" aria-label="Bild löschen" title="Bild löschen">${TRASH_ICON}</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:.3rem;margin-top:.5rem;align-items:center;">
+          <input list="mediaboxCategoryList" maxlength="40" value="${esc(item.category || '')}"
+            onchange="updateMediaboxCategory(${item.id}, this.value)"
+            title="Anlass/Event"
+            style="flex:1;min-height:32px;font-size:.72rem;background:var(--white);border:1px solid var(--sand);padding:.2rem .4rem;" />
+          <button class="btn-icon" onclick="moveMediaboxImage(${item.id}, 'up')" aria-label="Nach oben" title="Nach oben">▲</button>
+          <button class="btn-icon" onclick="moveMediaboxImage(${item.id}, 'down')" aria-label="Nach unten" title="Nach unten">▼</button>
+        </div>
+        <div style="margin-top:.3rem;">
+          <input type="text" maxlength="160" value="${esc(item.altText || '')}"
+            onchange="updateMediaboxAltText(${item.id}, this.value)"
+            placeholder="Alt-Text (Bildbeschreibung, optional)" title="Alt-Text (Bildbeschreibung)"
+            style="width:100%;min-height:32px;font-size:.72rem;background:var(--white);border:1px solid var(--sand);padding:.2rem .4rem;" />
+        </div>
+      </div>`).join('');
+  }
+
+  async function updateMediaboxCategory(id, category) {
+    const trimmed = category.trim();
+    if (!trimmed) { showToast('Anlass/Event darf nicht leer sein.'); await loadMediaboxImages(); return; }
+    await adminFetch('/api/admin/home-images/' + id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category: trimmed })
+    });
+    showToast('Anlass/Event aktualisiert');
+    await loadMediaboxImages();
+  }
+
+  async function updateMediaboxAltText(id, altText) {
+    await adminFetch('/api/admin/home-images/' + id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ altText: altText.trim() })
+    });
+    showToast('Alt-Text aktualisiert');
+    await loadMediaboxImages();
+  }
+
+  async function moveMediaboxImage(id, direction) {
+    await adminFetch('/api/admin/home-images/' + id + '/move', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ direction })
+    });
+    await loadMediaboxImages();
+  }
+
+  // ─── Mediabox upload (drop zone) ──────────────────────────
+  const mediaboxDropZone  = document.getElementById('mediaboxDropZone');
+  const mediaboxFileInput = document.getElementById('mediaboxFileInput');
+
+  mediaboxDropZone.addEventListener('dragover',  e => { e.preventDefault(); mediaboxDropZone.classList.add('dragover'); });
+  mediaboxDropZone.addEventListener('dragleave', ()  => mediaboxDropZone.classList.remove('dragover'));
+  mediaboxDropZone.addEventListener('drop',      e  => {
+    e.preventDefault(); mediaboxDropZone.classList.remove('dragover');
+    uploadMediaboxImages(e.dataTransfer.files);
+  });
+  mediaboxFileInput.addEventListener('change', e => uploadMediaboxImages(e.target.files));
+
+  async function uploadMediaboxImages(files) {
+    if (!files.length) return;
+    const bar      = document.getElementById('mediaboxUploadProgressBar');
+    const progress = document.getElementById('mediaboxUploadProgress');
+    const status   = document.getElementById('mediaboxUploadStatus');
+    const category = document.getElementById('mediaboxCategoryInput').value.trim() || 'Sonstiges';
+    const formData = new FormData();
+    Array.from(files).forEach(f => formData.append('photos', f));
+    formData.append('category', category);
+    formData.append('slot', 'mediabox-gallery');
+
+    progress.style.display = 'block';
+    status.style.display   = 'block';
+    status.textContent     = `${files.length} Bild${files.length > 1 ? 'er' : ''} werden hochgeladen …`;
+    bar.style.width = '10%';
+
+    try {
+      const res = await fetch('/api/admin/home-images/gallery', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + adminToken },
+        body: formData
+      });
+      bar.style.width = '100%';
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+      const data = await res.json();
+      status.textContent = `✓ ${data.uploaded.length} Bild${data.uploaded.length > 1 ? 'er' : ''} hochgeladen.`;
+      showToast(data.uploaded.length + ' Mediabox-Bilder hochgeladen');
+      mediaboxFileInput.value = '';
+      await loadMediaboxImages();
+    } catch (err) {
+      status.textContent = 'Fehler: ' + err.message;
+    }
+    setTimeout(() => {
+      progress.style.display = 'none';
+      bar.style.width = '0%';
+    }, 2000);
+  }
+
+  // ─── Mediabox: Belegungskalender ──────────────────────────
+  async function loadMediaboxBookings() {
+    const res = await adminFetch('/api/admin/mediabox-availability');
+    const tbody = document.getElementById('mediaboxBookingsTable');
+    if (!res.ok) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="3">Datenbank aktuell nicht erreichbar.</td></tr>';
+      return;
+    }
+    const data = await res.json();
+    const bookings = data.bookings || [];
+    document.getElementById('mediaboxBookingsTitle').textContent = `Belegte Termine (${bookings.length})`;
+    tbody.innerHTML = bookings.length ? bookings.map(b => `
+      <tr>
+        <td>${formatDate(b.date)}</td>
+        <td>${b.note ? esc(b.note) : '—'}</td>
+        <td><div class="td-actions">
+          <button class="btn-icon danger" onclick="removeMediaboxBooking(${b.id})" title="Freigeben" aria-label="Termin freigeben">${TRASH_ICON}</button>
+        </div></td>
+      </tr>`).join('') : '<tr class="empty-row"><td colspan="3">Noch keine Termine als belegt markiert.</td></tr>';
+  }
+
+  async function addMediaboxBooking() {
+    const dateInput = document.getElementById('mediaboxBookingDate');
+    const noteInput = document.getElementById('mediaboxBookingNote');
+    const status    = document.getElementById('mediaboxBookingStatus');
+    const date = dateInput.value;
+    if (!date) { status.textContent = 'Bitte ein Datum wählen.'; return; }
+    const res  = await adminFetch('/api/admin/mediabox-availability', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date, note: noteInput.value.trim() })
+    });
+    const data = await res.json();
+    if (!res.ok) { status.textContent = data.error || 'Termin konnte nicht gespeichert werden.'; return; }
+    status.textContent = '';
+    dateInput.value = '';
+    noteInput.value = '';
+    showToast('Termin als belegt markiert');
+    await loadMediaboxBookings();
+  }
+
+  async function removeMediaboxBooking(id) {
+    if (!confirm('Termin wirklich freigeben?')) return;
+    const res = await adminFetch('/api/admin/mediabox-availability/' + id, { method: 'DELETE' });
+    if (res.ok) {
+      showToast('Termin freigegeben');
+      await loadMediaboxBookings();
+    }
+  }
+
   // ─── New client modal ────────────────────────────────────
   function openNewClientModal() {
     document.getElementById('newClientModal').classList.add('show');
@@ -1527,6 +1924,174 @@
       btn.disabled = false; btn.textContent = 'Speichern';
     }
   });
+
+  // ─── Invoice modal (sevDesk) ─────────────────────────────
+  let invoiceClientId = null;
+  let invoiceItemSeq  = 0;
+
+  function openInvoiceModal(clientId) {
+    const c = allClients.find(cl => cl.id === clientId);
+    if (!c) return;
+    invoiceClientId = clientId;
+
+    document.getElementById('invCompany').value = c.companyName || '';
+    document.getElementById('invStreet').value  = c.billingStreet || '';
+    document.getElementById('invZip').value     = c.billingZip || '';
+    document.getElementById('invCity').value    = c.billingCity || '';
+    document.getElementById('invHeader').value  = '';
+    document.getElementById('invFooter').value  = '';
+
+    document.getElementById('invoiceItems').innerHTML = '';
+    invoiceItemSeq = 0;
+    addInvoiceItemRow();
+
+    document.getElementById('invoiceModal').classList.add('show');
+    document.getElementById('invStreet').focus();
+  }
+
+  function closeInvoiceModal() {
+    document.getElementById('invoiceModal').classList.remove('show');
+    document.getElementById('invoiceForm').reset();
+    document.getElementById('invoiceModalErr').classList.remove('show');
+    invoiceClientId = null;
+  }
+  document.getElementById('invoiceModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('invoiceModal')) closeInvoiceModal();
+  });
+
+  function addInvoiceItemRow() {
+    const id = 'invItem' + (++invoiceItemSeq);
+    const row = document.createElement('div');
+    row.id = id;
+    row.style.cssText = 'display:flex;gap:.5rem;align-items:flex-end;margin-bottom:.6rem;';
+    row.innerHTML = `
+      <div class="field" style="flex:2;margin-bottom:0;">
+        <label>Beschreibung</label>
+        <input type="text" class="inv-item-desc" placeholder="z. B. Fotoshooting (2 Std.)" />
+      </div>
+      <div class="field" style="flex:0 0 70px;margin-bottom:0;">
+        <label>Menge</label>
+        <input type="number" class="inv-item-qty" value="1" min="0" step="1" />
+      </div>
+      <div class="field" style="flex:0 0 100px;margin-bottom:0;">
+        <label>Preis €</label>
+        <input type="number" class="inv-item-price" value="0" min="0" step="0.01" />
+      </div>
+      <div class="field" style="flex:0 0 90px;margin-bottom:0;">
+        <label>MwSt.</label>
+        <select class="inv-item-vat">
+          <option value="19">19%</option>
+          <option value="7">7%</option>
+          <option value="0">0%</option>
+        </select>
+      </div>
+      <button type="button" class="btn-icon danger" style="margin-bottom:.65rem;" onclick="removeInvoiceItemRow('${id}')" aria-label="Position entfernen" title="Position entfernen">✕</button>
+    `;
+    document.getElementById('invoiceItems').appendChild(row);
+    row.querySelectorAll('.inv-item-qty, .inv-item-price').forEach(el => el.addEventListener('input', recalculateInvoiceTotal));
+    recalculateInvoiceTotal();
+  }
+
+  function removeInvoiceItemRow(id) {
+    const row = document.getElementById(id);
+    if (row) row.remove();
+    recalculateInvoiceTotal();
+  }
+
+  function recalculateInvoiceTotal() {
+    let total = 0;
+    document.querySelectorAll('#invoiceItems > div').forEach(row => {
+      const qty   = Number(row.querySelector('.inv-item-qty').value) || 0;
+      const price = Number(row.querySelector('.inv-item-price').value) || 0;
+      total += qty * price;
+    });
+    document.getElementById('invoiceTotalPreview').textContent = total.toFixed(2).replace('.', ',') + ' €';
+  }
+
+  document.getElementById('invoiceForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const errEl = document.getElementById('invoiceModalErr');
+    const btn   = document.getElementById('btnSendInvoice');
+    errEl.classList.remove('show');
+
+    const street = document.getElementById('invStreet').value.trim();
+    const zip    = document.getElementById('invZip').value.trim();
+    const city   = document.getElementById('invCity').value.trim();
+    if (!street || !zip || !city) {
+      errEl.textContent = 'Straße, PLZ und Ort sind erforderlich.';
+      errEl.classList.add('show');
+      return;
+    }
+
+    const items = [...document.querySelectorAll('#invoiceItems > div')].map(row => ({
+      description: row.querySelector('.inv-item-desc').value.trim(),
+      quantity:    Number(row.querySelector('.inv-item-qty').value),
+      unitPrice:   Number(row.querySelector('.inv-item-price').value),
+      vatRate:     Number(row.querySelector('.inv-item-vat').value),
+    }));
+    if (!items.length || items.some(it => !it.description || !(it.quantity > 0))) {
+      errEl.textContent = 'Jede Position braucht eine Beschreibung und eine Menge größer 0.';
+      errEl.classList.add('show');
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Wird gesendet …';
+    try {
+      const res = await adminFetch('/api/admin/clients/' + invoiceClientId + '/invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          billingAddress: {
+            companyName: document.getElementById('invCompany').value.trim(),
+            street, zip, city, country: 'DE',
+          },
+          items,
+          header: document.getElementById('invHeader').value.trim(),
+          footerText: document.getElementById('invFooter').value.trim(),
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errEl.textContent = data.error || 'Rechnung konnte nicht gesendet werden.';
+        errEl.classList.add('show');
+        return;
+      }
+      showToast('Rechnung gesendet' + (data.invoiceNumber ? ' (' + data.invoiceNumber + ')' : ''));
+      closeInvoiceModal();
+      await loadClients();
+      if (document.getElementById('pageInvoices').classList.contains('active')) loadInvoices();
+    } catch {
+      errEl.textContent = 'Server nicht erreichbar.';
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Rechnung senden';
+    }
+  });
+
+  async function loadInvoices() {
+    const tbody = document.getElementById('invoicesTable');
+    tbody.innerHTML = '<tr><td colspan="5">Wird geladen …</td></tr>';
+    try {
+      const res  = await adminFetch('/api/admin/invoices');
+      const data = await res.json();
+      const rows = data.invoices || [];
+      document.getElementById('invoicesSubtitle').textContent =
+        rows.length + (rows.length === 1 ? ' Rechnung' : ' Rechnungen');
+      tbody.innerHTML = rows.length ? rows.map(invoiceRow).join('') : '<tr class="empty-row"><td colspan="5">Noch keine Rechnungen versendet.</td></tr>';
+    } catch {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Fehler beim Laden.</td></tr>';
+    }
+  }
+
+  function invoiceRow(inv) {
+    return `<tr>
+      <td class="td-name">${esc(inv.clientName)}</td>
+      <td>${esc(inv.invoiceNumber || '—')}</td>
+      <td>${Number(inv.totalAmount).toFixed(2).replace('.', ',')} €</td>
+      <td class="td-email">${esc(inv.sentToEmail)}</td>
+      <td>${formatDate(inv.createdAt)}</td>
+    </tr>`;
+  }
 
   document.getElementById('newClientForm').addEventListener('submit', async e => {
     e.preventDefault();

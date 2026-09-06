@@ -10,22 +10,22 @@
   <meta name="description" content="Miguel Zimmermann – Fotograf aus Espelkamp. Professionelle Portraits, Events und kreative Shootings in Espelkamp, Lübbecke und Minden. Jetzt unverbindlich anfragen." />
   <meta name="keywords" content="Fotograf Espelkamp, Fotografie Espelkamp, Portrait Fotograf Espelkamp, Event Fotograf Espelkamp, Shooting Espelkamp, mz media, Miguel Zimmermann Fotograf, Fotograf Minden-Lübbecke" />
   <meta name="robots" content="index, follow" />
-  <link rel="canonical" href="https://www.mzmedia.de/" />
+  <link rel="canonical" href="https://www.miguelzimmermann.de/" />
   <base href="/">
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://www.mzmedia.de/" />
+  <meta property="og:url" content="https://www.miguelzimmermann.de/" />
   <meta property="og:title" content="Fotograf Espelkamp | Miguel Zimmermann · mz media" />
   <meta property="og:description" content="Miguel Zimmermann – Fotograf aus Espelkamp. Professionelle Portraits, Events und kreative Shootings in der Region Minden-Lübbecke." />
   <meta property="og:locale" content="de_DE" />
-  <meta property="og:image" content="https://www.mzmedia.de/og-image.jpg" />
+  <meta property="og:image" content="https://www.miguelzimmermann.de/og-image.jpg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Fotograf Espelkamp | Miguel Zimmermann · mz media" />
   <meta name="twitter:description" content="Miguel Zimmermann – Fotograf aus Espelkamp. Professionelle Portraits, Events und kreative Shootings in der Region Minden-Lübbecke." />
-  <meta name="twitter:image" content="https://www.mzmedia.de/og-image.jpg" />
+  <meta name="twitter:image" content="https://www.miguelzimmermann.de/og-image.jpg" />
 
   <!-- Structured Data: LocalBusiness -->
   <script type="application/ld+json">
@@ -33,11 +33,11 @@
     "@context": "https://schema.org",
     "@type": "PhotographyBusiness",
     "name": "mz media – Miguel Zimmermann Fotografie",
-    "url": "https://www.mzmedia.de/",
-    "email": "info@mzmedia.de",
+    "url": "https://www.miguelzimmermann.de/",
+    "email": "info@miguelzimmermann.de",
     "telephone": "+49 1514 1898946",
     "sameAs": ["https://www.instagram.com/mz.media_/"],
-    "image": "https://www.mzmedia.de/og-image.jpg",
+    "image": "https://www.miguelzimmermann.de/og-image.jpg",
     "description": "Fotograf aus Espelkamp – professionelle Portraits, Events und kreative Shootings in Espelkamp, Lübbecke, Minden und Umgebung.",
     "address": {
       "@type": "PostalAddress",
@@ -530,6 +530,23 @@
       color: rgba(255,255,255,.42);
     }
 
+    /* ─── MEDIABOX TEASER ─── */
+    .mediabox-teaser {
+      padding: 6rem 4rem;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 3rem; flex-wrap: wrap;
+      border-bottom: 1px solid var(--sand);
+    }
+    .mediabox-teaser-text { max-width: 560px; }
+    .mediabox-teaser-heading {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2rem, 3.2vw, 2.8rem);
+      font-weight: 300; line-height: 1.15;
+      margin-bottom: 1rem;
+    }
+    .mediabox-teaser-heading em { font-style: italic; color: var(--terra); }
+    .mediabox-teaser-body { color: var(--mid); font-size: .95rem; line-height: 1.75; }
+
     /* ─── CONTACT ─── */
     .contact {
       padding: 9rem 4rem;
@@ -678,6 +695,8 @@
       .services { padding: 5rem 1.6rem; }
       .services-grid { grid-template-columns: 1fr; }
 
+      .mediabox-teaser { padding: 4rem 1.6rem; flex-direction: column; align-items: flex-start; }
+
       .contact { grid-template-columns: 1fr; padding: 5rem 1.6rem; gap: 3.5rem; }
 
       footer {
@@ -702,6 +721,7 @@
         <li><a href="galerie.html">Galerie</a></li>
         <li><a href="#about">Über mich</a></li>
         <li><a href="#services">Leistungen</a></li>
+        <li><a href="mediabox.html">Mediabox</a></li>
         <li><a href="#kontakt">Kontakt</a></li>
         <li><a href="gallery.html" style="color:var(--terra);border-bottom:1px solid var(--terra);padding-bottom:1px;">Meine Bilder</a></li>
       </ul>
@@ -848,6 +868,21 @@
       </div>
     </section>
 
+    <!-- ─── MEDIABOX TEASER ─── -->
+    <section class="mediabox-teaser reveal" aria-labelledby="mediabox-teaser-heading">
+      <div class="mediabox-teaser-text">
+        <div class="section-label" aria-hidden="true">Mediabox</div>
+        <h2 class="mediabox-teaser-heading" id="mediabox-teaser-heading">
+          Deine Fotobox <em>zum Mieten.</em>
+        </h2>
+        <p class="mediabox-teaser-body">
+          Für Hochzeiten, Geburtstage und Firmenfeiern: Die Mediabox sorgt für spontane
+          Schnappschüsse und bleibende Erinnerungen. Prüfe direkt online, ob dein Termin frei ist.
+        </p>
+      </div>
+      <a href="mediabox.html" class="btn-primary">Mehr erfahren →</a>
+    </section>
+
     <!-- ─── CONTACT ─── -->
     <section class="contact" id="kontakt" aria-labelledby="contact-heading">
       <div class="contact-left reveal">
@@ -863,7 +898,7 @@
         <div class="contact-info">
           <div class="contact-item">
             <p class="contact-item-label">Email</p>
-            <a class="contact-item-value" href="mailto:info@mzmedia.de">info@mzmedia.de</a>
+            <a class="contact-item-value" href="mailto:info@miguelzimmermann.de">info@miguelzimmermann.de</a>
           </div>
           <div class="contact-item">
             <p class="contact-item-label">Instagram</p>

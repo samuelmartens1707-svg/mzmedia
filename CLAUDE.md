@@ -2,25 +2,29 @@
 
 ## Projekt-Überblick
 Fotografen-Website für **Miguel Zimmermann** (mz media), Espelkamp. Öffentliche Website + privates Kunden-Fotoportal.
-- Domain: `https://www.mzmedia.de/`
+- Domain: `https://www.miguelzimmermann.de/`
 - Sprache: Deutsch (gesamte Website und API-Fehlermeldungen auf Deutsch)
 
 ## Datei-Struktur
 ```
 public/                 – EINZIGER Ordner, den express.static() öffentlich ausliefert (server.js)
-  index.html            – Öffentliche Hauptseite (Hero, Portfolio-Ausschnitt, Services, Kontakt)
+  index.html            – Öffentliche Hauptseite (Hero, Portfolio-Ausschnitt, Services, Mediabox-Teaser, Kontakt)
   galerie.html          – Öffentliche Portfolio-Galerie (alle Bilder, Kategorie-Filter per Datalist, Lightbox)
   gallery.html          – Kunden-Galerie (Login erforderlich, JWT-Auth)
+  mediabox.html         – Öffentliche Mediabox-Seite (Fotobox-Vermietung): Anlässe, Event-Galerie, Belegungskalender, Anfrageformular
   admin.html            – Admin-Panel (separates Passwort, noindex)
   impressum.html / datenschutz.html / agb.html – Rechtliche Pflichtseiten (noindex, follow)
   robots.txt / sitemap.xml
   favicon.svg / site.webmanifest / og-image.jpg
   fonts/                – Selbst gehostete Cormorant-Garamond-/DM-Sans-Dateien (.woff2)
 server.js       – Express-Server (alle API-Routen)
-db.js           – MySQL-Verbindungspool + Auto-Init für home_images und clients
+db.js           – MySQL-Verbindungspool + Auto-Init für home_images, clients, invoices, mediabox_bookings
+sevdesk.js      – Anbindung an die sevDesk-Rechnungs-API (Contact/Invoice/Send)
 Dockerfile      – Node 20 Alpine, Port 3000
 scripts/
-  migrate-clients-to-db.js – Einmalige Migration von data/clients.json in die DB (Legacy)
+  migrate-clients-to-db.js               – Einmalige Migration von data/clients.json in die DB (Legacy)
+  add-billing-fields-to-clients.js       – Einmalige Migration: Rechnungsadresse + sevDesk-Kontakt-Cache an clients
+  add-mediabox-slot-to-home-images.js    – Einmalige Migration: erweitert home_images.slot um mediabox-hero/mediabox-gallery
 data/
   clients.json  – NUR NOCH Backup/Legacy, wird zur Laufzeit nicht mehr gelesen
 uploads/
@@ -99,21 +103,30 @@ POST /api/admin/clients         – Neuen Kunden anlegen
 POST /api/admin/clients/:id/photos       – Fotos hochladen
 DELETE /api/admin/clients/:id/photos/:f  – Foto löschen
 POST /api/admin/clients/:id/send-email  – Zugangsdaten-Mail senden
+POST /api/admin/clients/:id/invoice     – Rechnungsadresse speichern + Rechnung über sevDesk erstellen und versenden
+GET  /api/admin/invoices                – Alle bisher versendeten Rechnungen (admin)
 
 GET  /api/home-images                    – Homepage-Bilder (hero/about/galerie), öffentlich
 GET  /api/home-image/:id                 – einzelnes Homepage-Bild ausliefern (BLOB), öffentlich
-GET  /api/admin/home-images              – Homepage-Bilder-Metadaten (admin)
-POST /api/admin/home-images/:slot        – Einzel-Slot hochladen (hero|about-main|about-accent, ersetzt vorhandenes)
-POST /api/admin/home-images/gallery      – Galerie-Bilder hochladen (beliebig viele, mit Kategorie)
-PATCH /api/admin/home-images/:id         – Kategorie und/oder Alt-Text (altText) eines Galerie-Bilds ändern
+GET  /api/admin/home-images              – Homepage-Bilder-Metadaten (admin, alle Slots inkl. Mediabox)
+POST /api/admin/home-images/:slot        – Einzel-Slot hochladen (hero|about-main|about-accent|mediabox-hero, ersetzt vorhandenes)
+POST /api/admin/home-images/gallery      – Galerie-Bilder hochladen (beliebig viele, mit Kategorie; Body-Feld "slot" wählt gallery|mediabox-gallery, Default gallery)
+PATCH /api/admin/home-images/:id         – Kategorie und/oder Alt-Text (altText) eines Galerie-Bilds ändern (gallery oder mediabox-gallery)
 PUT  /api/admin/home-images/:id          – Bilddaten eines vorhandenen Bilds ersetzen (Crop/Rotate-Editor)
-POST /api/admin/home-images/:id/move     – Galerie-Bild rauf/runter sortieren
+POST /api/admin/home-images/:id/move     – Bild rauf/runter sortieren (innerhalb des eigenen Slots)
 DELETE /api/admin/home-images/:id        – Bild löschen (Einzel-Slot oder Galerie)
+
+GET  /api/mediabox-images                       – Mediabox-Titelbild + Event-Galerie, öffentlich
+GET  /api/mediabox-availability?year=&month=     – belegte Termine eines Monats (nur Datum), öffentlich
+GET  /api/admin/mediabox-availability            – volle Belegungsliste inkl. Notiz (admin)
+POST /api/admin/mediabox-availability            – Termin als belegt markieren, Body { date, note? } (admin)
+DELETE /api/admin/mediabox-availability/:id      – Termin wieder freigeben (admin)
+POST /api/mediabox-anfrage                       – Buchungsanfrage der Mediabox-Seite (Rate-Limit 3/min, Honeypot, wie /api/contact)
 ```
 
 ### Homepage-Bilder (DB-Speicherung)
 - Hero-, About- und Portfolio-Galerie-Bilder werden als `MEDIUMBLOB` in der Tabelle `home_images` (MySQL) gespeichert, nicht als Dateien — analog zur JoTech-Website, damit Bilder auch bei Neuaufbau des Containers/Dateisystems erhalten bleiben.
-- `hero`, `about-main`, `about-accent` sind feste Einzel-Slots (max. 1 Zeile je Slot, Ersetzen = Löschen + neu Einfügen). `gallery` ist eine beliebig große, sortierbare Liste mit frei vergebbarer Kategorie (Freitext, `VARCHAR(40)`, im Admin-Panel per `<datalist>` als Autocomplete-Vorschläge aus bestehenden Kategorien angeboten — keine feste Werteliste mehr).
+- `hero`, `about-main`, `about-accent`, `mediabox-hero` sind feste Einzel-Slots (max. 1 Zeile je Slot, Ersetzen = Löschen + neu Einfügen). `gallery` und `mediabox-gallery` sind unabhängig voneinander sortierbare Listen mit frei vergebbarer Kategorie (Freitext, `VARCHAR(40)`, im Admin-Panel per `<datalist>` als Autocomplete-Vorschläge aus bestehenden Kategorien angeboten — keine feste Werteliste mehr; bei `mediabox-gallery` dient das Feld als "Anlass/Event"-Bezeichnung). `mediabox-hero`/`mediabox-gallery` wurden per `scripts/add-mediabox-slot-to-home-images.js` zum `slot`-Enum hinzugefügt.
 - `gallery`-Bilder haben zusätzlich ein optionales `alt_text` (`VARCHAR(160)`, Spalte per `scripts/add-alt-text-to-home-images.js` nachgezogen) — eine echte Bildbeschreibung fürs `alt`-Attribut/die Bildersuche, im Admin-Panel als eigenes Feld neben der Kategorie editierbar. `index.html`/`galerie.html` nutzen `altText || category` als Fallback, falls kein Alt-Text gesetzt ist. Gilt nur für `gallery`-Bilder, nicht für die drei Einzel-Slots (deren `alt` ist fest im Markup von `index.html` verankert).
 - `galerie.html` zeigt öffentlich alle `gallery`-Bilder aus `GET /api/home-images`, mit clientseitigem Kategorie-Filter (inkl. `?kategorie=`-Deep-Link) und Lightbox. Nutzt dieselben Daten wie der Portfolio-Ausschnitt auf `index.html` — keine eigene Tabelle/Route.
 - `uploads/` (Kundenfotos) sind von dieser Änderung nicht betroffen — die bleiben Dateien.
@@ -124,6 +137,21 @@ DELETE /api/admin/home-images/:id        – Bild löschen (Einzel-Slot oder Gal
 - Beide Tabellen (`home_images`, `clients`) werden von `db.js` beim Serverstart automatisch angelegt (`CREATE TABLE IF NOT EXISTS`). Künftige Spalten-Änderungen brauchen ein manuelles `ALTER TABLE`.
 - Ist die DB nicht erreichbar, liefern die betroffenen Routen `503` (Homepage-Bilder UND jetzt auch Login/Kunden-Fotoportal/Admin-Kundenverwaltung, da Kundendaten nicht mehr im Dateisystem liegen).
 - Migration von der alten `data/clients.json`: `node scripts/migrate-clients-to-db.js` (idempotent, überspringt bereits vorhandene IDs).
+
+### Rechnungen (sevDesk-Integration)
+- Rechnungen werden nicht lokal erstellt, sondern über die sevDesk-API (`https://my.sevdesk.de/api/v1`, Anbindung in `sevdesk.js`) angelegt und direkt per E-Mail versendet. Erste ausgehende Drittanbieter-API-Anbindung in diesem Projekt.
+- Rechnungsadresse (Straße/PLZ/Ort/Firma, optional) liegt auf `clients` (`company_name`, `billing_street`, `billing_zip`, `billing_city`, `billing_country`), einmalig ergänzt über `node scripts/add-billing-fields-to-clients.js` (manuell auszuführen, idempotent).
+- `clients.sevdesk_contact_id` cached die sevDesk-Kontakt-ID, damit derselbe Kunde nicht bei jeder Rechnung einen neuen sevDesk-Kontakt bekommt.
+- `invoices` ist ein rein lokales Audit-Log (welche Rechnung, an wen, wann, sevDesk-Rechnungsnummer) für die "Rechnungen"-Übersicht im Admin-Panel — sevDesk selbst bleibt Quelle der Wahrheit für Rechnungsinhalt/PDF.
+- Schlägt der sevDesk-API-Call fehl (falscher Token, sevDesk nicht erreichbar, Validierungsfehler), liefert die Route `502` mit deutscher Fehlermeldung — bewusst unterschieden von `503` (eigene Datenbank nicht erreichbar).
+- `SEVDESK_API_TOKEN` (.env) wird ausschließlich serverseitig gelesen und nie an das Admin-Frontend zurückgegeben.
+- **Wichtig:** Einige statische Referenz-IDs in `sevdesk.js` (Land „Deutschland", Einheit „Stück") sind Platzhalter (`SEVDESK_COUNTRY_ID_DE`, `SEVDESK_UNITY_ID_PIECE`) und müssen vor dem ersten produktiven Einsatz gegen den echten sevDesk-Account verifiziert werden (`GET /StaticCountry`, `GET /Unity`) — siehe Kommentar am Dateianfang von `sevdesk.js`.
+
+### Mediabox (Fotobox-Vermietung)
+- Öffentliche Seite `mediabox.html`: erklärt, für welche Anlässe die Mediabox geeignet ist (Hochzeiten, Geburtstage/Jubiläen, Firmenfeiern, Vereinsfeste/Abibälle), zeigt eine Bildergalerie vergangener Events sowie einen Belegungskalender und ein Anfrageformular. Von `index.html` und `galerie.html` verlinkt (Nav + Teaser-Abschnitt auf der Startseite).
+- **Bilder:** wiederverwenden `home_images` (Slots `mediabox-hero`, `mediabox-gallery`) — im Admin-Panel unter "Mediabox → Bilder" verwaltet, exakt derselbe Upload-/Editier-/Sortier-Mechanismus wie bei den Homepage-Bildern.
+- **Belegungskalender:** eigene Tabelle `mediabox_bookings` (`booked_date` DATE, `note` optional) statt externem Kalenderdienst — bei Mittwald-Mailhosting ist keine Exchange-Kalenderanbindung möglich. Ein Datum ist ganztägig frei oder belegt, keine Uhrzeiten/Zeitslots. Admin trägt belegte Termine unter "Mediabox → Kalender" manuell ein/aus (`/api/admin/mediabox-availability`); die öffentliche Seite fragt pro angezeigtem Monat `GET /api/mediabox-availability?year=&month=` ab und zeigt nur die Daten, keine Notizen.
+- **Anfrage:** `POST /api/mediabox-anfrage` spiegelt `/api/contact` (Rate-Limit, Honeypot, `nodemailer`-Versand an `CONTACT_EMAIL`), inkl. optionalem Wunschtermin-Feld. Klick auf einen freien Kalendertag befüllt das Datumsfeld im Formular vor.
 
 ### Admin-Passwort (änderbar, mit "Passwort vergessen")
 - Bleibt bewusst ein einziges geteiltes Passwort (kein Admin-User-System wie bei JoTech) — nur der Speicherort ist jetzt änderbar statt fest in `.env`.
@@ -142,7 +170,8 @@ SMTP_HOST / SMTP_PORT / SMTP_SECURE / SMTP_USER / SMTP_PASS
 MAIL_FROM       – Absender-Adresse
 CONTACT_EMAIL   – Empfänger für Kontaktformulare
 ADMIN_EMAIL     – Empfänger für Admin-Passwort-Reset-Links (optional, Fallback: CONTACT_EMAIL → SMTP_USER)
-DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASS – MySQL-Zugang (home_images + clients + admin_settings)
+DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASS – MySQL-Zugang (home_images + clients + admin_settings + invoices + mediabox_bookings)
+SEVDESK_API_TOKEN – sevDesk → Einstellungen → Benutzer → API-Token (32-stelliger Hex-String, ohne "Bearer"-Präfix)
 ```
 
 ## Deployment
@@ -155,5 +184,6 @@ DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASS – MySQL-Zugang (home_images + 
 - Alle 3 HTML-Dateien teilen dieselben CSS-Tokens – Änderungen an Farben/Fonts in **allen** Dateien synchron halten
 - Kein JS-Framework einführen – bleibt Vanilla
 - Keine neuen npm-Pakete ohne Rückfrage (Ausnahme bereits bestätigt: `mysql2` für die Homepage-Bilder-DB)
+- Ausgehende Drittanbieter-API-Calls: natives `fetch` (Node 18+) verwenden, kein HTTP-Client-Paket hinzufügen — `sevdesk.js` ist die Referenz-Implementierung für künftige Integrationen (zentraler Fetch-Helper, typisierte Fehler, Basis-URL/Auth an einer Stelle)
 - Deutsche Fehlermeldungen und UI-Texte beibehalten
 - `cursor: none` auf body (Custom Cursor) – nicht entfernen

@@ -7,4 +7,4 @@ Disallow: /scripts/
 Disallow: /templates/
 Disallow: /data/
 
-Sitemap: https://www.mzmedia.de/sitemap.xml
+Sitemap: https://www.miguelzimmermann.de/sitemap.xml

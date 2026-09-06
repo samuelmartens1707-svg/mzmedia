@@ -17,7 +17,10 @@ const {
   ensurePasswordResetsTable,
   ensureAdminSettingsTable,
   ensureAdminPasswordResetsTable,
+  ensureInvoicesTable,
+  ensureMediaboxBookingsTable,
 } = require('./db');
+const sevdesk = require('./sevdesk');
 
 const app      = express();
 const PORT     = process.env.PORT || 3000;
@@ -46,6 +49,14 @@ ensureAdminSettingsTable()
 ensureAdminPasswordResetsTable()
   .then(() => console.log('[DB] admin_password_resets Tabelle bereit.'))
   .catch(err => console.warn('[DB] Verbindung fehlgeschlagen — Admin-Passwort-vergessen vorübergehend deaktiviert:', err.message));
+
+ensureInvoicesTable()
+  .then(() => console.log('[DB] invoices Tabelle bereit.'))
+  .catch(err => console.warn('[DB] Verbindung fehlgeschlagen — Rechnungs-Historie vorübergehend deaktiviert:', err.message));
+
+ensureMediaboxBookingsTable()
+  .then(() => console.log('[DB] mediabox_bookings Tabelle bereit.'))
+  .catch(err => console.warn('[DB] Verbindung fehlgeschlagen — Mediabox-Belegungskalender vorübergehend deaktiviert:', err.message));
 
 // Gzip/Brotli-Kompression für Text-Antworten (HTML/CSS/JS/JSON/SVG) — Bilder
 // (image/*) sind vom Default-Filter ausgenommen, bleiben also unangetastet.
@@ -510,7 +521,10 @@ app.get('/api/admin/clients', adminMiddleware, async (req, res) => {
   try {
     await ensureClientsTable();
     const [rows] = await pool.query(
-      `SELECT id, name, email, shooting_date AS shootingDate, shooting_type AS shootingType FROM clients ORDER BY created_at DESC`
+      `SELECT id, name, email, shooting_date AS shootingDate, shooting_type AS shootingType,
+              company_name AS companyName, billing_street AS billingStreet, billing_zip AS billingZip,
+              billing_city AS billingCity, billing_country AS billingCountry
+       FROM clients ORDER BY created_at DESC`
     );
     res.json({ clients: rows });
   } catch (err) {
@@ -629,6 +643,106 @@ app.post('/api/admin/clients/:clientId/send-email', adminMiddleware, async (req,
   }
 });
 
+// POST /api/admin/clients/:clientId/invoice — Rechnungsadresse speichern + Rechnung über
+// sevDesk erstellen und per E-Mail an den Kunden versenden
+// Body: { billingAddress: { companyName, street, zip, city, country },
+//         items: [{ description, quantity, unitPrice, vatRate }, ...], header, footerText }
+app.post('/api/admin/clients/:clientId/invoice', adminMiddleware, async (req, res) => {
+  const { billingAddress, items, header, footerText } = req.body;
+
+  if (!billingAddress || !billingAddress.street || !billingAddress.zip || !billingAddress.city) {
+    return res.status(400).json({ error: 'Rechnungsadresse (Straße, PLZ, Ort) erforderlich.' });
+  }
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Mindestens eine Rechnungsposition erforderlich.' });
+  }
+  for (const it of items) {
+    if (!it.description || !(it.quantity > 0) || !(it.unitPrice >= 0) || ![0, 7, 19].includes(Number(it.vatRate))) {
+      return res.status(400).json({ error: 'Jede Position braucht Beschreibung, Menge, Preis und gültigen MwSt-Satz.' });
+    }
+  }
+
+  let client;
+  try {
+    await ensureClientsTable();
+    client = await findClientById(req.params.clientId);
+    if (!client) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+
+    await pool.query(
+      `UPDATE clients SET company_name = ?, billing_street = ?, billing_zip = ?, billing_city = ?, billing_country = ? WHERE id = ?`,
+      [billingAddress.companyName || '', billingAddress.street, billingAddress.zip, billingAddress.city,
+       billingAddress.country || 'DE', client.id]
+    );
+    client = { ...client, ...billingAddress, company_name: billingAddress.companyName || '' };
+  } catch (err) {
+    return res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
+  }
+
+  let contactId, result;
+  try {
+    const contact = await sevdesk.findOrCreateContact(client);
+    contactId = contact.contactId;
+    if (contact.isNew) {
+      await pool.query('UPDATE clients SET sevdesk_contact_id = ? WHERE id = ?', [contactId, client.id]);
+    }
+    result = await sevdesk.createAndSendInvoice({
+      contactId,
+      items: items.map(it => ({
+        description: it.description,
+        quantity: Number(it.quantity),
+        unitPrice: Number(it.unitPrice),
+        vatRate: Number(it.vatRate),
+      })),
+      invoiceDate: new Date().toISOString().slice(0, 10),
+      header: header || `Rechnung — ${client.name}`,
+      footerText: footerText || '',
+      sendToEmail: client.email,
+    });
+  } catch (err) {
+    console.error('[SEVDESK] Fehler:', err.message);
+    return res.status(502).json({ error: 'sevDesk-Anfrage fehlgeschlagen: ' + err.message });
+  }
+
+  const totalAmount = items.reduce((sum, it) => sum + Number(it.quantity) * Number(it.unitPrice), 0);
+  try {
+    await ensureInvoicesTable();
+    await pool.query(
+      `INSERT INTO invoices (client_id, sevdesk_invoice_id, invoice_number, total_amount, header, sent_to_email)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [client.id, result.sevdeskInvoiceId, result.invoiceNumber, totalAmount.toFixed(2), header || '', client.email]
+    );
+  } catch (err) {
+    // Rechnung wurde bei sevDesk bereits erfolgreich versendet — nur das lokale Log schlug fehl.
+    // Kein 5xx mehr an den Client, sonst denkt Miguel fälschlich, die Rechnung sei nicht raus.
+    console.warn('[INVOICES] Audit-Log konnte nicht geschrieben werden:', err.message);
+  }
+
+  res.status(201).json({
+    ok: true,
+    sevdeskInvoiceId: result.sevdeskInvoiceId,
+    invoiceNumber: result.invoiceNumber,
+    totalAmount: totalAmount.toFixed(2),
+    sentTo: client.email,
+  });
+});
+
+// GET /api/admin/invoices — alle bisher versendeten Rechnungen (neueste zuerst), inkl. Kundenname
+app.get('/api/admin/invoices', adminMiddleware, async (req, res) => {
+  try {
+    await ensureInvoicesTable();
+    const [rows] = await pool.query(
+      `SELECT i.id, i.client_id AS clientId, c.name AS clientName, i.sevdesk_invoice_id AS sevdeskInvoiceId,
+              i.invoice_number AS invoiceNumber, i.total_amount AS totalAmount, i.currency, i.header,
+              i.sent_to_email AS sentToEmail, i.created_at AS createdAt
+       FROM invoices i JOIN clients c ON c.id = i.client_id
+       ORDER BY i.created_at DESC`
+    );
+    res.json({ invoices: rows });
+  } catch (err) {
+    res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
+  }
+});
+
 // ─── Homepage-Bilder (Hero, About, Galerie) ──────────────────
 // Bilder werden als BLOB in der Datenbank gespeichert (nicht auf der Festplatte),
 // damit sie über beliebige Deploys/Redeploys hinweg erhalten bleiben.
@@ -694,22 +808,27 @@ app.get('/api/admin/home-images', adminMiddleware, async (req, res) => {
   }
 });
 
-// POST /api/admin/home-images/gallery — admin, Mehrfach-Upload für die Galerie
+// POST /api/admin/home-images/gallery — admin, Mehrfach-Upload für eine Galerie
 // (muss VOR /api/admin/home-images/:slot registriert sein, sonst fängt die :slot-Route "gallery" als Slot-Namen ab)
+// Body-Feld "slot" wählt die Ziel-Galerie (Default 'gallery' = Homepage-Portfolio,
+// 'mediabox-gallery' = Bilder vergangener Mediabox-Events).
+const GALLERY_SLOTS = ['gallery', 'mediabox-gallery'];
 app.post('/api/admin/home-images/gallery', adminMiddleware, uploadMemory.array('photos', 50), async (req, res) => {
   if (!req.files?.length) return res.status(400).json({ error: 'Keine Dateien hochgeladen.' });
+  const slot = GALLERY_SLOTS.includes(req.body.slot) ? req.body.slot : 'gallery';
   const category = (req.body.category || 'Sonstiges').trim();
   try {
     await ensureHomeImagesTable();
     const [[{ maxOrder }]] = await pool.query(
-      "SELECT COALESCE(MAX(sort_order), -1) AS maxOrder FROM home_images WHERE slot = 'gallery'"
+      'SELECT COALESCE(MAX(sort_order), -1) AS maxOrder FROM home_images WHERE slot = ?',
+      [slot]
     );
     let nextOrder = maxOrder + 1;
     const uploaded = [];
     for (const file of req.files) {
       const [result] = await pool.query(
-        "INSERT INTO home_images (slot, category, filename, mime_type, data, sort_order) VALUES ('gallery', ?, ?, ?, ?, ?)",
-        [category, file.originalname, file.mimetype, file.buffer, nextOrder]
+        'INSERT INTO home_images (slot, category, filename, mime_type, data, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
+        [slot, category, file.originalname, file.mimetype, file.buffer, nextOrder]
       );
       uploaded.push({ id: result.insertId, url: homeImageUrl(result.insertId), category });
       nextOrder++;
@@ -720,10 +839,10 @@ app.post('/api/admin/home-images/gallery', adminMiddleware, uploadMemory.array('
   }
 });
 
-// POST /api/admin/home-images/:slot — admin, Upload für hero/about-main/about-accent
+// POST /api/admin/home-images/:slot — admin, Upload für die festen Einzel-Slots
 app.post('/api/admin/home-images/:slot', adminMiddleware, uploadMemory.single('image'), async (req, res) => {
   const { slot } = req.params;
-  if (!['hero', 'about-main', 'about-accent'].includes(slot)) {
+  if (!['hero', 'about-main', 'about-accent', 'mediabox-hero'].includes(slot)) {
     return res.status(400).json({ error: 'Ungültiger Slot.' });
   }
   if (!req.file) return res.status(400).json({ error: 'Keine Datei hochgeladen.' });
@@ -757,7 +876,7 @@ app.patch('/api/admin/home-images/:id', adminMiddleware, async (req, res) => {
   try {
     await ensureHomeImagesTable();
     const [result] = await pool.query(
-      `UPDATE home_images SET ${sets.join(', ')} WHERE id = ? AND slot = 'gallery'`,
+      `UPDATE home_images SET ${sets.join(', ')} WHERE id = ? AND slot IN ('gallery', 'mediabox-gallery')`,
       values
     );
     if (!result.affectedRows) return res.status(404).json({ error: 'Galerie-Bild nicht gefunden.' });
@@ -786,13 +905,17 @@ app.put('/api/admin/home-images/:id', adminMiddleware, uploadMemory.single('imag
 });
 
 // POST /api/admin/home-images/:id/move — admin, Galerie-Bild rauf/runter sortieren
+// (sortiert innerhalb des eigenen Slots — 'gallery' und 'mediabox-gallery' sind unabhängig voneinander)
 app.post('/api/admin/home-images/:id/move', adminMiddleware, async (req, res) => {
   const { direction } = req.body; // 'up' | 'down'
   if (!['up', 'down'].includes(direction)) return res.status(400).json({ error: 'Ungültige Richtung.' });
   try {
     await ensureHomeImagesTable();
+    const [[self]] = await pool.query('SELECT slot FROM home_images WHERE id = ?', [req.params.id]);
+    if (!self) return res.status(404).json({ error: 'Galerie-Bild nicht gefunden.' });
     const [rows] = await pool.query(
-      "SELECT id, sort_order FROM home_images WHERE slot = 'gallery' ORDER BY sort_order ASC, id ASC"
+      'SELECT id, sort_order FROM home_images WHERE slot = ? ORDER BY sort_order ASC, id ASC',
+      [self.slot]
     );
     const index = rows.findIndex(r => r.id === Number(req.params.id));
     if (index === -1) return res.status(404).json({ error: 'Galerie-Bild nicht gefunden.' });
@@ -816,6 +939,142 @@ app.delete('/api/admin/home-images/:id', adminMiddleware, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
+  }
+});
+
+// GET /api/mediabox-images — öffentlich, Metadaten der Mediabox-Bilder (Hero + Event-Galerie)
+app.get('/api/mediabox-images', async (req, res) => {
+  try {
+    await ensureHomeImagesTable();
+    const [rows] = await pool.query(
+      "SELECT id, slot, category, alt_text, sort_order FROM home_images WHERE slot IN ('mediabox-hero', 'mediabox-gallery') ORDER BY sort_order ASC, id ASC"
+    );
+    const hero = rows.find(r => r.slot === 'mediabox-hero');
+    res.json({
+      hero: hero ? { id: hero.id, url: homeImageUrl(hero.id) } : null,
+      gallery: rows.filter(r => r.slot === 'mediabox-gallery')
+                   .map(r => ({ id: r.id, category: r.category, altText: r.alt_text, url: homeImageUrl(r.id) })),
+    });
+  } catch (err) {
+    res.status(503).json({ error: 'Bilder aktuell nicht verfügbar.' });
+  }
+});
+
+// ─── Mediabox: Belegungskalender ──────────────────────────────
+// Eigene Verwaltung im Admin-Bereich statt externem Kalenderdienst (bei Mittwald-Mailhosting
+// ist keine Exchange-Kalenderanbindung möglich) — ein Datum ist ganztägig frei oder belegt,
+// keine Uhrzeiten/Zeitslots.
+
+// GET /api/mediabox-availability?year=&month= — öffentlich, nur die belegten Daten, keine Notizen
+app.get('/api/mediabox-availability', async (req, res) => {
+  const year  = Number(req.query.year);
+  const month = Number(req.query.month); // 1-12
+  if (!year || !month || month < 1 || month > 12) {
+    return res.status(400).json({ error: 'Ungültiger Zeitraum.' });
+  }
+  try {
+    await ensureMediaboxBookingsTable();
+    const [rows] = await pool.query(
+      { sql: 'SELECT booked_date FROM mediabox_bookings WHERE YEAR(booked_date) = ? AND MONTH(booked_date) = ?', dateStrings: true },
+      [year, month]
+    );
+    res.json({ bookedDates: rows.map(r => r.booked_date) });
+  } catch (err) {
+    res.status(503).json({ error: 'Belegungskalender aktuell nicht verfügbar.' });
+  }
+});
+
+// GET /api/admin/mediabox-availability — admin, volle Liste inkl. Notiz
+app.get('/api/admin/mediabox-availability', adminMiddleware, async (req, res) => {
+  try {
+    await ensureMediaboxBookingsTable();
+    const [rows] = await pool.query(
+      { sql: 'SELECT id, booked_date, note FROM mediabox_bookings ORDER BY booked_date ASC', dateStrings: true }
+    );
+    res.json({ bookings: rows.map(r => ({ id: r.id, date: r.booked_date, note: r.note || '' })) });
+  } catch (err) {
+    res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
+  }
+});
+
+// POST /api/admin/mediabox-availability — admin, Body { date, note? } → Termin als belegt markieren
+app.post('/api/admin/mediabox-availability', adminMiddleware, async (req, res) => {
+  const { date, note } = req.body;
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ error: 'Bitte ein gültiges Datum angeben (JJJJ-MM-TT).' });
+  }
+  try {
+    await ensureMediaboxBookingsTable();
+    const [result] = await pool.query(
+      'INSERT INTO mediabox_bookings (booked_date, note) VALUES (?, ?)',
+      [date, (note || '').trim() || null]
+    );
+    res.json({ id: result.insertId, date, note: (note || '').trim() });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ error: 'Dieses Datum ist bereits als belegt markiert.' });
+    }
+    res.status(503).json({ error: 'Termin konnte nicht gespeichert werden.' });
+  }
+});
+
+// DELETE /api/admin/mediabox-availability/:id — admin, Termin wieder freigeben
+app.delete('/api/admin/mediabox-availability/:id', adminMiddleware, async (req, res) => {
+  try {
+    await ensureMediaboxBookingsTable();
+    const [result] = await pool.query('DELETE FROM mediabox_bookings WHERE id = ?', [req.params.id]);
+    if (!result.affectedRows) return res.status(404).json({ error: 'Termin nicht gefunden.' });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
+  }
+});
+
+// POST /api/mediabox-anfrage — Buchungsanfrage für die Mediabox (Rate-Limit + Honeypot wie /api/contact)
+app.post('/api/mediabox-anfrage', async (req, res) => {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
+
+  if (isRateLimited(ip)) {
+    return res.status(429).json({ error: 'Zu viele Anfragen. Bitte warte einen Moment.' });
+  }
+
+  const { name, email, date, message, website } = req.body;
+
+  // Honeypot: bots fill this hidden field, humans don't
+  if (website) return res.json({ ok: true });
+
+  if (!name?.trim() || !email?.trim() || !message?.trim()) {
+    return res.status(400).json({ error: 'Bitte alle Pflichtfelder ausfüllen.' });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Bitte eine gültige E-Mail-Adresse eingeben.' });
+  }
+
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.warn('[MEDIABOX-ANFRAGE] SMTP nicht konfiguriert – Nachricht nicht gesendet.');
+    return res.json({ ok: true });
+  }
+
+  try {
+    await transporter.sendMail({
+      from:    process.env.MAIL_FROM || process.env.SMTP_USER,
+      to:      process.env.CONTACT_EMAIL || process.env.SMTP_USER,
+      replyTo: email,
+      subject: `Neue Mediabox-Anfrage von ${name}`,
+      html: `
+        <h2 style="font-family:sans-serif;color:#23271F;">Neue Mediabox-Anfrage</h2>
+        <p style="font-family:sans-serif;"><strong>Name:</strong> ${escapeHtml(name)}</p>
+        <p style="font-family:sans-serif;"><strong>E-Mail:</strong> ${escapeHtml(email)}</p>
+        <p style="font-family:sans-serif;"><strong>Wunschtermin:</strong> ${escapeHtml(date || '—')}</p>
+        <p style="font-family:sans-serif;"><strong>Nachricht:</strong></p>
+        <p style="font-family:sans-serif;white-space:pre-wrap;">${escapeHtml(message)}</p>
+      `,
+      text: `Name: ${name}\nE-Mail: ${email}\nWunschtermin: ${date || '—'}\n\n${message}`,
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[MEDIABOX-ANFRAGE] E-Mail Fehler:', err.message);
+    res.status(500).json({ error: 'E-Mail konnte nicht gesendet werden. Bitte versuche es später erneut.' });
   }
 });
 
