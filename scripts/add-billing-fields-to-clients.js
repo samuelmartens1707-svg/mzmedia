@@ -1,6 +1,9 @@
-// Einmalige Migration: fügt Rechnungsadresse + sevDesk-Kontakt-Cache zur clients-Tabelle hinzu.
+// Migration: fügt Rechnungsadresse + sevDesk-Kontakt-Cache zur clients-Tabelle hinzu.
 // Aufruf: node scripts/add-billing-fields-to-clients.js
 // Idempotent — prüft vor jedem ALTER TABLE, ob die Spalte schon existiert.
+// Hinweis: db.js (ensureClientsTable → ensureColumns) zieht dieselben Spalten inzwischen
+// automatisch bei jedem Serverstart nach — dieses Skript ist nur noch für einen manuellen,
+// sofortigen Lauf ohne Server-Neustart nötig.
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 

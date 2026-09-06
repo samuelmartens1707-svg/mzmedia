@@ -537,6 +537,22 @@
       gap: 3rem; flex-wrap: wrap;
       border-bottom: 1px solid var(--sand);
     }
+    .mediabox-teaser-img {
+      position: relative; overflow: hidden; flex-shrink: 0;
+      width: 220px; aspect-ratio: 4/5;
+      background: linear-gradient(150deg, var(--sage) 0%, var(--terra) 55%, var(--clay) 100%);
+    }
+    .mediabox-teaser-img-real { display: none; width: 100%; height: 100%; object-fit: cover; }
+    .mediabox-teaser-img-placeholder {
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .mediabox-teaser-img-placeholder span {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: .7rem; letter-spacing: .2em;
+      text-transform: uppercase; color: rgba(255,255,255,.55);
+      writing-mode: vertical-rl;
+    }
     .mediabox-teaser-text { max-width: 560px; }
     .mediabox-teaser-heading {
       font-family: 'Cormorant Garamond', serif;
@@ -696,6 +712,7 @@
       .services-grid { grid-template-columns: 1fr; }
 
       .mediabox-teaser { padding: 4rem 1.6rem; flex-direction: column; align-items: flex-start; }
+      .mediabox-teaser-img { width: 100%; max-width: 260px; aspect-ratio: 16/9; }
 
       .contact { grid-template-columns: 1fr; padding: 5rem 1.6rem; gap: 3.5rem; }
 
@@ -870,6 +887,12 @@
 
     <!-- ─── MEDIABOX TEASER ─── -->
     <section class="mediabox-teaser reveal" aria-labelledby="mediabox-teaser-heading">
+      <div class="mediabox-teaser-img" aria-hidden="true">
+        <img class="mediabox-teaser-img-real" id="mediaboxTeaserImgReal" alt="Mediabox im Einsatz" loading="lazy">
+        <div class="mediabox-teaser-img-placeholder" id="mediaboxTeaserPlaceholder">
+          <span>Mediabox</span>
+        </div>
+      </div>
       <div class="mediabox-teaser-text">
         <div class="section-label" aria-hidden="true">Mediabox</div>
         <h2 class="mediabox-teaser-heading" id="mediabox-teaser-heading">
@@ -1090,6 +1113,18 @@
         if (data.gallery?.length) renderDynamicGallery(data.gallery);
       })
       .catch(() => { /* Homepage-Bilder aktuell nicht verfügbar — Platzhalter bleiben sichtbar */ });
+
+    // ─── Mediabox-Teaserbild (im Admin-Panel unter "Mediabox → Bilder → Titelbild" pflegbar) ───
+    fetch('/api/mediabox-images')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => {
+        if (data.hero) {
+          document.getElementById('mediaboxTeaserImgReal').src = data.hero.url;
+          document.getElementById('mediaboxTeaserImgReal').style.display = 'block';
+          document.getElementById('mediaboxTeaserPlaceholder').style.display = 'none';
+        }
+      })
+      .catch(() => { /* Mediabox-Bild aktuell nicht verfügbar — Platzhalter bleibt sichtbar */ });
 
     // ─── Form validation ───
     const form = document.getElementById('contact-form');

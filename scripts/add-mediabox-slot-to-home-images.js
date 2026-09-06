@@ -3,6 +3,9 @@
 // Speicher-/Admin-Mechanismus wie die Homepage-Bilder).
 // Aufruf: node scripts/add-mediabox-slot-to-home-images.js
 // Idempotent — prüft vor dem ALTER TABLE, ob die Werte schon im Enum enthalten sind.
+// Hinweis: db.js (ensureHomeImagesTable → ensureHomeImagesMediaboxSlots) erweitert das Enum
+// inzwischen automatisch bei jedem Serverstart — dieses Skript ist nur noch für einen manuellen,
+// sofortigen Lauf ohne Server-Neustart nötig.
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 

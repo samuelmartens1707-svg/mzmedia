@@ -134,7 +134,7 @@ POST /api/mediabox-anfrage                       – Buchungsanfrage der Mediabo
 ### Kundendaten (DB-Speicherung, seit dieser Umstellung)
 - Kunden (Name, E-Mail, Passwort-Hash, Shooting-Datum/-Art) liegen in der Tabelle `clients` (MySQL), nicht mehr in `data/clients.json`.
 - `id` ist `VARCHAR`, kein `AUTO_INCREMENT` — bestehende IDs wie `c1777494715939` entsprechen 1:1 den Ordnernamen unter `uploads/<id>/` und dürfen sich nicht ändern.
-- Beide Tabellen (`home_images`, `clients`) werden von `db.js` beim Serverstart automatisch angelegt (`CREATE TABLE IF NOT EXISTS`). Künftige Spalten-Änderungen brauchen ein manuelles `ALTER TABLE`.
+- Beide Tabellen (`home_images`, `clients`) werden von `db.js` beim Serverstart automatisch angelegt (`CREATE TABLE IF NOT EXISTS`). Spätere Spalten-/Enum-Erweiterungen (Rechnungsadresse + sevDesk-Cache auf `clients`, `mediabox-hero`/`mediabox-gallery` im `slot`-Enum von `home_images`) werden ebenfalls automatisch bei jedem Serverstart nachgezogen (`ensureColumns()` bzw. `ensureHomeImagesMediaboxSlots()` in `db.js`) — nicht mehr nur über die einmaligen Skripte in `scripts/`, da ein vergessener manueller Lauf nach einem Deploy genau diese Spalten fehlen ließ und z. B. die Kundenliste im Admin-Panel mit `503` leer blieb. Ein **komplett neues** Feld, das noch in keiner dieser Listen steht, braucht weiterhin ein eigenes `ALTER TABLE` (Skript oder Ergänzung der Liste in `db.js`).
 - Ist die DB nicht erreichbar, liefern die betroffenen Routen `503` (Homepage-Bilder UND jetzt auch Login/Kunden-Fotoportal/Admin-Kundenverwaltung, da Kundendaten nicht mehr im Dateisystem liegen).
 - Migration von der alten `data/clients.json`: `node scripts/migrate-clients-to-db.js` (idempotent, überspringt bereits vorhandene IDs).
 

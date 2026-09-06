@@ -36,6 +36,24 @@ pool.query = async (...args) => {
   }
 };
 
+// Ergänzt fehlende Spalten einer bereits bestehenden Tabelle automatisch (ADD COLUMN),
+// statt sich darauf zu verlassen, dass nach jedem Deploy manuell ein Migrationsskript
+// ausgeführt wird — genau das wurde in der Vergangenheit vergessen und hat Routen, die
+// die neuen Spalten abfragen, mit einem SQL-Fehler (→ 503) stillschweigend lahmgelegt.
+async function ensureColumns(table, columns) {
+  const [rows] = await pool.query(
+    'SELECT column_name AS name FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ?',
+    [table]
+  );
+  const existing = new Set(rows.map(r => r.name));
+  for (const col of columns) {
+    if (!existing.has(col.name)) {
+      await pool.query(`ALTER TABLE ${table} ADD COLUMN ${col.ddl}`);
+      console.log(`[DB] Spalte ergänzt: ${table}.${col.name}`);
+    }
+  }
+}
+
 const CREATE_TABLE_SQL = `
   CREATE TABLE IF NOT EXISTS home_images (
     id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -52,15 +70,32 @@ const CREATE_TABLE_SQL = `
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 `;
 
+// Erweitert die slot-ENUM einer bereits bestehenden home_images-Tabelle automatisch um
+// mediabox-hero/mediabox-gallery, falls sie (z. B. aus einem älteren Deployment) noch
+// fehlen — ersetzt scripts/add-mediabox-slot-to-home-images.js als manuellen Schritt.
+async function ensureHomeImagesMediaboxSlots() {
+  const [[row]] = await pool.query(
+    "SELECT column_type AS colType FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'home_images' AND column_name = 'slot'"
+  );
+  const colType = row?.colType || '';
+  if (colType.includes('mediabox-gallery') && colType.includes('mediabox-hero')) return;
+  await pool.query(
+    "ALTER TABLE home_images MODIFY COLUMN slot ENUM('hero','about-main','about-accent','gallery','mediabox-hero','mediabox-gallery') NOT NULL"
+  );
+  console.log('[DB] home_images.slot-Enum um mediabox-hero/mediabox-gallery erweitert.');
+}
+
 // Cached promise so every home-images route can safely call this first —
 // cheap after the first success, and self-heals if the DB was down at boot.
 let ensured = null;
 function ensureHomeImagesTable() {
   if (!ensured) {
-    ensured = pool.query(CREATE_TABLE_SQL).catch(err => {
-      ensured = null;
-      throw err;
-    });
+    ensured = pool.query(CREATE_TABLE_SQL)
+      .then(() => ensureHomeImagesMediaboxSlots())
+      .catch(err => {
+        ensured = null;
+        throw err;
+      });
   }
   return ensured;
 }
@@ -78,15 +113,30 @@ const CREATE_CLIENTS_TABLE_SQL = `
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 `;
 
+// Rechnungsadresse + sevDesk-Kontakt-Cache — ursprünglich per scripts/add-billing-fields-to-clients.js
+// nachgezogen; jetzt zusätzlich hier, damit sie garantiert existieren, unabhängig davon, ob
+// das Skript nach einem Deploy manuell ausgeführt wurde (das genau hier zu fehlenden Kunden
+// in der Admin-Übersicht geführt hat, da GET /api/admin/clients sonst mit SQL-Fehler → 503 endet).
+const CLIENTS_OPTIONAL_COLUMNS = [
+  { name: 'company_name',       ddl: "company_name VARCHAR(160) NOT NULL DEFAULT ''" },
+  { name: 'billing_street',     ddl: "billing_street VARCHAR(190) NOT NULL DEFAULT ''" },
+  { name: 'billing_zip',        ddl: "billing_zip VARCHAR(20) NOT NULL DEFAULT ''" },
+  { name: 'billing_city',       ddl: "billing_city VARCHAR(120) NOT NULL DEFAULT ''" },
+  { name: 'billing_country',    ddl: "billing_country VARCHAR(2) NOT NULL DEFAULT 'DE'" },
+  { name: 'sevdesk_contact_id', ddl: "sevdesk_contact_id VARCHAR(32) NOT NULL DEFAULT ''" },
+];
+
 // id bleibt VARCHAR (nicht AUTO_INCREMENT), weil bestehende IDs wie "c1777494715939"
 // direkt den Ordnernamen unter uploads/<id>/ entsprechen — das darf sich nicht ändern.
 let ensuredClients = null;
 function ensureClientsTable() {
   if (!ensuredClients) {
-    ensuredClients = pool.query(CREATE_CLIENTS_TABLE_SQL).catch(err => {
-      ensuredClients = null;
-      throw err;
-    });
+    ensuredClients = pool.query(CREATE_CLIENTS_TABLE_SQL)
+      .then(() => ensureColumns('clients', CLIENTS_OPTIONAL_COLUMNS))
+      .catch(err => {
+        ensuredClients = null;
+        throw err;
+      });
   }
   return ensuredClients;
 }
