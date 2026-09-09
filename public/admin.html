@@ -721,7 +721,10 @@
         <div class="upload-status" id="galleryUploadStatus" role="status" aria-live="polite"></div>
       </div>
 
-      <div class="photos-section-title" id="galleryPhotosTitle">Portfolio-Galerie — vorhandene Bilder</div>
+      <div class="photos-section-title">
+        <span id="galleryPhotosTitle">Portfolio-Galerie — vorhandene Bilder</span>
+        <button type="button" class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="openAiSuggest('gallery')">✨ KI-Vorschlag</button>
+      </div>
       <div class="admin-photo-grid" id="galleryPhotoGrid"></div>
     </div>
 
@@ -755,7 +758,10 @@
         <div class="upload-status" id="mediaboxUploadStatus" role="status" aria-live="polite"></div>
       </div>
 
-      <div class="photos-section-title" id="mediaboxPhotosTitle">Event-Galerie — vorhandene Bilder</div>
+      <div class="photos-section-title">
+        <span id="mediaboxPhotosTitle">Event-Galerie — vorhandene Bilder</span>
+        <button type="button" class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="openAiSuggest('mediabox-gallery')">✨ KI-Vorschlag</button>
+      </div>
       <div class="admin-photo-grid" id="mediaboxPhotoGrid"></div>
 
       <div class="photos-section-title" style="margin-top:2.6rem;">Belegungskalender</div>
@@ -1018,6 +1024,24 @@
       <div style="flex:1"></div>
       <button type="button" class="btn btn-outline" onclick="closeImageEditor()">Abbrechen</button>
       <button type="button" class="btn btn-primary" id="btnSaveImageEdit" onclick="saveImageEdit()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── KI-VORSCHLAG (Bilder-Reihenfolge/Kategorien) ─── -->
+<div class="modal-backdrop" id="aiSuggestModal" role="dialog" aria-modal="true" aria-labelledby="aiSuggestTitle">
+  <div class="modal" style="max-width:680px;">
+    <h2 class="modal-title" id="aiSuggestTitle">✨ KI-<em>Vorschlag</em></h2>
+    <div id="aiSuggestLoading" style="color:var(--light);font-size:.88rem;">Claude analysiert die Bilder …</div>
+    <div id="aiSuggestError" style="display:none;color:#b00020;font-size:.88rem;"></div>
+    <div id="aiSuggestResult" style="display:none;">
+      <div style="display:flex;gap:.6rem;overflow-x:auto;padding-bottom:.6rem;margin-bottom:1.2rem;" id="aiSuggestPreviewStrip"></div>
+      <div id="aiSuggestCategoryChanges" style="font-size:.82rem;color:var(--dark);margin-bottom:1rem;"></div>
+      <p id="aiSuggestNote" style="font-size:.85rem;color:var(--mid);font-style:italic;"></p>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" onclick="closeAiSuggest()">Verwerfen</button>
+      <button type="button" class="btn btn-primary" id="btnApplyAiSuggest" onclick="applyAiSuggest()" disabled>Vorschlag übernehmen</button>
     </div>
   </div>
 </div>
@@ -1850,6 +1874,109 @@
       await loadMediaboxBookings();
     }
   }
+
+  // ─── KI-Vorschlag (Reihenfolge/Kategorien einer Galerie) ──
+  // Ändert nie sofort etwas — liefert nur einen Vorschlag, den der Admin per "Übernehmen"
+  // explizit bestätigen muss (slot: 'gallery' oder 'mediabox-gallery').
+  let aiSuggestSlot = null;
+  let aiSuggestData = null;
+
+  async function openAiSuggest(slot) {
+    aiSuggestSlot = slot;
+    aiSuggestData = null;
+    document.getElementById('aiSuggestModal').classList.add('show');
+    document.getElementById('aiSuggestLoading').style.display = 'block';
+    document.getElementById('aiSuggestError').style.display = 'none';
+    document.getElementById('aiSuggestResult').style.display = 'none';
+    document.getElementById('btnApplyAiSuggest').disabled = true;
+
+    try {
+      const [suggestRes, imagesRes] = await Promise.all([
+        adminFetch('/api/admin/home-images/' + slot + '/ai-suggest', { method: 'POST' }),
+        adminFetch('/api/admin/home-images'),
+      ]);
+      const suggestData = await suggestRes.json();
+      if (!suggestRes.ok) throw new Error(suggestData.error || 'KI-Vorschlag konnte nicht erstellt werden.');
+      const imagesData = await imagesRes.json();
+      const byId = new Map((imagesData.images || []).map(img => [img.id, img]));
+
+      aiSuggestData = suggestData;
+      renderAiSuggestResult(suggestData, byId);
+      document.getElementById('btnApplyAiSuggest').disabled = false;
+    } catch (err) {
+      document.getElementById('aiSuggestError').textContent = err.message;
+      document.getElementById('aiSuggestError').style.display = 'block';
+    } finally {
+      document.getElementById('aiSuggestLoading').style.display = 'none';
+    }
+  }
+
+  function renderAiSuggestResult(data, byId) {
+    const strip = document.getElementById('aiSuggestPreviewStrip');
+    strip.innerHTML = data.order.map((id, i) => {
+      const img = byId.get(id);
+      if (!img) return '';
+      return `<div style="flex-shrink:0;text-align:center;">
+        <img src="${img.url}" alt="" style="width:90px;height:110px;object-fit:cover;display:block;" />
+        <div style="font-size:.66rem;color:var(--light);margin-top:.2rem;">${i + 1}</div>
+      </div>`;
+    }).join('');
+
+    const changesEl = document.getElementById('aiSuggestCategoryChanges');
+    if (data.categoryChanges.length) {
+      changesEl.innerHTML = '<strong>Kategorie-Vorschläge:</strong>' + data.categoryChanges.map(c => {
+        const img = byId.get(c.id);
+        const oldCat = img ? (img.category || 'Sonstiges') : '?';
+        const thumb = img ? `<img src="${img.url}" alt="" style="width:28px;height:28px;object-fit:cover;vertical-align:middle;margin-right:.4rem;" />` : '';
+        return `<div style="margin-top:.4rem;">${thumb}„${esc(oldCat)}" → „${esc(c.newCategory)}"</div>`;
+      }).join('');
+    } else {
+      changesEl.innerHTML = '';
+    }
+
+    document.getElementById('aiSuggestNote').textContent = data.note || '';
+    document.getElementById('aiSuggestResult').style.display = 'block';
+  }
+
+  function closeAiSuggest() {
+    document.getElementById('aiSuggestModal').classList.remove('show');
+    aiSuggestSlot = null;
+    aiSuggestData = null;
+  }
+
+  async function applyAiSuggest() {
+    if (!aiSuggestData || !aiSuggestSlot) return;
+    const slot = aiSuggestSlot;
+    const btn = document.getElementById('btnApplyAiSuggest');
+    btn.disabled = true;
+    btn.textContent = 'Wird übernommen …';
+    try {
+      await adminFetch('/api/admin/home-images/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: aiSuggestData.order }),
+      });
+      for (const change of aiSuggestData.categoryChanges) {
+        await adminFetch('/api/admin/home-images/' + change.id, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category: change.newCategory }),
+        });
+      }
+      showToast('KI-Vorschlag übernommen');
+      closeAiSuggest();
+      if (slot === 'mediabox-gallery') await loadMediaboxImages(); else await loadHomeImages();
+    } catch (err) {
+      showToast('Fehler beim Übernehmen: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Vorschlag übernehmen';
+    }
+  }
+
+  document.getElementById('aiSuggestModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('aiSuggestModal')) closeAiSuggest();
+  });
 
   // ─── New client modal ────────────────────────────────────
   function openNewClientModal() {

@@ -10,6 +10,7 @@ const nodemailer = require('nodemailer');
 const path       = require('path');
 const fs         = require('fs');
 const crypto     = require('crypto');
+const sharp      = require('sharp');
 const {
   pool,
   ensureHomeImagesTable,
@@ -21,6 +22,7 @@ const {
   ensureMediaboxBookingsTable,
 } = require('./db');
 const sevdesk = require('./sevdesk');
+const ai = require('./ai');
 
 const app      = express();
 const PORT     = process.env.PORT || 3000;
@@ -839,6 +841,25 @@ app.post('/api/admin/home-images/gallery', adminMiddleware, uploadMemory.array('
   }
 });
 
+// POST /api/admin/home-images/reorder — admin, setzt sort_order anhand einer vollständigen,
+// geordneten ID-Liste (genutzt vom "KI-Vorschlag übernehmen"-Button im Admin-Panel)
+// (muss VOR /api/admin/home-images/:slot registriert sein, sonst fängt die :slot-Route "reorder" als Slot-Namen ab)
+app.post('/api/admin/home-images/reorder', adminMiddleware, async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || !ids.length) {
+    return res.status(400).json({ error: 'Bitte eine geordnete Liste von Bild-IDs angeben.' });
+  }
+  try {
+    await ensureHomeImagesTable();
+    for (let i = 0; i < ids.length; i++) {
+      await pool.query('UPDATE home_images SET sort_order = ? WHERE id = ?', [i, ids[i]]);
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
+  }
+});
+
 // POST /api/admin/home-images/:slot — admin, Upload für die festen Einzel-Slots
 app.post('/api/admin/home-images/:slot', adminMiddleware, uploadMemory.single('image'), async (req, res) => {
   const { slot } = req.params;
@@ -939,6 +960,70 @@ app.delete('/api/admin/home-images/:id', adminMiddleware, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
+  }
+});
+
+// POST /api/admin/home-images/:slot/ai-suggest — admin, KI-Vorschlag für Reihenfolge/Kategorien
+// einer Galerie (slot: gallery | mediabox-gallery). Ändert NICHTS in der Datenbank — der Vorschlag
+// wird nur zurückgegeben; der Admin muss ihn im Panel explizit über POST .../reorder + PATCH .../:id
+// übernehmen (siehe admin.html). Bilder werden vor dem KI-Aufruf mit sharp verkleinert, damit die
+// Anfrage klein/günstig bleibt — die in der DB gespeicherten Originale bleiben unverändert.
+const AI_SUGGEST_SLOTS = ['gallery', 'mediabox-gallery'];
+const AI_IMAGE_MAX_DIMENSION = 768;
+
+app.post('/api/admin/home-images/:slot/ai-suggest', adminMiddleware, async (req, res) => {
+  const { slot } = req.params;
+  if (!AI_SUGGEST_SLOTS.includes(slot)) {
+    return res.status(400).json({ error: 'Ungültiger Slot.' });
+  }
+
+  let rows;
+  try {
+    await ensureHomeImagesTable();
+    [rows] = await pool.query(
+      'SELECT id, category, data FROM home_images WHERE slot = ? ORDER BY sort_order ASC, id ASC',
+      [slot]
+    );
+  } catch (err) {
+    return res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
+  }
+  if (!rows.length) {
+    return res.status(400).json({ error: 'Diese Galerie enthält noch keine Bilder.' });
+  }
+
+  let images;
+  try {
+    images = await Promise.all(rows.map(async row => {
+      const resized = await sharp(row.data)
+        .resize(AI_IMAGE_MAX_DIMENSION, AI_IMAGE_MAX_DIMENSION, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 70 })
+        .toBuffer();
+      return { id: row.id, category: row.category, mimeType: 'image/jpeg', base64: resized.toString('base64') };
+    }));
+  } catch (err) {
+    return res.status(500).json({ error: 'Bilder konnten für die KI-Anfrage nicht aufbereitet werden.' });
+  }
+
+  try {
+    const suggestion = await ai.proposeGalleryArrangement(images);
+    console.log(`[AI-SUGGEST] slot=${slot} Bilder=${images.length} usage=`, suggestion.usage);
+
+    const validIds = new Set(rows.map(r => r.id));
+    const order = suggestion.order.filter(id => validIds.has(id));
+    for (const id of validIds) {
+      if (!order.includes(id)) order.push(id); // Sicherheitsnetz, falls die KI eine ID vergisst
+    }
+    res.json({
+      order,
+      categoryChanges: suggestion.categoryChanges.filter(c => validIds.has(c.id)),
+      note: suggestion.note,
+    });
+  } catch (err) {
+    if (err.aiConfigMissing) {
+      return res.status(501).json({ error: 'KI-Funktion ist nicht konfiguriert.' });
+    }
+    console.error('[AI-SUGGEST] Fehler:', err.message);
+    res.status(502).json({ error: 'KI-Vorschlag konnte nicht erstellt werden: ' + err.message });
   }
 });
 

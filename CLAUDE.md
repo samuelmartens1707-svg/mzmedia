@@ -20,6 +20,7 @@ public/                 – EINZIGER Ordner, den express.static() öffentlich au
 server.js       – Express-Server (alle API-Routen)
 db.js           – MySQL-Verbindungspool + Auto-Init für home_images, clients, invoices, mediabox_bookings
 sevdesk.js      – Anbindung an die sevDesk-Rechnungs-API (Contact/Invoice/Send)
+ai.js           – Anbindung an die Anthropic-API (Claude) für den KI-Vorschlag im Admin-Panel
 Dockerfile      – Node 20 Alpine, Port 3000
 scripts/
   migrate-clients-to-db.js               – Einmalige Migration von data/clients.json in die DB (Legacy)
@@ -114,7 +115,9 @@ POST /api/admin/home-images/gallery      – Galerie-Bilder hochladen (beliebig 
 PATCH /api/admin/home-images/:id         – Kategorie und/oder Alt-Text (altText) eines Galerie-Bilds ändern (gallery oder mediabox-gallery)
 PUT  /api/admin/home-images/:id          – Bilddaten eines vorhandenen Bilds ersetzen (Crop/Rotate-Editor)
 POST /api/admin/home-images/:id/move     – Bild rauf/runter sortieren (innerhalb des eigenen Slots)
+POST /api/admin/home-images/reorder      – sort_order anhand einer vollständigen ID-Liste setzen (Body: { ids })
 DELETE /api/admin/home-images/:id        – Bild löschen (Einzel-Slot oder Galerie)
+POST /api/admin/home-images/:slot/ai-suggest – KI-Vorschlag für Reihenfolge/Kategorien einer Galerie (slot: gallery|mediabox-gallery), ändert nichts in der DB
 
 GET  /api/mediabox-images                       – Mediabox-Titelbild + Event-Galerie, öffentlich
 GET  /api/mediabox-availability?year=&month=     – belegte Termine eines Monats (nur Datum), öffentlich
@@ -153,6 +156,15 @@ POST /api/mediabox-anfrage                       – Buchungsanfrage der Mediabo
 - **Belegungskalender:** eigene Tabelle `mediabox_bookings` (`booked_date` DATE, `note` optional) statt externem Kalenderdienst — bei Mittwald-Mailhosting ist keine Exchange-Kalenderanbindung möglich. Ein Datum ist ganztägig frei oder belegt, keine Uhrzeiten/Zeitslots. Admin trägt belegte Termine unter "Mediabox → Kalender" manuell ein/aus (`/api/admin/mediabox-availability`); die öffentliche Seite fragt pro angezeigtem Monat `GET /api/mediabox-availability?year=&month=` ab und zeigt nur die Daten, keine Notizen.
 - **Anfrage:** `POST /api/mediabox-anfrage` spiegelt `/api/contact` (Rate-Limit, Honeypot, `nodemailer`-Versand an `CONTACT_EMAIL`), inkl. optionalem Wunschtermin-Feld. Klick auf einen freien Kalendertag befüllt das Datumsfeld im Formular vor.
 
+### KI-Vorschlag (Bilder-Reihenfolge/Kategorien im Admin-Panel)
+- Button „✨ KI-Vorschlag" bei „Portfolio-Galerie" (Homepage-Bilder) und „Event-Galerie" (Mediabox) im Admin-Panel. Schickt die Bilder der jeweiligen Galerie (`slot = 'gallery'` oder `'mediabox-gallery'`) an Claude (Anthropic-API, `ai.js`) und bekommt eine vorgeschlagene Reihenfolge sowie ggf. Kategorie-Änderungsvorschläge zurück.
+- **Ändert nie sofort etwas.** `POST /api/admin/home-images/:slot/ai-suggest` schreibt nichts in die DB — der Vorschlag erscheint als Vorschau-Modal im Panel, der Admin muss ihn explizit über „Vorschlag übernehmen" bestätigen (ruft dann `POST /api/admin/home-images/reorder` + je geänderter Kategorie einen `PATCH /api/admin/home-images/:id`-Call auf) oder verwirft ihn folgenlos.
+- Es werden **nie Bilddaten verändert** — nur `sort_order` und `category`. Bilder selbst bleiben so, wie der Admin sie hochgeladen hat.
+- Bilder werden vor dem KI-Aufruf serverseitig mit `sharp` verkleinert (max. 768px Kantenlänge, JPEG q70) — hält Anfragegröße/Kosten niedrig, unabhängig von der Originalgröße der Uploads. Die in der DB gespeicherten Originale bleiben unverändert.
+- Modell: `claude-sonnet-5` (Konstante in `ai.js`), ca. 5–10 Cent pro Vorschlag bei 15–20 Bildern. Strukturierte Antwort über ein erzwungenes Tool (`propose_gallery_arrangement`), kein Text-Parsing nötig.
+- `ANTHROPIC_API_KEY` (.env) ist ein **API-Key von console.anthropic.com** (separates, nutzungsbasiert abgerechnetes Konto) — **kein** claude.ai-Abo (Pro/Team/Enterprise) gibt automatisch API-Zugang. Ohne konfigurierten Key bleibt der Button sichtbar, liefert aber `501` mit klarer Fehlermeldung statt eines Vorschlags (gleiches Verhalten wie fehlendes SMTP/sevDesk).
+- `sharp` ist eine explizit bestätigte Ausnahme von der "keine neuen npm-Pakete ohne Rückfrage"-Regel (wie seinerzeit `mysql2`).
+
 ### Admin-Passwort (änderbar, mit "Passwort vergessen")
 - Bleibt bewusst ein einziges geteiltes Passwort (kein Admin-User-System wie bei JoTech) — nur der Speicherort ist jetzt änderbar statt fest in `.env`.
 - Liegt in der Tabelle `admin_settings` (einzige Zeile, `id=1`, `password_hash`). Solange dort keine Zeile existiert, vergleicht der Login weiterhin direkt gegen `process.env.ADMIN_PASSWORD` — Admin-Login funktioniert also auch ohne DB-Verbindung.
@@ -172,6 +184,7 @@ CONTACT_EMAIL   – Empfänger für Kontaktformulare
 ADMIN_EMAIL     – Empfänger für Admin-Passwort-Reset-Links (optional, Fallback: CONTACT_EMAIL → SMTP_USER)
 DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASS – MySQL-Zugang (home_images + clients + admin_settings + invoices + mediabox_bookings)
 SEVDESK_API_TOKEN – sevDesk → Einstellungen → Benutzer → API-Token (32-stelliger Hex-String, ohne "Bearer"-Präfix)
+ANTHROPIC_API_KEY – console.anthropic.com → API-Key (separates Konto, nicht das claude.ai-Abo) für den KI-Vorschlag im Admin-Panel
 ```
 
 ## Deployment
@@ -183,7 +196,7 @@ SEVDESK_API_TOKEN – sevDesk → Einstellungen → Benutzer → API-Token (32-s
 ## Stil-Regeln (beim Coden einhalten)
 - Alle 3 HTML-Dateien teilen dieselben CSS-Tokens – Änderungen an Farben/Fonts in **allen** Dateien synchron halten
 - Kein JS-Framework einführen – bleibt Vanilla
-- Keine neuen npm-Pakete ohne Rückfrage (Ausnahme bereits bestätigt: `mysql2` für die Homepage-Bilder-DB)
-- Ausgehende Drittanbieter-API-Calls: natives `fetch` (Node 18+) verwenden, kein HTTP-Client-Paket hinzufügen — `sevdesk.js` ist die Referenz-Implementierung für künftige Integrationen (zentraler Fetch-Helper, typisierte Fehler, Basis-URL/Auth an einer Stelle)
+- Keine neuen npm-Pakete ohne Rückfrage (Ausnahmen bereits bestätigt: `mysql2` für die Homepage-Bilder-DB, `sharp` für die Bildverkleinerung vor KI-Anfragen)
+- Ausgehende Drittanbieter-API-Calls: natives `fetch` (Node 18+) verwenden, kein HTTP-Client-Paket/SDK hinzufügen — `sevdesk.js`/`ai.js` sind die Referenz-Implementierungen für künftige Integrationen (zentraler Fetch-Helper, typisierte Fehler, Basis-URL/Auth an einer Stelle)
 - Deutsche Fehlermeldungen und UI-Texte beibehalten
 - `cursor: none` auf body (Custom Cursor) – nicht entfernen
