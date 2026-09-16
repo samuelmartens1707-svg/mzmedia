@@ -884,6 +884,43 @@
   </div>
 </div>
 
+<!-- ─── EDIT CLIENT MODAL ─── -->
+<div class="modal-backdrop" id="editClientModal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+  <div class="modal">
+    <h2 class="modal-title" id="editModalTitle">Kunde <em>bearbeiten</em></h2>
+    <div class="modal-err" id="editModalErr" role="alert"></div>
+    <form id="editClientForm" novalidate>
+      <div class="field" id="fldEcName">
+        <label for="ecName">Name *</label>
+        <input type="text" id="ecName" placeholder="Max Mustermann" required autocomplete="off" />
+      </div>
+      <div class="field" id="fldEcEmail">
+        <label for="ecEmail">E-Mail *</label>
+        <input type="email" id="ecEmail" placeholder="max@beispiel.de" required autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="ecType">Shooting-Art</label>
+        <select id="ecType">
+          <option value="">— optional —</option>
+          <option value="Portrait">Portrait</option>
+          <option value="Event">Event</option>
+          <option value="Kreativ">Kreativ</option>
+          <option value="Hochzeit">Hochzeit</option>
+          <option value="Sonstiges">Sonstiges</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="ecDate">Shooting-Datum</label>
+        <input type="date" id="ecDate" />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline" onclick="closeEditClientModal()">Abbrechen</button>
+        <button type="submit" class="btn btn-primary" id="btnEditClient">Speichern</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- ─── CHANGE PASSWORD MODAL ─── -->
 <div class="modal-backdrop" id="changePasswordModal" role="dialog" aria-modal="true" aria-labelledby="changePwTitle">
   <div class="modal">
@@ -1056,6 +1093,7 @@
   let currentClient     = null;
   let newClientPassword = '';
   let lastCreatedClient = null;   // for email sending after creation
+  let currentEditClientId = null;
 
   // ─── Init ───────────────────────────────────────────────
   const adminResetToken = new URLSearchParams(location.search).get('reset');
@@ -1283,6 +1321,8 @@
         <button class="btn-icon" onclick="openInvoiceModal('${c.id}')" title="Rechnung erstellen" aria-label="Rechnung für ${esc(c.name)} erstellen">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         </button>
+        <button class="btn-icon" onclick="editClient('${c.id}')" title="Kunde bearbeiten" aria-label="${esc(c.name)} bearbeiten">${EDIT_ICON}</button>
+        <button class="btn-icon danger" onclick="deleteClient('${c.id}')" title="Kunde löschen" aria-label="${esc(c.name)} löschen">${TRASH_ICON}</button>
       </div></td>
     </tr>`;
   }
@@ -1993,6 +2033,88 @@
     if (e.target === document.getElementById('newClientModal')) closeNewClientModal();
   });
 
+  // ─── Edit client modal ───────────────────────────────────
+  function editClient(id) {
+    const c = allClients.find(x => x.id === id);
+    if (!c) return;
+    currentEditClientId = id;
+    document.getElementById('ecName').value  = c.name;
+    document.getElementById('ecEmail').value = c.email;
+    document.getElementById('ecType').value  = c.shootingType || '';
+    document.getElementById('ecDate').value  = c.shootingDate || '';
+    document.getElementById('editClientModal').classList.add('show');
+    document.getElementById('ecName').focus();
+  }
+  function closeEditClientModal() {
+    document.getElementById('editClientModal').classList.remove('show');
+    document.getElementById('editClientForm').reset();
+    document.getElementById('editModalErr').classList.remove('show');
+    ['fldEcName','fldEcEmail'].forEach(id => document.getElementById(id).classList.remove('error'));
+    currentEditClientId = null;
+  }
+  document.getElementById('editClientModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('editClientModal')) closeEditClientModal();
+  });
+
+  document.getElementById('editClientForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const name         = document.getElementById('ecName').value.trim();
+    const email        = document.getElementById('ecEmail').value.trim();
+    const shootingType = document.getElementById('ecType').value;
+    const shootingDate = document.getElementById('ecDate').value;
+    const errEl = document.getElementById('editModalErr');
+    const btn   = document.getElementById('btnEditClient');
+    errEl.classList.remove('show');
+
+    let valid = true;
+    if (!name)  { document.getElementById('fldEcName').classList.add('error');  valid = false; }
+    else          document.getElementById('fldEcName').classList.remove('error');
+    if (!email) { document.getElementById('fldEcEmail').classList.add('error'); valid = false; }
+    else          document.getElementById('fldEcEmail').classList.remove('error');
+    if (!valid) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div>';
+
+    try {
+      const res  = await adminFetch('/api/admin/clients/' + currentEditClientId, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, shootingDate, shootingType })
+      });
+      const data = await res.json();
+      if (!res.ok) { errEl.textContent = data.error; errEl.classList.add('show'); return; }
+
+      await loadClients();
+      renderDashboard();
+      renderClientsTable(allClients);
+      closeEditClientModal();
+      showToast('Kunde aktualisiert');
+    } catch {
+      errEl.textContent = 'Fehler beim Speichern. Bitte erneut versuchen.';
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Speichern';
+    }
+  });
+
+  async function deleteClient(id) {
+    const c = allClients.find(x => x.id === id);
+    if (!c) return;
+    if (!confirm(`Kunde "${c.name}" wirklich löschen? Alle hochgeladenen Fotos werden dabei unwiderruflich mitgelöscht.`)) return;
+    const res = await adminFetch('/api/admin/clients/' + id, { method: 'DELETE' });
+    if (res.ok) {
+      showToast('Kunde gelöscht');
+      await loadClients();
+      renderDashboard();
+      renderClientsTable(allClients);
+    } else {
+      const d = await res.json();
+      showToast('Fehler: ' + d.error);
+    }
+  }
+
   // ─── Change password modal ───────────────────────────────
   function openChangePasswordModal() {
     document.getElementById('changePasswordModal').classList.add('show');
@@ -2056,15 +2178,18 @@
   let invoiceClientId = null;
   let invoiceItemSeq  = 0;
 
-  function openInvoiceModal(clientId) {
+  async function openInvoiceModal(clientId) {
     const c = allClients.find(cl => cl.id === clientId);
     if (!c) return;
     invoiceClientId = clientId;
 
-    document.getElementById('invCompany').value = c.companyName || '';
-    document.getElementById('invStreet').value  = c.billingStreet || '';
-    document.getElementById('invZip').value     = c.billingZip || '';
-    document.getElementById('invCity').value    = c.billingCity || '';
+    // Rechnungsadresse kommt bewusst aus einem eigenen Request (nicht aus der Kundenliste) —
+    // damit ein Problem mit diesen Spalten nur die Rechnungsfunktion einschränkt (leere Felder,
+    // manuell ausfüllbar), statt die ganze Kundenliste unsichtbar zu machen.
+    document.getElementById('invCompany').value = '';
+    document.getElementById('invStreet').value  = '';
+    document.getElementById('invZip').value     = '';
+    document.getElementById('invCity').value    = '';
     document.getElementById('invHeader').value  = '';
     document.getElementById('invFooter').value  = '';
 
@@ -2074,6 +2199,17 @@
 
     document.getElementById('invoiceModal').classList.add('show');
     document.getElementById('invStreet').focus();
+
+    try {
+      const res = await adminFetch('/api/admin/clients/' + clientId);
+      if (res.ok) {
+        const data = await res.json();
+        document.getElementById('invCompany').value = data.client.companyName || '';
+        document.getElementById('invStreet').value  = data.client.billingStreet || '';
+        document.getElementById('invZip').value     = data.client.billingZip || '';
+        document.getElementById('invCity').value    = data.client.billingCity || '';
+      }
+    } catch { /* Rechnungsadresse konnte nicht vorbefüllt werden — Felder bleiben leer, manuell ausfüllbar */ }
   }
 
   function closeInvoiceModal() {

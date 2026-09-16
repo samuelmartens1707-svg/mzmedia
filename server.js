@@ -518,17 +518,37 @@ app.post('/api/admin/reset-password', async (req, res) => {
   }
 });
 
-// GET /api/admin/clients
+// GET /api/admin/clients — bewusst NUR die Felder, die die Kundenliste/Dashboard-Tabelle
+// tatsächlich anzeigt. Rechnungsadresse liegt in eigenen, optional nachgezogenen Spalten
+// (siehe ensureColumns() in db.js) — die Liste darf nicht davon abhängen, ob diese Spalten
+// bereits existieren, sonst reißt ein Problem bei der Rechnungsfunktion die ganze Kundenliste mit.
 app.get('/api/admin/clients', adminMiddleware, async (req, res) => {
   try {
     await ensureClientsTable();
     const [rows] = await pool.query(
-      `SELECT id, name, email, shooting_date AS shootingDate, shooting_type AS shootingType,
-              company_name AS companyName, billing_street AS billingStreet, billing_zip AS billingZip,
-              billing_city AS billingCity, billing_country AS billingCountry
+      `SELECT id, name, email, shooting_date AS shootingDate, shooting_type AS shootingType
        FROM clients ORDER BY created_at DESC`
     );
     res.json({ clients: rows });
+  } catch (err) {
+    res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
+  }
+});
+
+// GET /api/admin/clients/:id — Detailsatz inkl. Rechnungsadresse, für das Vorbefüllen des
+// Rechnungs-Formulars im Admin-Panel (bewusst separat von der Liste, siehe Kommentar oben).
+app.get('/api/admin/clients/:id', adminMiddleware, async (req, res) => {
+  try {
+    await ensureClientsTable();
+    const [[row]] = await pool.query(
+      `SELECT id, name, email, shooting_date AS shootingDate, shooting_type AS shootingType,
+              company_name AS companyName, billing_street AS billingStreet, billing_zip AS billingZip,
+              billing_city AS billingCity, billing_country AS billingCountry
+       FROM clients WHERE id = ?`,
+      [req.params.id]
+    );
+    if (!row) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+    res.json({ client: row });
   } catch (err) {
     res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
   }
@@ -552,6 +572,45 @@ app.post('/api/admin/clients', adminMiddleware, async (req, res) => {
       [id, name, email, passwordHash, shootingDate || '', shootingType || '']
     );
     res.status(201).json({ id, name, email });
+  } catch (err) {
+    res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
+  }
+});
+
+// PATCH /api/admin/clients/:id  — update existing client
+app.patch('/api/admin/clients/:id', adminMiddleware, async (req, res) => {
+  const { name, email, shootingDate, shootingType } = req.body;
+  if (!name || !email) return res.status(400).json({ error: 'Name und Email erforderlich.' });
+
+  try {
+    await ensureClientsTable();
+    const [[existing]] = await pool.query(
+      'SELECT id FROM clients WHERE email = ? AND id <> ?',
+      [email.toLowerCase(), req.params.id]
+    );
+    if (existing) return res.status(409).json({ error: 'Email bereits vorhanden.' });
+
+    const [result] = await pool.query(
+      'UPDATE clients SET name = ?, email = ?, shooting_date = ?, shooting_type = ? WHERE id = ?',
+      [name, email, shootingDate || '', shootingType || '', req.params.id]
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+
+    res.json({ id: req.params.id, name, email, shootingDate: shootingDate || '', shootingType: shootingType || '' });
+  } catch (err) {
+    res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
+  }
+});
+
+// DELETE /api/admin/clients/:id  — delete client + uploaded photos
+app.delete('/api/admin/clients/:id', adminMiddleware, async (req, res) => {
+  try {
+    await ensureClientsTable();
+    const [result] = await pool.query('DELETE FROM clients WHERE id = ?', [req.params.id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+
+    fs.rmSync(path.join(UPLOADS_DIR, req.params.id), { recursive: true, force: true });
+    res.json({ ok: true });
   } catch (err) {
     res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
   }

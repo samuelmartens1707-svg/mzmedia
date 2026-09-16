@@ -91,7 +91,16 @@ let ensured = null;
 function ensureHomeImagesTable() {
   if (!ensured) {
     ensured = pool.query(CREATE_TABLE_SQL)
-      .then(() => ensureHomeImagesMediaboxSlots())
+      .then(async () => {
+        try {
+          await ensureHomeImagesMediaboxSlots();
+        } catch (err) {
+          // Darf NICHT die ganze Tabelle unbenutzbar machen (Hero/About-Bilder liefen davor
+          // jahrelang ohne dieses Enum) — z. B. fehlende ALTER-Rechte des DB-Users nur loggen,
+          // Mediabox-Slots bleiben dann bis zum nächsten erfolgreichen Versuch eingeschränkt.
+          console.warn('[DB] slot-Enum von home_images konnte nicht erweitert werden:', err.message);
+        }
+      })
       .catch(err => {
         ensured = null;
         throw err;
@@ -132,7 +141,16 @@ let ensuredClients = null;
 function ensureClientsTable() {
   if (!ensuredClients) {
     ensuredClients = pool.query(CREATE_CLIENTS_TABLE_SQL)
-      .then(() => ensureColumns('clients', CLIENTS_OPTIONAL_COLUMNS))
+      .then(async () => {
+        try {
+          await ensureColumns('clients', CLIENTS_OPTIONAL_COLUMNS);
+        } catch (err) {
+          // Darf NICHT die Kundenliste blockieren — ein Fehler beim Ergänzen der optionalen
+          // Rechnungs-/sevDesk-Spalten (z. B. fehlende ALTER-Rechte des DB-Users) betrifft nur
+          // die Rechnungsfunktion, nicht das grundsätzliche Sehen/Anlegen von Kunden.
+          console.warn('[DB] Optionale Spalten an clients konnten nicht ergänzt werden:', err.message);
+        }
+      })
       .catch(err => {
         ensuredClients = null;
         throw err;

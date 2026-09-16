@@ -99,8 +99,11 @@ POST /api/admin/login            – Admin-Login → JWT
 POST /api/admin/change-password  – Admin-Passwort ändern (auth, Body: currentPassword/newPassword)
 POST /api/admin/forgot-password  – Reset-Link an ADMIN_EMAIL schicken
 POST /api/admin/reset-password   – neues Passwort per Reset-Token setzen
-GET  /api/admin/clients         – Alle Kunden (ohne passwordHash)
+GET  /api/admin/clients         – Alle Kunden für die Liste (bewusst ohne Rechnungsadresse, siehe unten)
+GET  /api/admin/clients/:id     – Ein Kunde inkl. Rechnungsadresse (für das Vorbefüllen des Rechnungs-Formulars)
 POST /api/admin/clients         – Neuen Kunden anlegen
+PATCH /api/admin/clients/:id    – Kunde bearbeiten (Name, Email, Shooting-Datum/-Art)
+DELETE /api/admin/clients/:id   – Kunde löschen (inkl. uploads/<id>/-Ordner; invoices/password_resets kaskadieren per FK)
 POST /api/admin/clients/:id/photos       – Fotos hochladen
 DELETE /api/admin/clients/:id/photos/:f  – Foto löschen
 POST /api/admin/clients/:id/send-email  – Zugangsdaten-Mail senden
@@ -138,6 +141,7 @@ POST /api/mediabox-anfrage                       – Buchungsanfrage der Mediabo
 - Kunden (Name, E-Mail, Passwort-Hash, Shooting-Datum/-Art) liegen in der Tabelle `clients` (MySQL), nicht mehr in `data/clients.json`.
 - `id` ist `VARCHAR`, kein `AUTO_INCREMENT` — bestehende IDs wie `c1777494715939` entsprechen 1:1 den Ordnernamen unter `uploads/<id>/` und dürfen sich nicht ändern.
 - Beide Tabellen (`home_images`, `clients`) werden von `db.js` beim Serverstart automatisch angelegt (`CREATE TABLE IF NOT EXISTS`). Spätere Spalten-/Enum-Erweiterungen (Rechnungsadresse + sevDesk-Cache auf `clients`, `mediabox-hero`/`mediabox-gallery` im `slot`-Enum von `home_images`) werden ebenfalls automatisch bei jedem Serverstart nachgezogen (`ensureColumns()` bzw. `ensureHomeImagesMediaboxSlots()` in `db.js`) — nicht mehr nur über die einmaligen Skripte in `scripts/`, da ein vergessener manueller Lauf nach einem Deploy genau diese Spalten fehlen ließ und z. B. die Kundenliste im Admin-Panel mit `503` leer blieb. Ein **komplett neues** Feld, das noch in keiner dieser Listen steht, braucht weiterhin ein eigenes `ALTER TABLE` (Skript oder Ergänzung der Liste in `db.js`).
+- **Wichtig, damit Punkt oben nicht selbst wieder zur Ursache wird:** Ein Fehlschlag beim Nachziehen dieser optionalen Spalten (z. B. fehlende `ALTER`-Rechte des DB-Users) wird in `db.js` nur geloggt (`console.warn`), nicht weitergeworfen — sonst würde ein Problem mit den *optionalen* Rechnungsspalten die *gesamte* `clients`-Tabelle (inkl. simplem Auflisten) unbenutzbar machen. Aus demselben Grund selektiert `GET /api/admin/clients` (die Liste) bewusst **keine** Rechnungsspalten — die liegen in einer eigenen Route `GET /api/admin/clients/:id`, die nur beim Öffnen des Rechnungs-Formulars aufgerufen wird. Schlägt die fehl, bleiben die Rechnungsfelder leer/manuell ausfüllbar, aber die Kundenliste bleibt davon unberührt.
 - Ist die DB nicht erreichbar, liefern die betroffenen Routen `503` (Homepage-Bilder UND jetzt auch Login/Kunden-Fotoportal/Admin-Kundenverwaltung, da Kundendaten nicht mehr im Dateisystem liegen).
 - Migration von der alten `data/clients.json`: `node scripts/migrate-clients-to-db.js` (idempotent, überspringt bereits vorhandene IDs).
 
