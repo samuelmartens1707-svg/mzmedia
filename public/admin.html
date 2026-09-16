@@ -455,6 +455,9 @@
     .field input:focus, .field select:focus { border-color: var(--terra); }
     .field input::placeholder { color: var(--light); }
     .field-hint { font-size: .72rem; color: var(--light); margin-top: .2rem; }
+    .field-with-btn { display: flex; align-items: flex-end; gap: .6rem; }
+    .field-with-btn input { flex: 1; min-width: 0; }
+    .field-with-btn .btn { flex-shrink: 0; }
     .field.error label { color: #b00020; }
     .field.error input { border-color: #b00020; }
     .modal-actions {
@@ -858,7 +861,10 @@
       </div>
       <div class="field" id="fldPassword">
         <label for="ncPassword">Passwort *</label>
-        <input type="text" id="ncPassword" placeholder="z.B. Sommer2025!" required autocomplete="off" />
+        <div class="field-with-btn">
+          <input type="text" id="ncPassword" placeholder="z.B. Sommer2025!" required autocomplete="off" />
+          <button type="button" class="btn btn-outline btn-sm" onclick="generatePassword('ncPassword')">Generieren</button>
+        </div>
         <span class="field-hint">Der Kunde erhält dieses Passwort per E-Mail.</span>
       </div>
       <div class="field">
@@ -2032,6 +2038,17 @@
   document.getElementById('newClientModal').addEventListener('click', e => {
     if (e.target === document.getElementById('newClientModal')) closeNewClientModal();
   });
+
+  function generatePassword(fieldId) {
+    const charset = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*';
+    const bytes = new Uint32Array(12);
+    crypto.getRandomValues(bytes);
+    const password = Array.from(bytes, b => charset[b % charset.length]).join('');
+    const input = document.getElementById(fieldId);
+    input.value = password;
+    input.closest('.field')?.classList.remove('error');
+    input.focus();
+  }
 
   // ─── Edit client modal ───────────────────────────────────
   function editClient(id) {
