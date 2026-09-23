@@ -873,11 +873,18 @@ app.get('/api/admin/home-images', adminMiddleware, async (req, res) => {
 // (muss VOR /api/admin/home-images/:slot registriert sein, sonst fängt die :slot-Route "gallery" als Slot-Namen ab)
 // Body-Feld "slot" wählt die Ziel-Galerie (Default 'gallery' = Homepage-Portfolio,
 // 'mediabox-gallery' = Bilder vergangener Mediabox-Events).
+// Optionales Body-Feld "meta": JSON-Array [{ category, altText }] parallel zu den Dateien
+// (Upload-Vorschau im Admin-Panel) — ohne "meta" gilt "category" für alle Dateien wie bisher.
 const GALLERY_SLOTS = ['gallery', 'mediabox-gallery'];
 app.post('/api/admin/home-images/gallery', adminMiddleware, uploadMemory.array('photos', 50), async (req, res) => {
   if (!req.files?.length) return res.status(400).json({ error: 'Keine Dateien hochgeladen.' });
   const slot = GALLERY_SLOTS.includes(req.body.slot) ? req.body.slot : 'gallery';
-  const category = (req.body.category || 'Sonstiges').trim();
+  const defaultCategory = String(req.body.category || '').trim() || 'Sonstiges';
+  let meta = [];
+  if (req.body.meta) {
+    try { meta = JSON.parse(req.body.meta); } catch { meta = []; }
+    if (!Array.isArray(meta)) meta = [];
+  }
   try {
     await ensureHomeImagesTable();
     const [[{ maxOrder }]] = await pool.query(
@@ -886,12 +893,15 @@ app.post('/api/admin/home-images/gallery', adminMiddleware, uploadMemory.array('
     );
     let nextOrder = maxOrder + 1;
     const uploaded = [];
-    for (const file of req.files) {
+    for (const [i, file] of req.files.entries()) {
+      const m = meta[i] || {};
+      const category = String(m.category || '').trim().slice(0, 40) || defaultCategory;
+      const altText = String(m.altText || '').trim().slice(0, 160) || null;
       const [result] = await pool.query(
-        'INSERT INTO home_images (slot, category, filename, mime_type, data, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
-        [slot, category, file.originalname, file.mimetype, file.buffer, nextOrder]
+        'INSERT INTO home_images (slot, category, alt_text, filename, mime_type, data, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [slot, category, altText, file.originalname, file.mimetype, file.buffer, nextOrder]
       );
-      uploaded.push({ id: result.insertId, url: homeImageUrl(result.insertId), category });
+      uploaded.push({ id: result.insertId, url: homeImageUrl(result.insertId), category, altText });
       nextOrder++;
     }
     res.json({ uploaded });

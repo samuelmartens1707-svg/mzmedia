@@ -418,6 +418,94 @@
       grid-column: 1/-1; text-align: center; padding: 3rem;
       color: var(--light); font-size: .88rem;
     }
+    .section-hint {
+      font-size: .8rem; color: var(--mid); line-height: 1.6;
+      max-width: 640px; margin: -.4rem 0 1.2rem;
+    }
+
+    /* Feste Bildbereiche (Einzel-Slots) */
+    .slot-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 280px));
+      gap: 1.2rem; margin-bottom: 2.6rem;
+    }
+    .slot-card {
+      border: 1px solid var(--sand); background: var(--white);
+      padding: .9rem; display: flex; flex-direction: column; gap: .7rem;
+      transition: border-color .2s, background .2s;
+    }
+    .slot-card.dragover { border-color: var(--sage); background: rgba(70,96,63,.06); }
+    .slot-card.uploading { opacity: .5; pointer-events: none; }
+    .slot-head { display: flex; gap: .8rem; align-items: flex-start; }
+    .slot-sketch { width: 42px; height: 56px; flex-shrink: 0; }
+    .slot-label { font-size: .85rem; font-weight: 500; color: var(--dark); margin-bottom: .2rem; }
+    .slot-where { font-size: .72rem; color: var(--mid); line-height: 1.45; }
+    .slot-preview { aspect-ratio: 4/3; }
+    .slot-empty {
+      display: flex; align-items: center; justify-content: center; text-align: center;
+      background: transparent; border: 2px dashed var(--sand);
+      font-size: .8rem; color: var(--mid); line-height: 1.6;
+    }
+    .slot-empty span { font-size: .7rem; color: var(--light); }
+    .slot-upload-btn { width: 100%; justify-content: center; cursor: pointer; }
+    .slot-card .field-hint { margin-top: -.3rem; }
+
+    /* Upload-Vorschau */
+    .staging { margin-top: 1.2rem; border: 1px solid var(--sand); background: var(--white); padding: 1rem; }
+    .staging-head {
+      display: flex; flex-wrap: wrap; gap: .8rem 1.2rem;
+      align-items: center; justify-content: space-between; margin-bottom: 1rem;
+    }
+    .staging-count { font-size: .85rem; color: var(--dark); font-weight: 500; }
+    .staging-bulk { display: flex; gap: .4rem; flex-wrap: wrap; }
+    .staging input, .gallery-item input {
+      min-height: 34px; background: var(--white); border: 1px solid var(--sand);
+      padding: .3rem .5rem; font-family: 'DM Sans', sans-serif; font-size: .78rem; color: var(--dark);
+    }
+    .staging-bulk input { width: 260px; max-width: 100%; }
+    .staging-list { display: flex; flex-direction: column; gap: .6rem; }
+    .staging-item {
+      display: grid; grid-template-columns: 72px 1fr auto; gap: .8rem;
+      align-items: center; padding: .5rem; border: 1px solid var(--sand);
+    }
+    .staging-item img { width: 72px; height: 72px; object-fit: cover; display: block; background: var(--sand); }
+    .staging-item.has-problem { border-color: #c0392b; background: rgba(192,57,43,.04); }
+    .staging-item.has-problem img { opacity: .5; }
+    .staging-fields { display: grid; grid-template-columns: 1fr 2fr; gap: .4rem; min-width: 0; }
+    .staging-name {
+      grid-column: 1/-1; font-size: .72rem; color: var(--mid);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .staging-problem { grid-column: 1/-1; font-size: .75rem; color: #c0392b; }
+    .staging-actions { display: flex; gap: .6rem; margin-top: 1rem; flex-wrap: wrap; }
+    .staging-actions .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* Sortierbare Galerie */
+    .gallery-item { transition: opacity .15s; }
+    .gallery-item.dragging { opacity: .35; }
+    .gallery-item .admin-photo-card { cursor: grab; }
+    .gallery-item .admin-photo-card:active { cursor: grabbing; }
+    .gallery-item-row { display: flex; gap: .3rem; margin-top: .5rem; align-items: center; }
+    .gallery-item-row input { flex: 1; min-width: 0; }
+    .gallery-item > input { width: 100%; margin-top: .3rem; }
+    .pos-badge, .drag-handle {
+      position: absolute; top: .4rem; z-index: 1;
+      background: rgba(35,39,31,.72); color: var(--cream);
+      font-size: .7rem; line-height: 1; padding: .3rem .45rem; pointer-events: none;
+    }
+    .pos-badge { left: .4rem; }
+    .drag-handle { right: .4rem; font-size: .8rem; }
+    .gallery-item .admin-photo-overlay { z-index: 2; }
+
+    /* Touch-Geräte: kein Hover → Aktionen immer sichtbar als Leiste unten */
+    @media (hover: none) {
+      .admin-photo-overlay {
+        opacity: 1; inset: auto 0 0 0; padding: .4rem;
+        justify-content: flex-end; background: rgba(35,39,31,.6);
+      }
+      .admin-photo-overlay .btn-icon { color: var(--cream); border-color: rgba(255,255,255,.35); }
+      .drag-handle { display: none; }
+    }
 
     /* ─── NEW CLIENT MODAL ─── */
     .modal-backdrop {
@@ -521,6 +609,10 @@
       .page { padding: 1.8rem 1.4rem; }
       .stats-grid { grid-template-columns: 1fr 1fr; }
       .table-wrap { overflow-x: auto; }
+      .slot-grid { grid-template-columns: 1fr; }
+      .staging-item { grid-template-columns: 56px 1fr auto; }
+      .staging-item img { width: 56px; height: 56px; }
+      .staging-fields { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -703,23 +795,19 @@
         </div>
       </div>
 
-      <div class="photos-section-title">Feste Bildbereiche</div>
-      <div id="singletonSlots" class="admin-photo-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:2.6rem;"></div>
+      <div class="photos-section-title">Feste Bildbereiche der Startseite</div>
+      <p class="section-hint">Jeder Bereich zeigt genau ein Bild an einer festen Stelle der Startseite. Neues Bild einfach auf die Karte ziehen oder „Bild auswählen“ klicken, das alte Bild wird dabei ersetzt.</p>
+      <div id="singletonSlots" class="slot-grid"></div>
 
       <div class="upload-section-title">Portfolio-Galerie — Bilder hinzufügen</div>
       <div class="upload-section">
-        <label class="field" style="max-width:260px;margin-bottom:1rem;">
-          <span style="font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--mid);display:block;margin-bottom:.4rem;">Kategorie für neue Uploads</span>
-          <input id="galleryCategoryInput" list="galleryCategoryList" maxlength="40" placeholder="z. B. Portrait"
-            style="width:100%;min-height:40px;background:var(--white);border:1px solid var(--sand);padding:.4rem .6rem;font-family:'DM Sans',sans-serif;font-size:.85rem;color:var(--dark);" />
-          <datalist id="galleryCategoryList"></datalist>
-        </label>
         <div class="drop-zone" id="galleryDropZone">
           <input type="file" id="galleryFileInput" multiple accept="image/jpeg,image/png,image/webp,image/gif" aria-label="Galerie-Bilder auswählen" />
           <div class="drop-icon" aria-hidden="true">📁</div>
           <div class="drop-text">Bilder hier ablegen oder klicken zum Auswählen</div>
-          <div class="drop-hint">JPEG, PNG, WebP · max. 8 MB pro Bild · empfohlen: ca. 2000–2500px breit, komprimiert</div>
+          <div class="drop-hint">Vor dem Hochladen können Sie für jedes Bild Kategorie und Beschreibung festlegen · JPEG, PNG, WebP · max. 8 MB pro Bild · empfohlen: ca. 2000–2500px breit</div>
         </div>
+        <div class="staging" id="galleryStaging" hidden></div>
         <div class="upload-progress" id="galleryUploadProgress"><div class="upload-progress-bar" id="galleryUploadProgressBar"></div></div>
         <div class="upload-status" id="galleryUploadStatus" role="status" aria-live="polite"></div>
       </div>
@@ -728,7 +816,9 @@
         <span id="galleryPhotosTitle">Portfolio-Galerie — vorhandene Bilder</span>
         <button type="button" class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="openAiSuggest('gallery')">✨ KI-Vorschlag</button>
       </div>
+      <p class="section-hint">Die Reihenfolge hier ist die Reihenfolge auf der Website. Bilder mit der Maus an die gewünschte Stelle ziehen, oder ▲ ▼ nutzen. Jede Änderung wird sofort gespeichert.</p>
       <div class="admin-photo-grid" id="galleryPhotoGrid"></div>
+      <datalist id="galleryCategoryList"></datalist>
     </div>
 
     <!-- MEDIABOX PAGE -->
@@ -741,22 +831,17 @@
       </div>
 
       <div class="photos-section-title">Titelbild</div>
-      <div id="mediaboxHeroSlot" class="admin-photo-grid" style="grid-template-columns:repeat(3,1fr);max-width:33%;margin-bottom:2.6rem;"></div>
+      <div id="mediaboxHeroSlot" class="slot-grid"></div>
 
       <div class="upload-section-title">Event-Galerie — Bilder hinzufügen</div>
       <div class="upload-section">
-        <label class="field" style="max-width:260px;margin-bottom:1rem;">
-          <span style="font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--mid);display:block;margin-bottom:.4rem;">Anlass/Event für neue Uploads</span>
-          <input id="mediaboxCategoryInput" list="mediaboxCategoryList" maxlength="40" placeholder="z. B. Hochzeit Meyer 2025"
-            style="width:100%;min-height:40px;background:var(--white);border:1px solid var(--sand);padding:.4rem .6rem;font-family:'DM Sans',sans-serif;font-size:.85rem;color:var(--dark);" />
-          <datalist id="mediaboxCategoryList"></datalist>
-        </label>
         <div class="drop-zone" id="mediaboxDropZone">
           <input type="file" id="mediaboxFileInput" multiple accept="image/jpeg,image/png,image/webp,image/gif" aria-label="Mediabox-Bilder auswählen" />
           <div class="drop-icon" aria-hidden="true">📁</div>
           <div class="drop-text">Bilder hier ablegen oder klicken zum Auswählen</div>
-          <div class="drop-hint">JPEG, PNG, WebP · max. 8 MB pro Bild · empfohlen: ca. 2000–2500px breit, komprimiert</div>
+          <div class="drop-hint">Vor dem Hochladen können Sie für jedes Bild Anlass/Event und Beschreibung festlegen · JPEG, PNG, WebP · max. 8 MB pro Bild · empfohlen: ca. 2000–2500px breit</div>
         </div>
+        <div class="staging" id="mediaboxStaging" hidden></div>
         <div class="upload-progress" id="mediaboxUploadProgress"><div class="upload-progress-bar" id="mediaboxUploadProgressBar"></div></div>
         <div class="upload-status" id="mediaboxUploadStatus" role="status" aria-live="polite"></div>
       </div>
@@ -765,7 +850,9 @@
         <span id="mediaboxPhotosTitle">Event-Galerie — vorhandene Bilder</span>
         <button type="button" class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="openAiSuggest('mediabox-gallery')">✨ KI-Vorschlag</button>
       </div>
+      <p class="section-hint">Die Reihenfolge hier ist die Reihenfolge auf der Mediabox-Seite. Bilder mit der Maus an die gewünschte Stelle ziehen, oder ▲ ▼ nutzen. Jede Änderung wird sofort gespeichert.</p>
       <div class="admin-photo-grid" id="mediaboxPhotoGrid"></div>
+      <datalist id="mediaboxCategoryList"></datalist>
 
       <div class="photos-section-title" style="margin-top:2.6rem;">Belegungskalender</div>
       <div class="upload-section" style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;">
@@ -1481,395 +1568,542 @@
     }
   }
 
-  // ─── Homepage-Bilder ────────────────────────────────────
-  const SINGLETON_SLOTS = [
-    { key: 'hero',         label: 'Hero-Bild' },
-    { key: 'about-main',   label: 'About — Hauptbild' },
-    { key: 'about-accent', label: 'About — Akzentbild' },
-  ];
+  // ─── Bilder-Verwaltung (Homepage + Mediabox) ────────────
+  // Homepage-Bilder und Mediabox-Bilder nutzen dieselben Bausteine: feste Bildbereiche
+  // (Einzel-Slots), Upload mit Vorschau und eine per Drag & Drop sortierbare Galerie.
+  const MAX_HOME_IMAGE_BYTES = 8 * 1024 * 1024;
+  const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
   const TRASH_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>';
   const EDIT_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 
-  async function loadHomeImages() {
+  // Feste Bildbereiche — Name, Ort auf der Website und Formatempfehlung für den Admin
+  const SINGLETON_SLOTS = {
+    'hero': {
+      label: 'Großes Titelbild',
+      where: 'Ganz oben auf der Startseite — das erste Bild, das Besucher sehen.',
+      format: 'Hochformat oder quadratisch, Motiv mittig (wird je nach Bildschirm beschnitten)'
+    },
+    'about-main': {
+      label: 'Über mich — großes Foto',
+      where: 'Abschnitt „Über mich“ auf der Startseite, großes Bild.',
+      format: 'Hochformat (ca. 3:4)'
+    },
+    'about-accent': {
+      label: 'Über mich — kleines Zusatzfoto',
+      where: 'Abschnitt „Über mich“, kleines rundes Bild, das das große Foto überlappt.',
+      format: 'Quadratisch, Motiv mittig'
+    },
+    'mediabox-hero': {
+      label: 'Titelbild der Mediabox',
+      where: 'Oben auf der Mediabox-Seite und als Teaser-Bild auf der Startseite.',
+      format: 'Hochformat oder quadratisch, Motiv mittig'
+    },
+  };
+
+  // Mini-Skizze der Startseite, in der der jeweilige Bereich hervorgehoben ist
+  function slotSketch(slot) {
+    const hl = key => key === slot ? 'var(--sage)' : 'var(--sand)';
+    return `<svg class="slot-sketch" viewBox="0 0 60 80" aria-hidden="true">
+      <rect x=".5" y=".5" width="59" height="79" fill="var(--white)" stroke="var(--sand)"/>
+      <rect x="4" y="4" width="52" height="2.5" fill="var(--sand)"/>
+      <rect x="4" y="13" width="20" height="3" fill="var(--sand)"/>
+      <rect x="4" y="19" width="14" height="2" fill="var(--sand)"/>
+      <rect x="32" y="10" width="24" height="20" fill="${hl('hero')}"/>
+      <rect x="4" y="34" width="18" height="10" fill="var(--sand)" opacity=".6"/>
+      <rect x="24" y="34" width="14" height="10" fill="var(--sand)" opacity=".6"/>
+      <rect x="40" y="34" width="16" height="10" fill="var(--sand)" opacity=".6"/>
+      <rect x="4" y="48" width="14" height="17" fill="${hl('about-main')}"/>
+      <circle cx="18" cy="63" r="4.5" fill="${hl('about-accent')}" stroke="var(--white)"/>
+      <rect x="28" y="51" width="22" height="2.5" fill="var(--sand)"/>
+      <rect x="28" y="56" width="18" height="2" fill="var(--sand)"/>
+      <rect x="4" y="70" width="14" height="6" fill="${hl('mediabox-hero')}"/>
+      <rect x="22" y="72" width="20" height="2" fill="var(--sand)"/>
+    </svg>`;
+  }
+
+  // Galerien (sortierbare Listen) — Homepage-Portfolio und Mediabox-Event-Galerie
+  const GALLERIES = {
+    'gallery': {
+      slot: 'gallery', prefix: 'gallery',
+      title: 'Portfolio-Galerie — vorhandene Bilder',
+      categoryLabel: 'Kategorie', categoryPlaceholder: 'z. B. Portrait',
+      emptyText: 'Noch keine Galerie-Bilder hochgeladen.',
+      toastName: 'Galerie-Bilder',
+      reload: () => loadHomeImages(),
+      items: [], staged: []
+    },
+    'mediabox-gallery': {
+      slot: 'mediabox-gallery', prefix: 'mediabox',
+      title: 'Event-Galerie — vorhandene Bilder',
+      categoryLabel: 'Anlass/Event', categoryPlaceholder: 'z. B. Hochzeit Meyer 2025',
+      emptyText: 'Noch keine Mediabox-Bilder hochgeladen.',
+      toastName: 'Mediabox-Bilder',
+      reload: () => loadMediaboxImages(),
+      items: [], staged: []
+    },
+  };
+
+  async function fetchAdminHomeImages() {
     const res = await adminFetch('/api/admin/home-images');
-    if (!res.ok) {
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.images || [];
+  }
+
+  async function loadHomeImages() {
+    const images = await fetchAdminHomeImages();
+    if (!images) {
       document.getElementById('singletonSlots').innerHTML = '<div class="no-photos">Datenbank aktuell nicht erreichbar.</div>';
       document.getElementById('galleryPhotoGrid').innerHTML = '';
-      document.getElementById('galleryCategoryList').innerHTML = '';
       return;
     }
-    const data = await res.json();
-    const images = data.images || [];
-    renderSingletonSlots(images);
-    const galleryItems = images.filter(i => i.slot === 'gallery');
-    updateCategoryDatalist(galleryItems);
-    renderGalleryGrid(galleryItems);
+    renderSingletonSlotCards('singletonSlots', ['hero', 'about-main', 'about-accent'], images, loadHomeImages);
+    setGalleryItems(GALLERIES['gallery'], images);
   }
 
-  function updateCategoryDatalist(items) {
-    const categories = [...new Set(items.map(i => i.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'de'));
-    document.getElementById('galleryCategoryList').innerHTML =
-      categories.map(c => `<option value="${esc(c)}"></option>`).join('');
-  }
-
-  function renderSingletonSlots(images) {
-    const container = document.getElementById('singletonSlots');
-    container.innerHTML = SINGLETON_SLOTS.map(slot => {
-      const img = images.find(i => i.slot === slot.key);
-      const card = img
-        ? `<div class="admin-photo-card">
-            <img src="${img.url}" alt="${esc(slot.label)}" loading="lazy" />
-            <div class="admin-photo-overlay">
-              <button class="btn-icon" onclick="openImageEditor(${img.id}, '${img.url}')" aria-label="${esc(slot.label)} bearbeiten" title="Bild bearbeiten">${EDIT_ICON}</button>
-              <button class="btn-icon danger" onclick="deleteHomeImage(${img.id})" aria-label="${esc(slot.label)} löschen" title="Bild löschen">${TRASH_ICON}</button>
-            </div>
-            <div class="admin-photo-name">${esc(slot.label)}</div>
-          </div>`
-        : `<div class="admin-photo-card" style="display:flex;align-items:center;justify-content:center;">
-            <div class="no-photos" style="padding:1rem;">Kein Bild</div>
-          </div>`;
-      return `<div>
-        ${card}
-        <label class="btn btn-outline btn-sm" style="margin-top:.6rem;width:100%;justify-content:center;cursor:pointer;">
-          ${img ? 'Ersetzen' : 'Bild hochladen'}
-          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none"
-            onchange="uploadSingletonImage('${slot.key}', this.files[0]); this.value='';" />
-        </label>
-        <div class="field-hint" style="text-align:center;margin-top:.3rem;">${esc(slot.label)}</div>
-      </div>`;
-    }).join('');
-  }
-
-  async function uploadSingletonImage(slot, file) {
-    if (!file) return;
-    const formData = new FormData();
-    formData.append('image', file);
-    try {
-      const res = await fetch('/api/admin/home-images/' + slot, {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + adminToken },
-        body: formData
-      });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
-      showToast('Bild gespeichert');
-      await loadHomeImages();
-    } catch (err) {
-      showToast('Fehler: ' + err.message);
-    }
-  }
-
-  async function deleteHomeImage(id) {
-    if (!confirm('Bild wirklich löschen?')) return;
-    const res = await adminFetch('/api/admin/home-images/' + id, { method: 'DELETE' });
-    if (res.ok) {
-      showToast('Bild gelöscht');
-      await loadHomeImages();
-    }
-  }
-
-  function renderGalleryGrid(items) {
-    const grid = document.getElementById('galleryPhotoGrid');
-    document.getElementById('galleryPhotosTitle').textContent =
-      `Portfolio-Galerie — vorhandene Bilder (${items.length})`;
-    if (!items.length) {
-      grid.innerHTML = '<div class="no-photos">Noch keine Galerie-Bilder hochgeladen.</div>';
-      return;
-    }
-    grid.innerHTML = items.map(item => `
-      <div>
-        <div class="admin-photo-card">
-          <img src="${item.url}" alt="${esc(item.altText || item.category || '')}" loading="lazy" />
-          <div class="admin-photo-overlay">
-            <button class="btn-icon" onclick="openImageEditor(${item.id}, '${item.url}')" aria-label="Bild bearbeiten" title="Bild bearbeiten">${EDIT_ICON}</button>
-            <button class="btn-icon danger" onclick="deleteHomeImage(${item.id})" aria-label="Bild löschen" title="Bild löschen">${TRASH_ICON}</button>
-          </div>
-        </div>
-        <div style="display:flex;gap:.3rem;margin-top:.5rem;align-items:center;">
-          <input list="galleryCategoryList" maxlength="40" value="${esc(item.category || '')}"
-            onchange="updateGalleryCategory(${item.id}, this.value)"
-            title="Kategorie"
-            style="flex:1;min-height:32px;font-size:.72rem;background:var(--white);border:1px solid var(--sand);padding:.2rem .4rem;" />
-          <button class="btn-icon" onclick="moveGalleryImage(${item.id}, 'up')" aria-label="Nach oben" title="Nach oben">▲</button>
-          <button class="btn-icon" onclick="moveGalleryImage(${item.id}, 'down')" aria-label="Nach unten" title="Nach unten">▼</button>
-        </div>
-        <div style="margin-top:.3rem;">
-          <input type="text" maxlength="160" value="${esc(item.altText || '')}"
-            onchange="updateGalleryAltText(${item.id}, this.value)"
-            placeholder="Alt-Text (Bildbeschreibung, optional)" title="Alt-Text (Bildbeschreibung)"
-            style="width:100%;min-height:32px;font-size:.72rem;background:var(--white);border:1px solid var(--sand);padding:.2rem .4rem;" />
-        </div>
-      </div>`).join('');
-  }
-
-  async function updateGalleryCategory(id, category) {
-    const trimmed = category.trim();
-    if (!trimmed) { showToast('Kategorie darf nicht leer sein.'); await loadHomeImages(); return; }
-    await adminFetch('/api/admin/home-images/' + id, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ category: trimmed })
-    });
-    showToast('Kategorie aktualisiert');
-    await loadHomeImages();
-  }
-
-  async function updateGalleryAltText(id, altText) {
-    await adminFetch('/api/admin/home-images/' + id, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ altText: altText.trim() })
-    });
-    showToast('Alt-Text aktualisiert');
-    await loadHomeImages();
-  }
-
-  async function moveGalleryImage(id, direction) {
-    await adminFetch('/api/admin/home-images/' + id + '/move', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ direction })
-    });
-    await loadHomeImages();
-  }
-
-  // ─── Gallery upload (drop zone) ─────────────────────────
-  const galleryDropZone  = document.getElementById('galleryDropZone');
-  const galleryFileInput = document.getElementById('galleryFileInput');
-
-  galleryDropZone.addEventListener('dragover',  e => { e.preventDefault(); galleryDropZone.classList.add('dragover'); });
-  galleryDropZone.addEventListener('dragleave', ()  => galleryDropZone.classList.remove('dragover'));
-  galleryDropZone.addEventListener('drop',      e  => {
-    e.preventDefault(); galleryDropZone.classList.remove('dragover');
-    uploadGalleryImages(e.dataTransfer.files);
-  });
-  galleryFileInput.addEventListener('change', e => uploadGalleryImages(e.target.files));
-
-  async function uploadGalleryImages(files) {
-    if (!files.length) return;
-    const bar      = document.getElementById('galleryUploadProgressBar');
-    const progress = document.getElementById('galleryUploadProgress');
-    const status   = document.getElementById('galleryUploadStatus');
-    const category = document.getElementById('galleryCategoryInput').value.trim() || 'Sonstiges';
-    const formData = new FormData();
-    Array.from(files).forEach(f => formData.append('photos', f));
-    formData.append('category', category);
-
-    progress.style.display = 'block';
-    status.style.display   = 'block';
-    status.textContent     = `${files.length} Bild${files.length > 1 ? 'er' : ''} werden hochgeladen …`;
-    bar.style.width = '10%';
-
-    try {
-      const res = await fetch('/api/admin/home-images/gallery', {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + adminToken },
-        body: formData
-      });
-      bar.style.width = '100%';
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
-      const data = await res.json();
-      status.textContent = `✓ ${data.uploaded.length} Bild${data.uploaded.length > 1 ? 'er' : ''} hochgeladen.`;
-      showToast(data.uploaded.length + ' Galerie-Bilder hochgeladen');
-      galleryFileInput.value = '';
-      await loadHomeImages();
-    } catch (err) {
-      status.textContent = 'Fehler: ' + err.message;
-    }
-    setTimeout(() => {
-      progress.style.display = 'none';
-      bar.style.width = '0%';
-    }, 2000);
-  }
-
-  // ─── Mediabox: Bilder (Titelbild + Event-Galerie) ────────
   async function loadMediaboxImages() {
-    const res = await adminFetch('/api/admin/home-images');
-    if (!res.ok) {
+    const images = await fetchAdminHomeImages();
+    if (!images) {
       document.getElementById('mediaboxHeroSlot').innerHTML = '<div class="no-photos">Datenbank aktuell nicht erreichbar.</div>';
       document.getElementById('mediaboxPhotoGrid').innerHTML = '';
-      document.getElementById('mediaboxCategoryList').innerHTML = '';
       return;
     }
-    const data = await res.json();
-    const images = data.images || [];
-    renderMediaboxHeroSlot(images.find(i => i.slot === 'mediabox-hero'));
-    const galleryItems = images.filter(i => i.slot === 'mediabox-gallery');
-    updateMediaboxCategoryDatalist(galleryItems);
-    renderMediaboxGrid(galleryItems);
+    renderSingletonSlotCards('mediaboxHeroSlot', ['mediabox-hero'], images, loadMediaboxImages);
+    setGalleryItems(GALLERIES['mediabox-gallery'], images);
   }
 
-  function updateMediaboxCategoryDatalist(items) {
-    const categories = [...new Set(items.map(i => i.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'de'));
-    document.getElementById('mediaboxCategoryList').innerHTML =
+  function setGalleryItems(cfg, images) {
+    cfg.items = images.filter(i => i.slot === cfg.slot);
+    updateCategoryDatalist(cfg);
+    renderSortableGrid(cfg);
+  }
+
+  function updateCategoryDatalist(cfg) {
+    const categories = [...new Set(cfg.items.map(i => i.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'de'));
+    document.getElementById(cfg.prefix + 'CategoryList').innerHTML =
       categories.map(c => `<option value="${esc(c)}"></option>`).join('');
   }
 
-  function renderMediaboxHeroSlot(img) {
-    const container = document.getElementById('mediaboxHeroSlot');
-    const card = img
-      ? `<div class="admin-photo-card">
-          <img src="${img.url}" alt="Mediabox Titelbild" loading="lazy" />
-          <div class="admin-photo-overlay">
-            <button class="btn-icon" onclick="openImageEditor(${img.id}, '${img.url}')" aria-label="Titelbild bearbeiten" title="Bild bearbeiten">${EDIT_ICON}</button>
-            <button class="btn-icon danger" onclick="deleteMediaboxImage(${img.id})" aria-label="Titelbild löschen" title="Bild löschen">${TRASH_ICON}</button>
-          </div>
-          <div class="admin-photo-name">Titelbild</div>
-        </div>`
-      : `<div class="admin-photo-card" style="display:flex;align-items:center;justify-content:center;">
-          <div class="no-photos" style="padding:1rem;">Kein Bild</div>
-        </div>`;
-    container.innerHTML = `<div>
-      ${card}
-      <label class="btn btn-outline btn-sm" style="margin-top:.6rem;width:100%;justify-content:center;cursor:pointer;">
-        ${img ? 'Ersetzen' : 'Bild hochladen'}
-        <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none"
-          onchange="uploadMediaboxHeroImage(this.files[0]); this.value='';" />
-      </label>
-      <div class="field-hint" style="text-align:center;margin-top:.3rem;">Titelbild der Mediabox-Seite &amp; Teaser auf der Startseite</div>
-    </div>`;
+  // Prüft eine Datei vor dem Upload; gibt eine Fehlermeldung zurück oder null
+  function checkImageFile(file) {
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) return 'Kein unterstütztes Bildformat (JPEG, PNG, WebP, GIF).';
+    if (file.size > MAX_HOME_IMAGE_BYTES) return `Zu groß (${formatFileSize(file.size)}, max. 8 MB).`;
+    return null;
   }
 
-  async function uploadMediaboxHeroImage(file) {
-    if (!file) return;
-    const formData = new FormData();
-    formData.append('image', file);
-    try {
-      const res = await fetch('/api/admin/home-images/mediabox-hero', {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + adminToken },
-        body: formData
-      });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
-      showToast('Bild gespeichert');
-      await loadMediaboxImages();
-    } catch (err) {
-      showToast('Fehler: ' + err.message);
-    }
+  function formatFileSize(bytes) {
+    return bytes >= 1024 * 1024
+      ? (bytes / 1024 / 1024).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' MB'
+      : Math.round(bytes / 1024) + ' KB';
   }
 
-  async function deleteMediaboxImage(id) {
+  function hasFiles(e) {
+    return e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+  }
+
+  // Upload per XHR, damit der Fortschrittsbalken echten Fortschritt zeigt
+  function uploadWithProgress(url, formData, onProgress) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url);
+      xhr.setRequestHeader('Authorization', 'Bearer ' + adminToken);
+      xhr.upload.onprogress = e => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
+      xhr.onload = () => {
+        let data = {};
+        try { data = JSON.parse(xhr.responseText); } catch { /* keine JSON-Antwort */ }
+        if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+        else reject(new Error(data.error || 'Upload fehlgeschlagen.'));
+      };
+      xhr.onerror = () => reject(new Error('Keine Verbindung zum Server.'));
+      xhr.send(formData);
+    });
+  }
+
+  async function deleteImage(id, reload) {
     if (!confirm('Bild wirklich löschen?')) return;
     const res = await adminFetch('/api/admin/home-images/' + id, { method: 'DELETE' });
     if (res.ok) {
       showToast('Bild gelöscht');
-      await loadMediaboxImages();
+      await reload();
+    } else {
+      showToast('Bild konnte nicht gelöscht werden.');
     }
   }
 
-  function renderMediaboxGrid(items) {
-    const grid = document.getElementById('mediaboxPhotoGrid');
-    document.getElementById('mediaboxPhotosTitle').textContent =
-      `Event-Galerie — vorhandene Bilder (${items.length})`;
-    if (!items.length) {
-      grid.innerHTML = '<div class="no-photos">Noch keine Mediabox-Bilder hochgeladen.</div>';
-      return;
-    }
-    grid.innerHTML = items.map(item => `
-      <div>
-        <div class="admin-photo-card">
-          <img src="${item.url}" alt="${esc(item.altText || item.category || '')}" loading="lazy" />
-          <div class="admin-photo-overlay">
-            <button class="btn-icon" onclick="openImageEditor(${item.id}, '${item.url}')" aria-label="Bild bearbeiten" title="Bild bearbeiten">${EDIT_ICON}</button>
-            <button class="btn-icon danger" onclick="deleteMediaboxImage(${item.id})" aria-label="Bild löschen" title="Bild löschen">${TRASH_ICON}</button>
+  // ─── Feste Bildbereiche (Einzel-Slots) ───────────────────
+  function renderSingletonSlotCards(containerId, slotKeys, images, reload) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = slotKeys.map(key => {
+      const slot = SINGLETON_SLOTS[key];
+      const img = images.find(i => i.slot === key);
+      const preview = img
+        ? `<div class="admin-photo-card slot-preview">
+            <img src="${img.url}" alt="${esc(slot.label)}" loading="lazy" draggable="false" />
+            <div class="admin-photo-overlay">
+              <button class="btn-icon" data-action="edit" data-id="${img.id}" data-url="${img.url}" aria-label="${esc(slot.label)} bearbeiten" title="Bild bearbeiten">${EDIT_ICON}</button>
+              <button class="btn-icon danger" data-action="delete" data-id="${img.id}" aria-label="${esc(slot.label)} löschen" title="Bild löschen">${TRASH_ICON}</button>
+            </div>
+          </div>`
+        : `<div class="admin-photo-card slot-preview slot-empty">
+            <div>Noch kein Bild<br><span>Bild hierher ziehen</span></div>
+          </div>`;
+      return `<div class="slot-card" data-slot="${key}">
+        <div class="slot-head">
+          ${slotSketch(key)}
+          <div>
+            <div class="slot-label">${esc(slot.label)}</div>
+            <div class="slot-where">${esc(slot.where)}</div>
           </div>
         </div>
-        <div style="display:flex;gap:.3rem;margin-top:.5rem;align-items:center;">
-          <input list="mediaboxCategoryList" maxlength="40" value="${esc(item.category || '')}"
-            onchange="updateMediaboxCategory(${item.id}, this.value)"
-            title="Anlass/Event"
-            style="flex:1;min-height:32px;font-size:.72rem;background:var(--white);border:1px solid var(--sand);padding:.2rem .4rem;" />
-          <button class="btn-icon" onclick="moveMediaboxImage(${item.id}, 'up')" aria-label="Nach oben" title="Nach oben">▲</button>
-          <button class="btn-icon" onclick="moveMediaboxImage(${item.id}, 'down')" aria-label="Nach unten" title="Nach unten">▼</button>
-        </div>
-        <div style="margin-top:.3rem;">
-          <input type="text" maxlength="160" value="${esc(item.altText || '')}"
-            onchange="updateMediaboxAltText(${item.id}, this.value)"
-            placeholder="Alt-Text (Bildbeschreibung, optional)" title="Alt-Text (Bildbeschreibung)"
-            style="width:100%;min-height:32px;font-size:.72rem;background:var(--white);border:1px solid var(--sand);padding:.2rem .4rem;" />
-        </div>
-      </div>`).join('');
-  }
+        ${preview}
+        <label class="btn btn-outline btn-sm slot-upload-btn">
+          ${img ? 'Bild ersetzen' : 'Bild auswählen'}
+          <input type="file" accept="${ACCEPTED_IMAGE_TYPES.join(',')}" style="display:none" />
+        </label>
+        <div class="field-hint">Empfohlen: ${esc(slot.format)}</div>
+      </div>`;
+    }).join('');
 
-  async function updateMediaboxCategory(id, category) {
-    const trimmed = category.trim();
-    if (!trimmed) { showToast('Anlass/Event darf nicht leer sein.'); await loadMediaboxImages(); return; }
-    await adminFetch('/api/admin/home-images/' + id, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ category: trimmed })
+    container.querySelectorAll('.slot-card').forEach(card => {
+      const key = card.dataset.slot;
+      card.querySelector('input[type="file"]').addEventListener('change', e => {
+        uploadSingletonImage(key, e.target.files[0], reload);
+        e.target.value = '';
+      });
+      card.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', () => {
+        if (btn.dataset.action === 'edit') openImageEditor(Number(btn.dataset.id), btn.dataset.url);
+        else deleteImage(btn.dataset.id, reload);
+      }));
+      card.addEventListener('dragover', e => {
+        if (!hasFiles(e)) return;
+        e.preventDefault();
+        card.classList.add('dragover');
+      });
+      card.addEventListener('dragleave', e => {
+        if (!card.contains(e.relatedTarget)) card.classList.remove('dragover');
+      });
+      card.addEventListener('drop', e => {
+        if (!hasFiles(e)) return;
+        e.preventDefault();
+        card.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 1) showToast('Hier passt nur ein Bild — das erste wird verwendet.');
+        uploadSingletonImage(key, e.dataTransfer.files[0], reload);
+      });
     });
-    showToast('Anlass/Event aktualisiert');
-    await loadMediaboxImages();
   }
 
-  async function updateMediaboxAltText(id, altText) {
-    await adminFetch('/api/admin/home-images/' + id, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ altText: altText.trim() })
-    });
-    showToast('Alt-Text aktualisiert');
-    await loadMediaboxImages();
-  }
-
-  async function moveMediaboxImage(id, direction) {
-    await adminFetch('/api/admin/home-images/' + id + '/move', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ direction })
-    });
-    await loadMediaboxImages();
-  }
-
-  // ─── Mediabox upload (drop zone) ──────────────────────────
-  const mediaboxDropZone  = document.getElementById('mediaboxDropZone');
-  const mediaboxFileInput = document.getElementById('mediaboxFileInput');
-
-  mediaboxDropZone.addEventListener('dragover',  e => { e.preventDefault(); mediaboxDropZone.classList.add('dragover'); });
-  mediaboxDropZone.addEventListener('dragleave', ()  => mediaboxDropZone.classList.remove('dragover'));
-  mediaboxDropZone.addEventListener('drop',      e  => {
-    e.preventDefault(); mediaboxDropZone.classList.remove('dragover');
-    uploadMediaboxImages(e.dataTransfer.files);
-  });
-  mediaboxFileInput.addEventListener('change', e => uploadMediaboxImages(e.target.files));
-
-  async function uploadMediaboxImages(files) {
-    if (!files.length) return;
-    const bar      = document.getElementById('mediaboxUploadProgressBar');
-    const progress = document.getElementById('mediaboxUploadProgress');
-    const status   = document.getElementById('mediaboxUploadStatus');
-    const category = document.getElementById('mediaboxCategoryInput').value.trim() || 'Sonstiges';
+  async function uploadSingletonImage(slot, file, reload) {
+    if (!file) return;
+    const problem = checkImageFile(file);
+    if (problem) { showToast(problem); return; }
+    const card = document.querySelector(`.slot-card[data-slot="${slot}"]`);
+    card?.classList.add('uploading');
     const formData = new FormData();
-    Array.from(files).forEach(f => formData.append('photos', f));
-    formData.append('category', category);
-    formData.append('slot', 'mediabox-gallery');
+    formData.append('image', file);
+    try {
+      await uploadWithProgress('/api/admin/home-images/' + slot, formData);
+      showToast(`${SINGLETON_SLOTS[slot].label} gespeichert`);
+      await reload();
+    } catch (err) {
+      showToast('Fehler: ' + err.message);
+      card?.classList.remove('uploading');
+    }
+  }
 
+  // ─── Galerie: Upload mit Vorschau ────────────────────────
+  function setupGalleryUploader(cfg) {
+    const dropZone  = document.getElementById(cfg.prefix + 'DropZone');
+    const fileInput = document.getElementById(cfg.prefix + 'FileInput');
+
+    dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop',      e  => {
+      e.preventDefault(); dropZone.classList.remove('dragover');
+      stageFiles(cfg, e.dataTransfer.files);
+    });
+    fileInput.addEventListener('change', e => { stageFiles(cfg, e.target.files); fileInput.value = ''; });
+
+    const staging = document.getElementById(cfg.prefix + 'Staging');
+    staging.addEventListener('input', e => {
+      const row = e.target.closest('.staging-item');
+      if (!row || !e.target.dataset.field) return;
+      cfg.staged[Number(row.dataset.index)][e.target.dataset.field] = e.target.value;
+    });
+    staging.addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      if (action === 'remove') {
+        const [removed] = cfg.staged.splice(Number(btn.closest('.staging-item').dataset.index), 1);
+        URL.revokeObjectURL(removed.previewUrl);
+        renderStaging(cfg);
+      } else if (action === 'apply-all') {
+        const value = staging.querySelector('[data-bulk-category]').value.trim();
+        if (!value) { showToast(`Bitte zuerst ${cfg.categoryLabel === 'Kategorie' ? 'eine Kategorie' : 'einen Anlass'} eingeben.`); return; }
+        cfg.staged.forEach(s => { s.category = value; });
+        renderStaging(cfg);
+      } else if (action === 'cancel') {
+        clearStaging(cfg);
+      } else if (action === 'upload') {
+        uploadStagedImages(cfg);
+      }
+    });
+  }
+
+  function stageFiles(cfg, fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    // Kategorie des zuletzt vorgemerkten Bilds als Vorschlag für neue Bilder übernehmen
+    const lastCategory = cfg.staged.length ? cfg.staged[cfg.staged.length - 1].category : '';
+    files.forEach(file => {
+      cfg.staged.push({
+        file,
+        previewUrl: URL.createObjectURL(file),
+        category: lastCategory,
+        altText: '',
+        problem: checkImageFile(file)
+      });
+    });
+    document.getElementById(cfg.prefix + 'UploadStatus').style.display = 'none';
+    renderStaging(cfg);
+  }
+
+  function clearStaging(cfg) {
+    cfg.staged.forEach(s => URL.revokeObjectURL(s.previewUrl));
+    cfg.staged = [];
+    renderStaging(cfg);
+  }
+
+  function renderStaging(cfg) {
+    const staging = document.getElementById(cfg.prefix + 'Staging');
+    if (!cfg.staged.length) { staging.hidden = true; staging.innerHTML = ''; return; }
+    const valid = cfg.staged.filter(s => !s.problem).length;
+    const listId = cfg.prefix + 'CategoryList';
+    staging.hidden = false;
+    staging.innerHTML = `
+      <div class="staging-head">
+        <div class="staging-count">${cfg.staged.length} Bild${cfg.staged.length > 1 ? 'er' : ''} ausgewählt — noch nicht hochgeladen</div>
+        <div class="staging-bulk">
+          <input data-bulk-category list="${listId}" maxlength="40" placeholder="${esc(cfg.categoryLabel)} für alle, ${esc(cfg.categoryPlaceholder)}" aria-label="${esc(cfg.categoryLabel)} für alle Bilder" />
+          <button type="button" class="btn btn-outline btn-sm" data-action="apply-all">Für alle übernehmen</button>
+        </div>
+      </div>
+      <div class="staging-list">
+        ${cfg.staged.map((s, i) => `
+          <div class="staging-item${s.problem ? ' has-problem' : ''}" data-index="${i}">
+            <img src="${s.previewUrl}" alt="" />
+            <div class="staging-fields">
+              <div class="staging-name" title="${esc(s.file.name)}">${esc(s.file.name)} · ${formatFileSize(s.file.size)}</div>
+              ${s.problem
+                ? `<div class="staging-problem">${esc(s.problem)} Wird nicht hochgeladen.</div>`
+                : `<input data-field="category" list="${listId}" maxlength="40" value="${esc(s.category)}"
+                     placeholder="${esc(cfg.categoryLabel)} (sonst „Sonstiges“)" aria-label="${esc(cfg.categoryLabel)}" />
+                   <input data-field="altText" type="text" maxlength="160" value="${esc(s.altText)}"
+                     placeholder="Bildbeschreibung, optional (z. B. Brautpaar am See)" aria-label="Bildbeschreibung (Alt-Text)" />`}
+            </div>
+            <button type="button" class="btn-icon danger" data-action="remove" aria-label="Aus der Auswahl entfernen" title="Aus der Auswahl entfernen">✕</button>
+          </div>`).join('')}
+      </div>
+      <div class="staging-actions">
+        <button type="button" class="btn btn-primary" data-action="upload" ${valid ? '' : 'disabled'}>
+          ${valid} Bild${valid === 1 ? '' : 'er'} hochladen
+        </button>
+        <button type="button" class="btn btn-outline" data-action="cancel">Abbrechen</button>
+      </div>`;
+  }
+
+  async function uploadStagedImages(cfg) {
+    const toUpload = cfg.staged.filter(s => !s.problem);
+    if (!toUpload.length) return;
+    const bar      = document.getElementById(cfg.prefix + 'UploadProgressBar');
+    const progress = document.getElementById(cfg.prefix + 'UploadProgress');
+    const status   = document.getElementById(cfg.prefix + 'UploadStatus');
+    const staging  = document.getElementById(cfg.prefix + 'Staging');
+
+    const formData = new FormData();
+    toUpload.forEach(s => formData.append('photos', s.file));
+    formData.append('slot', cfg.slot);
+    formData.append('meta', JSON.stringify(toUpload.map(s => ({ category: s.category.trim(), altText: s.altText.trim() }))));
+
+    staging.querySelectorAll('button, input').forEach(el => { el.disabled = true; });
     progress.style.display = 'block';
     status.style.display   = 'block';
-    status.textContent     = `${files.length} Bild${files.length > 1 ? 'er' : ''} werden hochgeladen …`;
-    bar.style.width = '10%';
+    status.textContent     = `${toUpload.length} Bild${toUpload.length > 1 ? 'er' : ''} werden hochgeladen …`;
+    bar.style.width = '0%';
 
     try {
-      const res = await fetch('/api/admin/home-images/gallery', {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + adminToken },
-        body: formData
+      const data = await uploadWithProgress('/api/admin/home-images/gallery', formData, p => {
+        bar.style.width = Math.round(p * 100) + '%';
       });
-      bar.style.width = '100%';
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
-      const data = await res.json();
-      status.textContent = `✓ ${data.uploaded.length} Bild${data.uploaded.length > 1 ? 'er' : ''} hochgeladen.`;
-      showToast(data.uploaded.length + ' Mediabox-Bilder hochgeladen');
-      mediaboxFileInput.value = '';
-      await loadMediaboxImages();
+      const count = data.uploaded.length;
+      status.textContent = `✓ ${count} Bild${count > 1 ? 'er' : ''} hochgeladen — ${count > 1 ? 'sie stehen' : 'es steht'} jetzt am Ende der Galerie.`;
+      showToast(count + ' ' + cfg.toastName + ' hochgeladen');
+      clearStaging(cfg);
+      await cfg.reload();
     } catch (err) {
       status.textContent = 'Fehler: ' + err.message;
+      staging.querySelectorAll('button, input').forEach(el => { el.disabled = false; });
     }
     setTimeout(() => {
       progress.style.display = 'none';
       bar.style.width = '0%';
     }, 2000);
   }
+
+  // ─── Galerie: sortierbares Grid ──────────────────────────
+  function renderSortableGrid(cfg) {
+    const grid = document.getElementById(cfg.prefix + 'PhotoGrid');
+    document.getElementById(cfg.prefix + 'PhotosTitle').textContent = `${cfg.title} (${cfg.items.length})`;
+    if (!cfg.items.length) {
+      grid.innerHTML = `<div class="no-photos">${esc(cfg.emptyText)}</div>`;
+      return;
+    }
+    const listId = cfg.prefix + 'CategoryList';
+    grid.innerHTML = cfg.items.map((item, i) => `
+      <div class="gallery-item" data-id="${item.id}">
+        <div class="admin-photo-card" draggable="true" title="Zum Sortieren ziehen">
+          <img src="${item.url}" alt="${esc(item.altText || item.category || '')}" loading="lazy" draggable="false" />
+          <span class="pos-badge">${i + 1}</span>
+          <span class="drag-handle" aria-hidden="true">⠿</span>
+          <div class="admin-photo-overlay">
+            <button class="btn-icon" data-action="edit" data-url="${item.url}" aria-label="Bild bearbeiten" title="Bild bearbeiten">${EDIT_ICON}</button>
+            <button class="btn-icon danger" data-action="delete" aria-label="Bild löschen" title="Bild löschen">${TRASH_ICON}</button>
+          </div>
+        </div>
+        <div class="gallery-item-row">
+          <input data-field="category" list="${listId}" maxlength="40" value="${esc(item.category || '')}" data-saved="${esc(item.category || '')}"
+            title="${esc(cfg.categoryLabel)}" aria-label="${esc(cfg.categoryLabel)}" />
+          <button class="btn-icon" data-action="up" aria-label="Eine Position nach vorne" title="Nach vorne">▲</button>
+          <button class="btn-icon" data-action="down" aria-label="Eine Position nach hinten" title="Nach hinten">▼</button>
+        </div>
+        <input data-field="altText" type="text" maxlength="160" value="${esc(item.altText || '')}" data-saved="${esc(item.altText || '')}"
+          placeholder="Bildbeschreibung (optional)" title="Bildbeschreibung (Alt-Text)" aria-label="Bildbeschreibung (Alt-Text)" />
+      </div>`).join('');
+  }
+
+  // Event-Delegation: einmal pro Grid registriert, überlebt jedes Neu-Rendern
+  let galleryDrag = null; // { cfg, el, startOrder }
+
+  function setupSortableGrid(cfg) {
+    const grid = document.getElementById(cfg.prefix + 'PhotoGrid');
+
+    grid.addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const itemEl = btn.closest('.gallery-item');
+      const id = Number(itemEl.dataset.id);
+      const action = btn.dataset.action;
+      if (action === 'edit') openImageEditor(id, btn.dataset.url);
+      else if (action === 'delete') deleteImage(id, cfg.reload);
+      else if (action === 'up' && itemEl.previousElementSibling) {
+        grid.insertBefore(itemEl, itemEl.previousElementSibling);
+        saveGalleryOrder(cfg);
+        btn.focus();
+      } else if (action === 'down' && itemEl.nextElementSibling) {
+        grid.insertBefore(itemEl.nextElementSibling, itemEl);
+        saveGalleryOrder(cfg);
+        btn.focus();
+      }
+    });
+
+    grid.addEventListener('change', e => {
+      if (e.target.dataset.field) saveGalleryField(cfg, e.target);
+    });
+
+    grid.addEventListener('dragstart', e => {
+      const card = e.target.closest?.('.admin-photo-card');
+      if (!card) return;
+      const itemEl = card.closest('.gallery-item');
+      galleryDrag = { cfg, el: itemEl, startOrder: currentGalleryOrder(grid).join(',') };
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', itemEl.dataset.id);
+      requestAnimationFrame(() => itemEl.classList.add('dragging'));
+    });
+
+    grid.addEventListener('dragover', e => {
+      if (!galleryDrag || galleryDrag.cfg !== cfg) return;
+      e.preventDefault();
+      const target = e.target.closest('.gallery-item');
+      if (!target || target === galleryDrag.el) return;
+      const rect = target.getBoundingClientRect();
+      const after = e.clientX > rect.left + rect.width / 2;
+      grid.insertBefore(galleryDrag.el, after ? target.nextElementSibling : target);
+    });
+
+    grid.addEventListener('drop', e => {
+      if (galleryDrag && galleryDrag.cfg === cfg) e.preventDefault();
+    });
+
+    grid.addEventListener('dragend', () => {
+      if (!galleryDrag || galleryDrag.cfg !== cfg) return;
+      galleryDrag.el.classList.remove('dragging');
+      const changed = currentGalleryOrder(grid).join(',') !== galleryDrag.startOrder;
+      galleryDrag = null;
+      if (changed) saveGalleryOrder(cfg);
+    });
+  }
+
+  function currentGalleryOrder(grid) {
+    return [...grid.querySelectorAll('.gallery-item')].map(el => Number(el.dataset.id));
+  }
+
+  async function saveGalleryOrder(cfg) {
+    const grid = document.getElementById(cfg.prefix + 'PhotoGrid');
+    const ids = currentGalleryOrder(grid);
+    grid.querySelectorAll('.pos-badge').forEach((badge, i) => { badge.textContent = i + 1; });
+    cfg.items.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+    const res = await adminFetch('/api/admin/home-images/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids })
+    });
+    if (res.ok) {
+      showToast('Reihenfolge gespeichert');
+    } else {
+      showToast('Reihenfolge konnte nicht gespeichert werden.');
+      await cfg.reload();
+    }
+  }
+
+  // Speichert Kategorie/Alt-Text direkt, ohne das Grid neu zu laden (Fokus bleibt erhalten)
+  async function saveGalleryField(cfg, input) {
+    const field = input.dataset.field;
+    const value = input.value.trim();
+    const previous = input.dataset.saved;
+    if (value === previous) { input.value = value; return; }
+    const label = field === 'category' ? cfg.categoryLabel : 'Bildbeschreibung';
+    if (field === 'category' && !value) {
+      showToast(`${cfg.categoryLabel} darf nicht leer sein.`);
+      input.value = previous;
+      return;
+    }
+    const id = Number(input.closest('.gallery-item').dataset.id);
+    const res = await adminFetch('/api/admin/home-images/' + id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: value })
+    });
+    if (!res.ok) {
+      input.value = previous;
+      showToast(`${label} konnte nicht gespeichert werden.`);
+      return;
+    }
+    input.value = value;
+    input.dataset.saved = value;
+    const item = cfg.items.find(i => i.id === id);
+    if (item) item[field] = value;
+    if (field === 'category') updateCategoryDatalist(cfg);
+    showToast(`${label} gespeichert`);
+  }
+
+  Object.values(GALLERIES).forEach(cfg => {
+    setupGalleryUploader(cfg);
+    setupSortableGrid(cfg);
+  });
+
+  // Versehentlich neben eine Ablagefläche gezogene Dateien nicht im Browser-Tab öffnen
+  window.addEventListener('dragover', e => { if (hasFiles(e)) e.preventDefault(); });
+  window.addEventListener('drop',     e => { if (hasFiles(e)) e.preventDefault(); });
 
   // ─── Mediabox: Belegungskalender ──────────────────────────
   async function loadMediaboxBookings() {
@@ -2648,7 +2882,8 @@
         if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
         showToast('Bild aktualisiert');
         closeImageEditor();
-        await loadHomeImages();
+        if (document.getElementById('pageMediabox').classList.contains('active')) await loadMediaboxImages();
+        else await loadHomeImages();
       } catch (err) {
         showToast('Fehler: ' + err.message);
       } finally {

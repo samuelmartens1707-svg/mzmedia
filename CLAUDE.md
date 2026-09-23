@@ -114,10 +114,10 @@ GET  /api/home-images                    – Homepage-Bilder (hero/about/galerie
 GET  /api/home-image/:id                 – einzelnes Homepage-Bild ausliefern (BLOB), öffentlich
 GET  /api/admin/home-images              – Homepage-Bilder-Metadaten (admin, alle Slots inkl. Mediabox)
 POST /api/admin/home-images/:slot        – Einzel-Slot hochladen (hero|about-main|about-accent|mediabox-hero, ersetzt vorhandenes)
-POST /api/admin/home-images/gallery      – Galerie-Bilder hochladen (beliebig viele, mit Kategorie; Body-Feld "slot" wählt gallery|mediabox-gallery, Default gallery)
+POST /api/admin/home-images/gallery      – Galerie-Bilder hochladen (beliebig viele; Body-Feld "slot" wählt gallery|mediabox-gallery, Default gallery; optional "meta" = JSON-Array [{ category, altText }] je Datei, sonst gilt "category" für alle)
 PATCH /api/admin/home-images/:id         – Kategorie und/oder Alt-Text (altText) eines Galerie-Bilds ändern (gallery oder mediabox-gallery)
 PUT  /api/admin/home-images/:id          – Bilddaten eines vorhandenen Bilds ersetzen (Crop/Rotate-Editor)
-POST /api/admin/home-images/:id/move     – Bild rauf/runter sortieren (innerhalb des eigenen Slots)
+POST /api/admin/home-images/:id/move     – Bild rauf/runter sortieren (innerhalb des eigenen Slots; vom Admin-Panel nicht mehr genutzt, dort läuft alles über /reorder)
 POST /api/admin/home-images/reorder      – sort_order anhand einer vollständigen ID-Liste setzen (Body: { ids })
 DELETE /api/admin/home-images/:id        – Bild löschen (Einzel-Slot oder Galerie)
 POST /api/admin/home-images/:slot/ai-suggest – KI-Vorschlag für Reihenfolge/Kategorien einer Galerie (slot: gallery|mediabox-gallery), ändert nichts in der DB
@@ -136,6 +136,12 @@ POST /api/mediabox-anfrage                       – Buchungsanfrage der Mediabo
 - `gallery`-Bilder haben zusätzlich ein optionales `alt_text` (`VARCHAR(160)`, Spalte per `scripts/add-alt-text-to-home-images.js` nachgezogen) — eine echte Bildbeschreibung fürs `alt`-Attribut/die Bildersuche, im Admin-Panel als eigenes Feld neben der Kategorie editierbar. `index.html`/`galerie.html` nutzen `altText || category` als Fallback, falls kein Alt-Text gesetzt ist. Gilt nur für `gallery`-Bilder, nicht für die drei Einzel-Slots (deren `alt` ist fest im Markup von `index.html` verankert).
 - `galerie.html` zeigt öffentlich alle `gallery`-Bilder aus `GET /api/home-images`, mit clientseitigem Kategorie-Filter (inkl. `?kategorie=`-Deep-Link) und Lightbox. Nutzt dieselben Daten wie der Portfolio-Ausschnitt auf `index.html` — keine eigene Tabelle/Route.
 - `uploads/` (Kundenfotos) sind von dieser Änderung nicht betroffen — die bleiben Dateien.
+- **Bedienung im Admin-Panel** (Homepage-Bilder und Mediabox → Bilder nutzen denselben Code: `GALLERIES`-Konfiguration + `setupGalleryUploader()`/`renderSortableGrid()`/`renderSingletonSlotCards()` in `admin.html`):
+  - Upload mit Vorschau: ausgewählte/abgelegte Dateien werden erst vorgemerkt, pro Bild Kategorie + Alt-Text setzbar („Für alle übernehmen“ als Sammel-Eingabe), zu große/falsche Dateien werden markiert und nicht mitgeschickt; erst „N Bilder hochladen“ schickt alles in einem Request mit `meta`.
+  - Sortieren per Drag & Drop (natives HTML5-DnD) oder ▲▼ (für Touch-Geräte) — beides verschiebt lokal im DOM und speichert die komplette Reihenfolge über `POST /api/admin/home-images/reorder`, ohne Neuladen.
+  - Kategorie/Alt-Text werden per `PATCH` gespeichert, ohne das Grid neu zu rendern (Fokus bleibt erhalten, bei Fehler Rollback des Feldwerts).
+  - Feste Bildbereiche (`SINGLETON_SLOTS`) haben sprechende Namen, eine Ortsbeschreibung, Formatempfehlung und eine Mini-Skizze der Startseite (`slotSketch()`); Dateien können direkt auf die Karte gezogen werden.
+  - Auf Geräten ohne Hover (`@media (hover: none)`) sind Bearbeiten/Löschen als Leiste immer sichtbar.
 
 ### Kundendaten (DB-Speicherung, seit dieser Umstellung)
 - Kunden (Name, E-Mail, Passwort-Hash, Shooting-Datum/-Art) liegen in der Tabelle `clients` (MySQL), nicht mehr in `data/clients.json`.
