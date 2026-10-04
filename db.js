@@ -145,6 +145,8 @@ const CLIENTS_OPTIONAL_COLUMNS = [
   { name: 'billing_city',       ddl: "billing_city VARCHAR(120) NOT NULL DEFAULT ''" },
   { name: 'billing_country',    ddl: "billing_country VARCHAR(2) NOT NULL DEFAULT 'DE'" },
   { name: 'sevdesk_contact_id', ddl: "sevdesk_contact_id VARCHAR(32) NOT NULL DEFAULT ''" },
+  // Geheimer Galerie-Link (gallery.html?g=<token>) — Zugang ohne Passwort, teilbar mit Freunden
+  { name: 'gallery_token',      ddl: "gallery_token VARCHAR(64) NULL" },
 ];
 
 // id bleibt VARCHAR (nicht AUTO_INCREMENT), weil bestehende IDs wie "c1777494715939"

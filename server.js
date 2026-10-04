@@ -91,7 +91,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-function buildEmailHtml(client, password, galleryUrl) {
+function buildEmailHtml(client, galleryUrl) {
   const templatePath = path.join(__dirname, 'templates', 'credentials-email.html');
   let html = fs.readFileSync(templatePath, 'utf8');
 
@@ -106,7 +106,6 @@ function buildEmailHtml(client, password, galleryUrl) {
   html = html
     .replace(/{{CLIENT_NAME}}/g,    client.name)
     .replace(/{{CLIENT_EMAIL}}/g,   client.email)
-    .replace(/{{CLIENT_PASSWORD}}/g, password)
     .replace(/{{GALLERY_URL}}/g,    galleryUrl)
     .replace(/{{FROM_EMAIL}}/g,     process.env.SMTP_USER || '')
     .replace(/{{#if SHOOTING_INFO}}[\s\S]*?{{\/if}}/g,
@@ -154,6 +153,62 @@ async function findClientByEmail(email) {
 async function findClientById(id) {
   const [[row]] = await pool.query(`SELECT ${CLIENT_FIELDS_SQL} FROM clients WHERE id = ?`, [id]);
   return row || null;
+}
+
+// ─── Galerie-Link (Zugang ohne Passwort) ─────────────────────
+// Jeder Kunde hat einen geheimen, zufälligen Token (clients.gallery_token). Wer den Link
+// gallery.html?g=<token> hat, sieht und lädt die Bilder — bewusst teilbar mit Freunden.
+// Der Token wird bei JEDER Anfrage gegen die DB geprüft, Sperren (= neuer Token) wirkt sofort.
+const GALLERY_TOKEN_RE = /^[a-f0-9]{64}$/;
+
+function newGalleryToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+async function findClientByGalleryToken(token) {
+  if (!GALLERY_TOKEN_RE.test(token || '')) return null;
+  const [[row]] = await pool.query(`SELECT ${CLIENT_FIELDS_SQL} FROM clients WHERE gallery_token = ?`, [token]);
+  return row || null;
+}
+
+// Liefert den Token des Kunden und legt ihn beim ersten Mal an (Bestandskunden haben noch keinen)
+async function ensureGalleryToken(clientId) {
+  const [[row]] = await pool.query('SELECT gallery_token AS token FROM clients WHERE id = ?', [clientId]);
+  if (!row) return null;
+  if (row.token) return row.token;
+  const token = newGalleryToken();
+  await pool.query('UPDATE clients SET gallery_token = ? WHERE id = ?', [token, clientId]);
+  return token;
+}
+
+// galleryBaseUrl kommt vom Admin-Panel (z. B. https://miguelzimmermann.de/website/gallery.html)
+function galleryLinkUrl(galleryBaseUrl, token) {
+  return `${galleryBaseUrl.split('?')[0]}?g=${token}`;
+}
+
+// Für öffentliche Routen: Basis-URL serverseitig bestimmen — nie aus dem Request-Body
+// übernehmen, sonst ließe sich ein echter Kunden-Token an eine fremde Domain mailen.
+function serverGalleryBaseUrl(req) {
+  const proto = (req.headers['x-forwarded-proto'] || '').split(',')[0].trim() || req.protocol;
+  return `${proto}://${req.get('host')}${BASE_PATH}/gallery.html`;
+}
+
+function isValidGalleryBaseUrl(url) {
+  return typeof url === 'string' && /^https?:\/\/[^\s?#]+\/gallery\.html$/.test(url);
+}
+
+const PHOTO_FILE_RE = /\.(jpe?g|png|webp|gif)$/i;
+
+// Pfad eines Kundenfotos — null bei ungültigem Dateinamen (kein Pfad-Ausbruch per ../)
+function safePhotoPath(clientId, filename) {
+  if (!filename || filename.includes('/') || filename.includes('\\') || filename.includes('..') || !PHOTO_FILE_RE.test(filename)) return null;
+  return path.join(UPLOADS_DIR, clientId, filename);
+}
+
+function listClientPhotos(clientId) {
+  const dir = path.join(UPLOADS_DIR, clientId);
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir).filter(f => PHOTO_FILE_RE.test(f));
 }
 
 function authMiddleware(req, res, next) {
@@ -377,6 +432,86 @@ app.get('/api/download/:clientId/:filename', authMiddleware, (req, res) => {
   res.download(filePath, req.params.filename);
 });
 
+// ─── Galerie per Link (ohne Login) ─────────────────────────
+const INVALID_LINK_MSG = 'Dieser Link ist ungültig oder wurde deaktiviert.';
+
+async function galleryClientFromParams(req, res) {
+  try {
+    await ensureClientsTable();
+    const client = await findClientByGalleryToken(req.params.token);
+    if (!client) res.status(404).json({ error: INVALID_LINK_MSG });
+    return client;
+  } catch (err) {
+    res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
+    return null;
+  }
+}
+
+// GET /api/g/:token — Name/Shooting-Infos + Fotoliste der Galerie
+app.get('/api/g/:token', async (req, res) => {
+  const client = await galleryClientFromParams(req, res);
+  if (!client) return;
+  const t = req.params.token;
+  res.json({
+    name: client.name, shootingDate: client.shootingDate, shootingType: client.shootingType,
+    photos: listClientPhotos(client.id).map(f => ({ filename: f, url: `/api/g/${t}/photo/${encodeURIComponent(f)}` })),
+  });
+});
+
+// GET /api/g/:token/photo/:filename — Foto anzeigen
+app.get('/api/g/:token/photo/:filename', async (req, res) => {
+  const client = await galleryClientFromParams(req, res);
+  if (!client) return;
+  const filePath = safePhotoPath(client.id, req.params.filename);
+  if (!filePath || !fs.existsSync(filePath)) return res.status(404).json({ error: 'Bild nicht gefunden.' });
+  res.sendFile(filePath);
+});
+
+// GET /api/g/:token/download/:filename — Foto herunterladen
+app.get('/api/g/:token/download/:filename', async (req, res) => {
+  const client = await galleryClientFromParams(req, res);
+  if (!client) return;
+  const filePath = safePhotoPath(client.id, req.params.filename);
+  if (!filePath || !fs.existsSync(filePath)) return res.status(404).json({ error: 'Bild nicht gefunden.' });
+  res.download(filePath, req.params.filename);
+});
+
+// POST /api/resend-gallery-link — Body: { email }
+// Für Kunden, die ihren Link nicht mehr finden. Antwortet immer { ok: true } (kein Leak,
+// welche Adressen registriert sind) — wie /api/forgot-password.
+app.post('/api/resend-gallery-link', async (req, res) => {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
+  if (isRateLimited(ip)) {
+    return res.status(429).json({ error: 'Zu viele Anfragen. Bitte warte einen Moment.' });
+  }
+
+  const { email } = req.body;
+  if (!email?.trim()) return res.status(400).json({ error: 'Bitte eine E-Mail-Adresse eingeben.' });
+
+  try {
+    await ensureClientsTable();
+    const client = await findClientByEmail(email.trim());
+    if (client && process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+      const link = galleryLinkUrl(serverGalleryBaseUrl(req), await ensureGalleryToken(client.id));
+      await transporter.sendMail({
+        from:    process.env.MAIL_FROM || process.env.SMTP_USER,
+        to:      client.email,
+        subject: 'Dein Link zur Galerie — mz media',
+        html: `
+          <p style="font-family:sans-serif;">Hallo ${escapeHtml(client.name)},</p>
+          <p style="font-family:sans-serif;">hier ist noch einmal der Link zu deinen Bildern:</p>
+          <p style="font-family:sans-serif;"><a href="${link}">${link}</a></p>
+          <p style="font-family:sans-serif;">Wenn du das nicht angefordert hast, kannst du diese Mail ignorieren.</p>
+        `,
+        text: `Hallo ${client.name},\n\nhier ist noch einmal der Link zu deinen Bildern:\n${link}\n\nWenn du das nicht angefordert hast, ignoriere diese Mail.`,
+      });
+    }
+  } catch (err) {
+    console.error('[RESEND-GALLERY-LINK] Fehler:', err.message);
+  }
+  res.json({ ok: true });
+});
+
 // ─── Admin routes (einfacher Auth über separates Admin-Passwort) ──────────
 
 // Admin-Passwort liegt normalerweise in admin_settings (DB), damit es über das Panel
@@ -557,7 +692,7 @@ app.get('/api/admin/clients/:id', adminMiddleware, async (req, res) => {
 // POST /api/admin/clients  — create new client
 app.post('/api/admin/clients', adminMiddleware, async (req, res) => {
   const { name, email, password, shootingDate, shootingType } = req.body;
-  if (!name || !email || !password) return res.status(400).json({ error: 'Name, Email und Passwort erforderlich.' });
+  if (!name || !email) return res.status(400).json({ error: 'Name und Email erforderlich.' });
 
   try {
     await ensureClientsTable();
@@ -566,11 +701,18 @@ app.post('/api/admin/clients', adminMiddleware, async (req, res) => {
     }
 
     const id = 'c' + Date.now();
-    const passwordHash = await bcrypt.hash(password, 10);
+    // Zugang läuft über den Galerie-Link; ohne Passwort wird ein zufälliges, nie
+    // mitgeteiltes gesetzt (password_hash ist NOT NULL, Passwort-Login bleibt für Bestandskunden).
+    const passwordHash = await bcrypt.hash(password || crypto.randomBytes(24).toString('hex'), 10);
     await pool.query(
       'INSERT INTO clients (id, name, email, password_hash, shooting_date, shooting_type) VALUES (?, ?, ?, ?, ?, ?)',
       [id, name, email, passwordHash, shootingDate || '', shootingType || '']
     );
+    try {
+      await ensureGalleryToken(id);
+    } catch (err) {
+      console.warn('[CLIENTS] Galerie-Link konnte nicht angelegt werden:', err.message);
+    }
     res.status(201).json({ id, name, email });
   } catch (err) {
     res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
@@ -663,40 +805,56 @@ app.get('/api/my-photos-admin/:clientId', adminMiddleware, (req, res) => {
   res.json({ photos: photos.map(f => ({ filename: f })) });
 });
 
-// POST /api/admin/clients/:clientId/send-email
-// Body: { password, galleryUrl, sendMail? }
-// Setzt das übergebene Passwort für den Kunden (das alte ist nur als Hash gespeichert und
-// kann nicht erneut verschickt werden) und schickt die "Bilder sind fertig"-Mail.
-// sendMail === false: nur Passwort setzen — der Admin gibt die Zugangsdaten selbst weiter.
-app.post('/api/admin/clients/:clientId/send-email', adminMiddleware, async (req, res) => {
-  const { password, galleryUrl, sendMail = true } = req.body;
-  if (!password?.trim() || !galleryUrl) return res.status(400).json({ error: 'Passwort und galleryUrl erforderlich.' });
+// GET /api/admin/clients/:clientId/gallery-link?base=<gallery.html-URL> — Link anzeigen (legt Token bei Bedarf an)
+app.get('/api/admin/clients/:clientId/gallery-link', adminMiddleware, async (req, res) => {
+  if (!isValidGalleryBaseUrl(req.query.base)) return res.status(400).json({ error: 'Ungültige Galerie-URL.' });
+  try {
+    await ensureClientsTable();
+    const token = await ensureGalleryToken(req.params.clientId);
+    if (!token) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+    res.json({ url: galleryLinkUrl(req.query.base, token) });
+  } catch (err) {
+    res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
+  }
+});
 
-  let client;
+// POST /api/admin/clients/:clientId/gallery-link/regenerate — Body: { galleryUrl }
+// Sperrt den bisherigen Link sofort (neuer Token)
+app.post('/api/admin/clients/:clientId/gallery-link/regenerate', adminMiddleware, async (req, res) => {
+  if (!isValidGalleryBaseUrl(req.body.galleryUrl)) return res.status(400).json({ error: 'Ungültige Galerie-URL.' });
+  try {
+    await ensureClientsTable();
+    const token = newGalleryToken();
+    const [result] = await pool.query('UPDATE clients SET gallery_token = ? WHERE id = ?', [token, req.params.clientId]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+    res.json({ url: galleryLinkUrl(req.body.galleryUrl, token) });
+  } catch (err) {
+    res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
+  }
+});
+
+// POST /api/admin/clients/:clientId/send-email — Body: { galleryUrl }
+// "Bilder sind fertig"-Mail mit dem persönlichen Galerie-Link (kein Passwort).
+app.post('/api/admin/clients/:clientId/send-email', adminMiddleware, async (req, res) => {
+  const { galleryUrl } = req.body;
+  if (!isValidGalleryBaseUrl(galleryUrl)) return res.status(400).json({ error: 'Ungültige Galerie-URL.' });
+
+  let client, link;
   try {
     await ensureClientsTable();
     client = await findClientById(req.params.clientId);
+    if (client) link = galleryLinkUrl(galleryUrl, await ensureGalleryToken(client.id));
   } catch (err) {
     return res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
   }
   if (!client) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
 
-  if (sendMail && (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS)) {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
     return res.status(503).json({ error: 'SMTP nicht konfiguriert. Bitte .env-Datei ausfüllen.' });
   }
 
-  // Erst das Passwort setzen, dann mailen — sonst könnte eine Mail mit einem Passwort
-  // rausgehen, das gar nicht gespeichert wurde.
   try {
-    const passwordHash = await bcrypt.hash(password.trim(), 10);
-    await pool.query('UPDATE clients SET password_hash = ? WHERE id = ?', [passwordHash, client.id]);
-  } catch (err) {
-    return res.status(503).json({ error: 'Passwort konnte nicht gespeichert werden (Datenbank nicht erreichbar).' });
-  }
-  if (!sendMail) return res.json({ ok: true, to: null });
-
-  try {
-    const html = buildEmailHtml(client, password.trim(), galleryUrl);
+    const html = buildEmailHtml(client, link);
     await transporter.sendMail({
       from:    process.env.MAIL_FROM || process.env.SMTP_USER,
       to:      client.email,
@@ -704,10 +862,9 @@ app.post('/api/admin/clients/:clientId/send-email', adminMiddleware, async (req,
       html,
       text:
         `Hallo ${client.name},\n\n` +
-        `deine Fotos sind fertig!\n\n` +
-        `Link: ${galleryUrl}\n` +
-        `E-Mail: ${client.email}\n` +
-        `Passwort: ${password.trim()}\n\n` +
+        `deine Fotos sind fertig! Hier kannst du sie ansehen und herunterladen:\n${link}\n\n` +
+        `Du möchtest die Bilder mit Freunden oder Familie teilen? Leite ihnen einfach diesen Link weiter.\n` +
+        `Jeder mit dem Link sieht die Galerie — wenn er in falsche Hände geraten ist, melde dich, dann sperre ich ihn.\n\n` +
         `Viele Grüße,\nMiguel`
     });
     res.json({ ok: true, to: client.email });

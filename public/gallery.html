@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
+  <!-- Galerie-Links enthalten einen geheimen Token — nie per Referer an andere Seiten weitergeben -->
+  <meta name="referrer" content="no-referrer" />
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="manifest" href="site.webmanifest" />
   <meta name="theme-color" content="#F6F1E4" />
@@ -243,6 +245,22 @@
       display: flex; align-items: center; gap: .6rem;
     }
     .btn-download-all:hover { background: var(--clay); }
+    .gallery-buttons { display: flex; gap: .6rem; flex-wrap: wrap; }
+    .btn-share {
+      min-height: 44px; padding: 0 1.6rem;
+      background: transparent; color: var(--dark); border: 1px solid var(--sand);
+      font-family: 'DM Sans', sans-serif; font-size: .78rem; font-weight: 500;
+      letter-spacing: .12em; text-transform: uppercase;
+      cursor: pointer; transition: border-color .25s, color .25s;
+      display: none; align-items: center; gap: .6rem;
+    }
+    .btn-share.show { display: flex; }
+    .btn-share:hover { border-color: var(--terra); color: var(--terra); }
+    .login-divider {
+      display: flex; align-items: center; gap: .8rem; margin: 1.8rem 0 1.2rem;
+      font-size: .7rem; letter-spacing: .14em; text-transform: uppercase; color: var(--light);
+    }
+    .login-divider::before, .login-divider::after { content: ''; flex: 1; height: 1px; background: var(--sand); }
     .btn-download-all svg { flex-shrink: 0; }
 
     /* Photo grid */
@@ -397,9 +415,13 @@
         <div id="loginPane">
           <p class="login-eyebrow" aria-hidden="true">Kundenbereich</p>
           <h1 class="login-title" id="loginTitle">Deine <em>Bilder.</em></h1>
-          <p class="login-sub">Melde dich mit deinen Zugangsdaten an, um deine fertigen Fotos anzusehen und herunterzuladen.</p>
+          <p class="login-sub">Deine Galerie öffnest du direkt über den Link aus der Mail, die du von mir bekommen hast — ganz ohne Passwort.</p>
 
           <div class="login-error" id="loginError" role="alert" aria-live="assertive"></div>
+
+          <button type="button" class="btn-login" id="btnShowForgot">Link erneut zusenden</button>
+
+          <div class="login-divider">oder mit Passwort anmelden</div>
 
           <form id="loginForm" novalidate>
             <div class="form-group" id="grpEmail">
@@ -419,19 +441,18 @@
             <button type="submit" class="btn-login" id="btnLogin">Anmelden</button>
           </form>
 
-          <button type="button" class="login-forgot-link" id="btnShowForgot">Passwort vergessen?</button>
           <a href="/" class="login-back">← Zurück zur Website</a>
         </div>
 
         <!-- FORGOT PASSWORD PANE -->
         <div id="forgotPane" style="display:none">
           <p class="login-eyebrow" aria-hidden="true">Kundenbereich</p>
-          <h1 class="login-title">Passwort <em>vergessen.</em></h1>
-          <p class="login-sub">Gib deine E-Mail-Adresse ein — wir schicken dir einen Link, mit dem du ein neues Passwort vergeben kannst.</p>
+          <h1 class="login-title">Link <em>anfordern.</em></h1>
+          <p class="login-sub">Gib die E-Mail-Adresse ein, an die deine Bilder geschickt wurden — du bekommst den Link zu deiner Galerie noch einmal.</p>
 
           <div class="login-error" id="forgotError" role="alert" aria-live="assertive"></div>
           <div class="login-success" id="forgotSuccess" role="status" aria-live="polite">
-            Falls ein Konto mit dieser E-Mail-Adresse existiert, haben wir dir soeben einen Link geschickt. Bitte prüfe auch deinen Spam-Ordner.
+            Falls es zu dieser E-Mail-Adresse eine Galerie gibt, ist der Link gerade unterwegs. Bitte prüfe auch deinen Spam-Ordner.
           </div>
 
           <form id="forgotForm" novalidate>
@@ -445,7 +466,7 @@
             <button type="submit" class="btn-login" id="btnForgotSubmit">Link anfordern</button>
           </form>
 
-          <button type="button" class="login-forgot-link" id="btnBackToLoginFromForgot">← Zurück zum Login</button>
+          <button type="button" class="login-forgot-link" id="btnBackToLoginFromForgot">← Zurück</button>
         </div>
 
         <!-- RESET PASSWORD PANE -->
@@ -487,6 +508,14 @@
 
       <div class="gallery-actions">
         <p class="gallery-count" id="photoCount" aria-live="polite"></p>
+        <div class="gallery-buttons">
+        <button class="btn-share" id="btnShare" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
+          Galerie teilen
+        </button>
         <button class="btn-download-all" id="btnDownloadAll" type="button">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -495,6 +524,7 @@
           </svg>
           Alle herunterladen
         </button>
+        </div>
       </div>
 
       <div id="loadingState" class="loading" aria-live="polite" aria-label="Bilder werden geladen">
@@ -544,6 +574,10 @@
     let clientId  = localStorage.getItem('mz_client_id') || null;
     let currentPhotos = [];
 
+    // Galerie-Link (gallery.html?g=<token>): Zugang ohne Login, teilbar mit Freunden
+    const galleryToken = (new URLSearchParams(location.search).get('g') || '').toLowerCase();
+    const linkMode = /^[a-f0-9]{64}$/.test(galleryToken);
+
     // ─── DOM refs ───
     const loginScreen   = document.getElementById('loginScreen');
     const galleryScreen = document.getElementById('galleryScreen');
@@ -570,11 +604,22 @@
 
     // ─── Auth check on load ───
     const resetToken = new URLSearchParams(location.search).get('reset');
-    if (resetToken) {
+    if (linkMode) {
+      showGallery();
+    } else if (new URLSearchParams(location.search).has('g')) {
+      showInvalidLink();
+    } else if (resetToken) {
       loginPane.style.display = 'none';
       resetPane.style.display = '';
     } else if (token) {
       showGallery();
+    }
+
+    function showInvalidLink() {
+      galleryScreen.classList.remove('show');
+      loginScreen.style.display = '';
+      loginError.textContent = 'Dieser Link ist ungültig oder wurde deaktiviert. Fordere unten einen neuen an oder melde dich bei mir.';
+      loginError.classList.add('show');
     }
 
     // ─── Pane switching (Login ↔ Passwort vergessen) ───
@@ -606,7 +651,7 @@
       btn.textContent = 'Wird gesendet …';
 
       try {
-        const res  = await fetch('/api/forgot-password', {
+        const res  = await fetch('/api/resend-gallery-link', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email })
@@ -745,10 +790,14 @@
       photoGrid.innerHTML = '';
 
       try {
-        const res  = await fetch('/api/my-photos', {
-          headers: { Authorization: 'Bearer ' + token }
-        });
+        const res  = linkMode
+          ? await fetch('/api/g/' + galleryToken)
+          : await fetch('/api/my-photos', { headers: { Authorization: 'Bearer ' + token } });
 
+        if (linkMode && res.status === 404) {
+          showInvalidLink();
+          return;
+        }
         if (res.status === 401) {
           localStorage.removeItem('mz_token');
           location.reload();
@@ -760,8 +809,16 @@
 
         // Update UI
         document.getElementById('clientNameDisplay').textContent = data.name || '';
-        navClientName.textContent = data.name || '';
-        btnLogout.style.display = 'flex';
+        if (linkMode) {
+          // Der Link kann auch bei Freunden landen — neutral statt "Hallo, …"
+          document.getElementById('clientNameDisplay').previousSibling.textContent = 'Die Bilder von ';
+          document.querySelector('.gallery-eyebrow').textContent = 'Galerie';
+          document.title = 'Bilder von ' + (data.name || '') + ' — mz media';
+          document.getElementById('btnShare').classList.add('show');
+        } else {
+          navClientName.textContent = data.name || '';
+          btnLogout.style.display = 'flex';
+        }
 
         const meta = [];
         if (data.shootingType) meta.push(data.shootingType);
@@ -793,7 +850,7 @@
         card.setAttribute('role', 'listitem');
 
         const img = document.createElement('img');
-        img.src = photo.url + '?token=' + encodeURIComponent(token);
+        if (!linkMode) img.src = photo.url + '?token=' + encodeURIComponent(token);
         img.alt = 'Foto ' + (i + 1);
         img.loading = 'lazy';
 
@@ -841,21 +898,42 @@
 
     // ─── Load image with auth header ───
     async function loadAuthImage(url, tok) {
-      const res = await fetch(url, { headers: { Authorization: 'Bearer ' + tok } });
+      const res = await fetch(url, linkMode ? {} : { headers: { Authorization: 'Bearer ' + tok } });
       const blob = await res.blob();
       return URL.createObjectURL(blob);
     }
 
     // ─── Download single photo ───
     async function downloadPhoto(photo) {
-      const res  = await fetch('/api/download/' + extractClientId(photo.url) + '/' + photo.filename,
-        { headers: { Authorization: 'Bearer ' + token } });
+      const res  = linkMode
+        ? await fetch('/api/g/' + galleryToken + '/download/' + encodeURIComponent(photo.filename))
+        : await fetch('/api/download/' + extractClientId(photo.url) + '/' + photo.filename,
+            { headers: { Authorization: 'Bearer ' + token } });
       const blob = await res.blob();
       const a    = document.createElement('a');
       a.href     = URL.createObjectURL(blob);
       a.download = photo.filename;
       a.click();
     }
+
+    // ─── Galerie teilen (Handy: Teilen-Menü, Desktop: Link kopieren) ───
+    document.getElementById('btnShare').addEventListener('click', async () => {
+      const name = document.getElementById('clientNameDisplay').textContent;
+      const shareData = { title: 'Bilder von ' + name + ' — mz media', url: location.href };
+      if (navigator.share) {
+        try { await navigator.share(shareData); } catch { /* abgebrochen */ }
+        return;
+      }
+      const btn = document.getElementById('btnShare');
+      const label = btn.lastChild;
+      try {
+        await navigator.clipboard.writeText(location.href);
+        label.textContent = ' Link kopiert ✓';
+      } catch {
+        prompt('Link zum Teilen kopieren:', location.href);
+      }
+      setTimeout(() => { label.textContent = ' Galerie teilen'; }, 2200);
+    });
 
     // ─── Download all ───
     document.getElementById('btnDownloadAll').addEventListener('click', async () => {

@@ -1034,14 +1034,6 @@
         <label for="ncEmail">E-Mail *</label>
         <input type="email" id="ncEmail" placeholder="max@beispiel.de" required autocomplete="off" />
       </div>
-      <div class="field" id="fldPassword">
-        <label for="ncPassword">Passwort *</label>
-        <div class="field-with-btn">
-          <input type="text" id="ncPassword" placeholder="z.B. Sommer2025!" required autocomplete="off" />
-          <button type="button" class="btn btn-outline btn-sm" onclick="generatePassword('ncPassword')">Generieren</button>
-        </div>
-        <span class="field-hint">Der Kunde erhält es mit der Bilder-Mail, die du nach dem Hochladen der Bilder verschickst.</span>
-      </div>
       <div class="field">
         <label for="ncType">Shooting-Art</label>
         <select id="ncType">
@@ -1183,41 +1175,31 @@
   </div>
 </div>
 
-<!-- ─── BILDER-MAIL (Zugangsdaten an den Kunden senden) ─── -->
+<!-- ─── BILDER-MAIL (Galerie-Link an den Kunden senden) ─── -->
 <div class="modal-backdrop" id="accessModal" role="dialog" aria-modal="true" aria-labelledby="accessTitle">
   <div class="modal">
     <h2 class="modal-title" id="accessTitle">Bilder-Mail <em>senden</em></h2>
     <p id="accessIntro" style="font-size:.88rem;color:var(--mid);margin-bottom:1.4rem;line-height:1.7;"></p>
     <div class="modal-err" id="accessErr" role="alert"></div>
     <div class="credential-box" style="margin-bottom:1.4rem;">
-      <div class="credential-box-label">Zugangsdaten in der Mail</div>
+      <div class="credential-box-label">Galerie-Link</div>
       <div class="credential-row">
-        <span class="credential-key">Link</span>
         <span class="credential-val" id="accessLink" style="font-size:.78rem;"></span>
       </div>
-      <div class="credential-row">
-        <span class="credential-key">E-Mail</span>
-        <span class="credential-val" id="accessEmail"></span>
-      </div>
-    </div>
-    <div class="field" id="fldAccessPw">
-      <label for="accessPassword">Passwort</label>
-      <div class="field-with-btn">
-        <input type="text" id="accessPassword" autocomplete="off" />
-        <button type="button" class="btn btn-outline btn-sm" onclick="generatePassword('accessPassword'); updateAccessPwHint()">Neu generieren</button>
-      </div>
-      <span class="field-hint" id="accessPwHint"></span>
+      <p style="font-size:.74rem;color:var(--mid);margin-top:.6rem;line-height:1.5;">
+        Kein Passwort nötig. Der Kunde kann den Link an Freunde weiterleiten — jeder mit dem Link kann die Bilder ansehen und herunterladen.
+      </p>
     </div>
     <div class="modal-actions">
-      <button type="button" class="btn btn-outline" onclick="closeAccessModal()">Abbrechen</button>
-      <button type="button" class="btn btn-primary" id="btnAccessSend" onclick="submitAccess(true)">
+      <button type="button" class="btn btn-outline" id="btnAccessCopy" onclick="copyGalleryLink(true)" title="Fertigen Text mit Link kopieren, z. B. für WhatsApp">Text kopieren</button>
+      <button type="button" class="btn btn-primary" id="btnAccessSend" onclick="sendGalleryMail()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
         Mail senden
       </button>
     </div>
-    <p style="text-align:right;margin-top:1rem;font-size:.78rem;color:var(--mid);">
-      Lieber selbst weitergeben (z. B. per WhatsApp)?
-      <button type="button" class="btn-copy" id="btnAccessCopy" onclick="submitAccess(false)" style="font-size:.78rem;text-transform:none;letter-spacing:0;text-decoration:underline;">Passwort speichern &amp; Text kopieren</button>
+    <p style="display:flex;justify-content:space-between;gap:1rem;margin-top:1.2rem;font-size:.78rem;color:var(--mid);">
+      <button type="button" class="btn-copy" onclick="closeAccessModal()" style="font-size:.78rem;text-transform:none;letter-spacing:0;">Abbrechen</button>
+      <button type="button" class="btn-copy" id="btnAccessRegenerate" onclick="regenerateGalleryLink()" style="font-size:.78rem;text-transform:none;letter-spacing:0;color:#b00020;" title="Falls der Link in falsche Hände geraten ist">Link sperren &amp; neuen erzeugen</button>
     </p>
   </div>
 </div>
@@ -1273,9 +1255,7 @@
   let adminToken        = localStorage.getItem(ADMIN_TOKEN_KEY) || null;
   let allClients        = [];
   let currentClient     = null;
-  // Passwörter, die in dieser Sitzung vergeben wurden (clientId → Passwort). In der DB liegt nur
-  // der Hash — nach einem Neuladen ist das Passwort nicht mehr bekannt und wird beim Senden neu gesetzt.
-  const knownPasswords  = new Map();
+  const galleryLinks    = new Map(); // clientId → persönlicher Galerie-Link (gallery.html?g=…)
   let currentEditClientId = null;
 
   // ─── Init ───────────────────────────────────────────────
@@ -1534,7 +1514,6 @@
 
   function renderDetailHeader(c) {
     const initials = c.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-    const galleryUrl = window.location.origin + '/website/gallery.html';
     document.getElementById('detailHeader').innerHTML = `
       <div class="client-info-row">
         <div class="client-avatar" aria-hidden="true">${initials}</div>
@@ -1552,22 +1531,18 @@
         <button class="btn btn-outline" onclick="openInvoiceModal('${c.id}')">Rechnung erstellen</button>
       </div>
       <div class="credential-box">
-        <div class="credential-box-label">Zugangsdaten</div>
+        <div class="credential-box-label">Galerie-Link (ohne Passwort, teilbar)</div>
         <div class="credential-row">
-          <span class="credential-key">Link</span>
-          <span class="credential-val" style="font-size:.74rem;">${galleryUrl}</span>
-          <button class="btn-copy" onclick="navigator.clipboard.writeText('${galleryUrl}');showToast('Link kopiert')">Kopieren</button>
-        </div>
-        <div class="credential-row">
-          <span class="credential-key">E-Mail</span>
-          <span class="credential-val">${esc(c.email)}</span>
-          <button class="btn-copy" onclick="navigator.clipboard.writeText('${c.email}');showToast('E-Mail kopiert')">Kopieren</button>
-        </div>
-        <div class="credential-row">
-          <span class="credential-key">Passwort</span>
-          <span class="credential-val" style="color:var(--light);font-style:italic;">nicht einsehbar</span>
+          <span class="credential-val" id="detailGalleryLink" style="font-size:.74rem;color:var(--light);">wird geladen …</span>
+          <button class="btn-copy" onclick="copyGalleryLink()">Kopieren</button>
         </div>
       </div>`;
+    fetchGalleryLink(c).then(url => {
+      if (currentClient?.id !== c.id) return;
+      const el = document.getElementById('detailGalleryLink');
+      el.textContent = url || 'Link nicht verfügbar (Datenbank?)';
+      el.style.color = url ? '' : 'var(--light)';
+    });
   }
 
   async function loadDetailPhotos(c) {
@@ -2725,22 +2700,11 @@
     document.getElementById('newClientModal').classList.remove('show');
     document.getElementById('newClientForm').reset();
     document.getElementById('modalErr').classList.remove('show');
-    ['fldName','fldEmail','fldPassword'].forEach(id => document.getElementById(id).classList.remove('error'));
+    ['fldName','fldEmail'].forEach(id => document.getElementById(id).classList.remove('error'));
   }
   document.getElementById('newClientModal').addEventListener('click', e => {
     if (e.target === document.getElementById('newClientModal')) closeNewClientModal();
   });
-
-  function generatePassword(fieldId) {
-    const charset = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*';
-    const bytes = new Uint32Array(12);
-    crypto.getRandomValues(bytes);
-    const password = Array.from(bytes, b => charset[b % charset.length]).join('');
-    const input = document.getElementById(fieldId);
-    input.value = password;
-    input.closest('.field')?.classList.remove('error');
-    input.focus();
-  }
 
   // ─── Edit client modal ───────────────────────────────────
   function editClient(id) {
@@ -3069,7 +3033,6 @@
     e.preventDefault();
     const name     = document.getElementById('ncName').value.trim();
     const email    = document.getElementById('ncEmail').value.trim();
-    const password = document.getElementById('ncPassword').value.trim();
     const type     = document.getElementById('ncType').value;
     const date     = document.getElementById('ncDate').value;
     const errEl    = document.getElementById('modalErr');
@@ -3082,8 +3045,6 @@
     else             document.getElementById('fldName').classList.remove('error');
     if (!email)    { document.getElementById('fldEmail').classList.add('error');    valid = false; }
     else             document.getElementById('fldEmail').classList.remove('error');
-    if (!password) { document.getElementById('fldPassword').classList.add('error'); valid = false; }
-    else             document.getElementById('fldPassword').classList.remove('error');
     if (!valid) return;
 
     btn.disabled = true;
@@ -3093,12 +3054,11 @@
       const res  = await adminFetch('/api/admin/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, shootingDate: date, shootingType: type })
+        body: JSON.stringify({ name, email, shootingDate: date, shootingType: type })
       });
       const data = await res.json();
       if (!res.ok) { errEl.textContent = data.error; errEl.classList.add('show'); return; }
 
-      knownPasswords.set(data.id, password);
       await loadClients();
       renderDashboard();
       closeNewClientModal();
@@ -3113,94 +3073,117 @@
     }
   });
 
-  // ─── Bilder-Mail (Zugangsdaten senden) ───────────────────
+  // ─── Bilder-Mail (Galerie-Link senden) ───────────────────
   // Wird bewusst erst nach dem Hochladen der Bilder verschickt (Button auf der Kundenseite).
-  function galleryLink() {
-    return window.location.origin + '/website/gallery.html';
+  // Zugang läuft über einen geheimen Link (kein Passwort), den der Kunde auch teilen kann.
+  function galleryBaseUrl() {
+    return window.location.origin + BASE + '/gallery.html';
   }
 
-  function openAccessModal() {
+  async function fetchGalleryLink(c) {
+    if (galleryLinks.has(c.id)) return galleryLinks.get(c.id);
+    try {
+      const res = await adminFetch(`/api/admin/clients/${c.id}/gallery-link?base=${encodeURIComponent(galleryBaseUrl())}`);
+      if (!res.ok) return null;
+      const { url } = await res.json();
+      galleryLinks.set(c.id, url);
+      return url;
+    } catch { return null; }
+  }
+
+  function galleryShareText(c, url) {
+    return `Hallo ${c.name},\n\ndeine Bilder sind fertig! Hier kannst du sie ansehen und herunterladen:\n${url}\n\n` +
+      `Du kannst den Link auch an Freunde und Familie weiterleiten.\n\nViele Grüße,\nMiguel`;
+  }
+
+  // withText = true: fertiger Nachrichtentext (z. B. für WhatsApp), sonst nur der Link
+  async function copyGalleryLink(withText = false) {
+    const c = currentClient;
+    const url = c && await fetchGalleryLink(c);
+    if (!url) { showToast('Link nicht verfügbar.'); return; }
+    await navigator.clipboard.writeText(withText ? galleryShareText(c, url) : url);
+    showToast(withText ? 'Text mit Link kopiert' : 'Link kopiert');
+  }
+
+  async function openAccessModal() {
     const c = currentClient;
     if (!c) return;
     const count = c.photoCount || 0;
     document.getElementById('accessIntro').innerHTML =
-      `${esc(c.name)} bekommt eine Mail mit dem Link zur Galerie und den Zugangsdaten.` +
+      `${esc(c.name)} (${esc(c.email)}) bekommt eine Mail mit dem persönlichen Link zur Galerie.` +
       (count
         ? ` In der Galerie ${count === 1 ? 'liegt' : 'liegen'} aktuell <strong>${count} Bild${count === 1 ? '' : 'er'}</strong>.`
         : ' <strong style="color:#b00020;">Achtung: Es sind noch keine Bilder hochgeladen.</strong>');
-    document.getElementById('accessLink').textContent  = galleryLink();
-    document.getElementById('accessEmail').textContent = c.email;
     document.getElementById('accessErr').classList.remove('show');
-    document.getElementById('fldAccessPw').classList.remove('error');
-
-    const known = knownPasswords.get(c.id);
-    const input = document.getElementById('accessPassword');
-    if (known) {
-      input.value = known;
-      input.dataset.known = known;
-    } else {
-      delete input.dataset.known;
-      generatePassword('accessPassword');
-    }
-    updateAccessPwHint();
+    document.getElementById('accessLink').textContent = 'wird geladen …';
     document.getElementById('accessModal').classList.add('show');
+    const url = await fetchGalleryLink(c);
+    document.getElementById('accessLink').textContent = url || 'Link nicht verfügbar';
+    if (!url) {
+      document.getElementById('accessErr').textContent = 'Galerie-Link konnte nicht geladen werden (Datenbank nicht erreichbar?).';
+      document.getElementById('accessErr').classList.add('show');
+    }
   }
-
-  function updateAccessPwHint() {
-    const input = document.getElementById('accessPassword');
-    document.getElementById('accessPwHint').textContent = input.dataset.known && input.value === input.dataset.known
-      ? 'Das beim Anlegen vergebene Passwort.'
-      : 'Neues Passwort — es ersetzt beim Senden das bisherige (das alte ist aus Sicherheitsgründen nicht einsehbar).';
-  }
-  document.getElementById('accessPassword').addEventListener('input', updateAccessPwHint);
 
   function closeAccessModal() {
     document.getElementById('accessModal').classList.remove('show');
   }
 
-  // sendMail = true: Passwort setzen + Mail senden; false: Passwort setzen + Text kopieren
-  async function submitAccess(sendMail) {
-    const c        = currentClient;
-    const input    = document.getElementById('accessPassword');
-    const errEl    = document.getElementById('accessErr');
-    const password = input.value.trim();
-    errEl.classList.remove('show');
-    if (!password) {
-      document.getElementById('fldAccessPw').classList.add('error');
-      return;
-    }
-    document.getElementById('fldAccessPw').classList.remove('error');
+  function setAccessButtonsDisabled(disabled) {
+    document.querySelectorAll('#accessModal button').forEach(b => { b.disabled = disabled; });
+  }
 
-    const btn = document.getElementById(sendMail ? 'btnAccessSend' : 'btnAccessCopy');
+  async function sendGalleryMail() {
+    const c     = currentClient;
+    const errEl = document.getElementById('accessErr');
+    const btn   = document.getElementById('btnAccessSend');
     const btnHtml = btn.innerHTML;
-    document.querySelectorAll('#accessModal button').forEach(b => { b.disabled = true; });
-    btn.innerHTML = sendMail ? '<div class="spinner"></div> Wird gesendet …' : 'Wird gespeichert …';
-
+    errEl.classList.remove('show');
+    setAccessButtonsDisabled(true);
+    btn.innerHTML = '<div class="spinner"></div> Wird gesendet …';
     try {
       const res  = await adminFetch('/api/admin/clients/' + c.id + '/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password, galleryUrl: galleryLink(), sendMail })
+        body: JSON.stringify({ galleryUrl: galleryBaseUrl() })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Senden fehlgeschlagen.');
-
-      knownPasswords.set(c.id, password);
-      if (sendMail) {
-        showToast('Bilder-Mail gesendet an ' + data.to);
-      } else {
-        await navigator.clipboard.writeText(
-          `Hallo ${c.name},\n\ndeine Bilder sind fertig!\n\nLink: ${galleryLink()}\nE-Mail: ${c.email}\nPasswort: ${password}\n\nViele Grüße,\nMiguel`
-        );
-        showToast('Passwort gespeichert, Text kopiert');
-      }
+      showToast('Bilder-Mail gesendet an ' + data.to);
       closeAccessModal();
     } catch (err) {
       errEl.textContent = err.message === 'Failed to fetch' ? 'Server nicht erreichbar.' : err.message;
       errEl.classList.add('show');
     } finally {
-      document.querySelectorAll('#accessModal button').forEach(b => { b.disabled = false; });
+      setAccessButtonsDisabled(false);
       btn.innerHTML = btnHtml;
+    }
+  }
+
+  async function regenerateGalleryLink() {
+    const c = currentClient;
+    if (!confirm('Link wirklich sperren? Der bisherige Link funktioniert danach nicht mehr — auch nicht für den Kunden. Schick ihm anschließend den neuen Link.')) return;
+    const errEl = document.getElementById('accessErr');
+    errEl.classList.remove('show');
+    setAccessButtonsDisabled(true);
+    try {
+      const res  = await adminFetch(`/api/admin/clients/${c.id}/gallery-link/regenerate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ galleryUrl: galleryBaseUrl() })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Link konnte nicht erneuert werden.');
+      galleryLinks.set(c.id, data.url);
+      document.getElementById('accessLink').textContent = data.url;
+      const detailEl = document.getElementById('detailGalleryLink');
+      if (detailEl) detailEl.textContent = data.url;
+      showToast('Alter Link gesperrt — neuer Link erzeugt');
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.classList.add('show');
+    } finally {
+      setAccessButtonsDisabled(false);
     }
   }
 

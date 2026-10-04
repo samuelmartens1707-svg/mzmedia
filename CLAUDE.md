@@ -106,7 +106,13 @@ PATCH /api/admin/clients/:id    – Kunde bearbeiten (Name, Email, Shooting-Datu
 DELETE /api/admin/clients/:id   – Kunde löschen (inkl. uploads/<id>/-Ordner; invoices/password_resets kaskadieren per FK)
 POST /api/admin/clients/:id/photos       – Fotos hochladen
 DELETE /api/admin/clients/:id/photos/:f  – Foto löschen
-POST /api/admin/clients/:id/send-email  – „Bilder sind fertig“-Mail: setzt das übergebene Passwort (Body: password, galleryUrl, sendMail?) und mailt Link + Zugangsdaten; sendMail=false setzt nur das Passwort (Admin kopiert den Text selbst)
+POST /api/admin/clients/:id/send-email  – „Bilder sind fertig“-Mail mit persönlichem Galerie-Link (Body: { galleryUrl } = Basis-URL von gallery.html; kein Passwort)
+GET  /api/admin/clients/:id/gallery-link?base=… – Galerie-Link anzeigen (legt Token bei Bedarf an)
+POST /api/admin/clients/:id/gallery-link/regenerate – Link sperren = neuen Token erzeugen (alter sofort ungültig)
+GET  /api/g/:token                      – Galerie per Link (ohne Login): Name, Shooting-Infos, Fotoliste
+GET  /api/g/:token/photo/:file          – Foto per Link anzeigen
+GET  /api/g/:token/download/:file       – Foto per Link herunterladen
+POST /api/resend-gallery-link           – Galerie-Link erneut an die hinterlegte Mail schicken (Rate-Limit, antwortet immer ok)
 POST /api/admin/clients/:id/invoice     – Rechnungsadresse speichern + Rechnung über sevDesk erstellen und versenden
 GET  /api/admin/invoices                – Alle bisher versendeten Rechnungen (admin)
 
@@ -148,10 +154,13 @@ POST /api/mediabox-anfrage                       – Buchungsanfrage der Mediabo
   - Feste Bildbereiche (`SINGLETON_SLOTS`) haben sprechende Namen, eine Ortsbeschreibung, Formatempfehlung und eine Mini-Skizze der Startseite (`slotSketch()`); Dateien können direkt auf die Karte gezogen werden.
   - Auf Geräten ohne Hover (`@media (hover: none)`) sind Bearbeiten/Löschen als Leiste immer sichtbar.
 
-### Kunden-Ablauf im Admin-Panel
-- Kunde anlegen → das Panel springt direkt auf die Kundenseite zum Hochladen der Bilder (keine Mail beim Anlegen).
-- Nach dem Upload (oder über „Bilder-Mail senden“ auf der Kundenseite) öffnet sich der Versand-Dialog. Passwörter liegen nur als bcrypt-Hash in der DB: In derselben Sitzung wie das Anlegen ist das vergebene Passwort noch bekannt (`knownPasswords` in `admin.html`) und wird vorbelegt; sonst wird ein neues erzeugt, das beim Senden das alte **ersetzt**. Der Server setzt das Passwort, bevor die Mail rausgeht.
-- Kunden-Galerie (`gallery.html`): Lightbox mit Vor/Zurück (Pfeile, Pfeiltasten, Wischen), Zähler „n / N“; Blob-URLs werden je Foto gecacht und Nachbarbilder vorgeladen.
+### Kunden-Zugang per Galerie-Link (kein Passwort)
+- Jeder Kunde hat einen geheimen Token `clients.gallery_token` (32 Byte hex, über `CLIENTS_OPTIONAL_COLUMNS` automatisch angelegt). Link: `gallery.html?g=<token>`. Wer den Link hat, kann ansehen + herunterladen — **bewusst teilbar mit Freunden**, läuft nicht ab.
+- `/api/g/:token/*` prüft den Token bei **jeder** Anfrage gegen die DB (kein JWT) → „Link sperren & neuen erzeugen“ im Admin wirkt sofort. Dateinamen laufen durch `safePhotoPath()` (kein `/`, `\`, `..`, nur Bild-Endungen).
+- Ablauf im Admin: Kunde anlegen (ohne Passwort, Server setzt intern ein zufälliges) → Kundenseite → Bilder hochladen → „Bilder-Mail senden“ (oder „Text kopieren“ für WhatsApp). Bestandskunden ohne Token bekommen ihn beim ersten Anzeigen/Versenden.
+- `/api/resend-gallery-link` baut die Link-URL **serverseitig** (`serverGalleryBaseUrl()`), nie aus dem Request — sonst ließe sich ein echter Token an eine fremde Domain mailen. Admin-Routen nehmen die Basis-URL vom (authentifizierten) Admin-Panel, geprüft per `isValidGalleryBaseUrl()`.
+- `gallery.html`: mit `?g=` Link-Modus (kein Login, Überschrift „Die Bilder von …“, Button „Galerie teilen“ = `navigator.share()` bzw. Link kopieren); ohne `?g=` Login-Screen mit „Link erneut zusenden“ und darunter dem alten Passwort-Login (Fallback für Bestandskunden mit Passwort-Mail). `<meta name="referrer" content="no-referrer">`, damit der Token nicht per Referer abfließt.
+- Lightbox mit Vor/Zurück (Pfeile, Pfeiltasten, Wischen), Zähler „n / N“; Blob-URLs je Foto gecacht, Nachbarbilder vorgeladen.
 
 ### Kundendaten (DB-Speicherung, seit dieser Umstellung)
 - Kunden (Name, E-Mail, Passwort-Hash, Shooting-Datum/-Art) liegen in der Tabelle `clients` (MySQL), nicht mehr in `data/clients.json`.
