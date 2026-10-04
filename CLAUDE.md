@@ -106,7 +106,7 @@ PATCH /api/admin/clients/:id    – Kunde bearbeiten (Name, Email, Shooting-Datu
 DELETE /api/admin/clients/:id   – Kunde löschen (inkl. uploads/<id>/-Ordner; invoices/password_resets kaskadieren per FK)
 POST /api/admin/clients/:id/photos       – Fotos hochladen
 DELETE /api/admin/clients/:id/photos/:f  – Foto löschen
-POST /api/admin/clients/:id/send-email  – Zugangsdaten-Mail senden
+POST /api/admin/clients/:id/send-email  – „Bilder sind fertig“-Mail: setzt das übergebene Passwort (Body: password, galleryUrl, sendMail?) und mailt Link + Zugangsdaten; sendMail=false setzt nur das Passwort (Admin kopiert den Text selbst)
 POST /api/admin/clients/:id/invoice     – Rechnungsadresse speichern + Rechnung über sevDesk erstellen und versenden
 GET  /api/admin/invoices                – Alle bisher versendeten Rechnungen (admin)
 
@@ -147,6 +147,11 @@ POST /api/mediabox-anfrage                       – Buchungsanfrage der Mediabo
   - Kategorie/Alt-Text werden per `PATCH` gespeichert, ohne das Grid neu zu rendern (Fokus bleibt erhalten, bei Fehler Rollback des Feldwerts).
   - Feste Bildbereiche (`SINGLETON_SLOTS`) haben sprechende Namen, eine Ortsbeschreibung, Formatempfehlung und eine Mini-Skizze der Startseite (`slotSketch()`); Dateien können direkt auf die Karte gezogen werden.
   - Auf Geräten ohne Hover (`@media (hover: none)`) sind Bearbeiten/Löschen als Leiste immer sichtbar.
+
+### Kunden-Ablauf im Admin-Panel
+- Kunde anlegen → das Panel springt direkt auf die Kundenseite zum Hochladen der Bilder (keine Mail beim Anlegen).
+- Nach dem Upload (oder über „Bilder-Mail senden“ auf der Kundenseite) öffnet sich der Versand-Dialog. Passwörter liegen nur als bcrypt-Hash in der DB: In derselben Sitzung wie das Anlegen ist das vergebene Passwort noch bekannt (`knownPasswords` in `admin.html`) und wird vorbelegt; sonst wird ein neues erzeugt, das beim Senden das alte **ersetzt**. Der Server setzt das Passwort, bevor die Mail rausgeht.
+- Kunden-Galerie (`gallery.html`): Lightbox mit Vor/Zurück (Pfeile, Pfeiltasten, Wischen), Zähler „n / N“; Blob-URLs werden je Foto gecacht und Nachbarbilder vorgeladen.
 
 ### Kundendaten (DB-Speicherung, seit dieser Umstellung)
 - Kunden (Name, E-Mail, Passwort-Hash, Shooting-Datum/-Art) liegen in der Tabelle `clients` (MySQL), nicht mehr in `data/clients.json`.

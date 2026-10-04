@@ -664,10 +664,13 @@ app.get('/api/my-photos-admin/:clientId', adminMiddleware, (req, res) => {
 });
 
 // POST /api/admin/clients/:clientId/send-email
-// Body: { password, galleryUrl }
+// Body: { password, galleryUrl, sendMail? }
+// Setzt das übergebene Passwort für den Kunden (das alte ist nur als Hash gespeichert und
+// kann nicht erneut verschickt werden) und schickt die "Bilder sind fertig"-Mail.
+// sendMail === false: nur Passwort setzen — der Admin gibt die Zugangsdaten selbst weiter.
 app.post('/api/admin/clients/:clientId/send-email', adminMiddleware, async (req, res) => {
-  const { password, galleryUrl } = req.body;
-  if (!password || !galleryUrl) return res.status(400).json({ error: 'password und galleryUrl erforderlich.' });
+  const { password, galleryUrl, sendMail = true } = req.body;
+  if (!password?.trim() || !galleryUrl) return res.status(400).json({ error: 'Passwort und galleryUrl erforderlich.' });
 
   let client;
   try {
@@ -678,12 +681,22 @@ app.post('/api/admin/clients/:clientId/send-email', adminMiddleware, async (req,
   }
   if (!client) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
 
-  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  if (sendMail && (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS)) {
     return res.status(503).json({ error: 'SMTP nicht konfiguriert. Bitte .env-Datei ausfüllen.' });
   }
 
+  // Erst das Passwort setzen, dann mailen — sonst könnte eine Mail mit einem Passwort
+  // rausgehen, das gar nicht gespeichert wurde.
   try {
-    const html = buildEmailHtml(client, password, galleryUrl);
+    const passwordHash = await bcrypt.hash(password.trim(), 10);
+    await pool.query('UPDATE clients SET password_hash = ? WHERE id = ?', [passwordHash, client.id]);
+  } catch (err) {
+    return res.status(503).json({ error: 'Passwort konnte nicht gespeichert werden (Datenbank nicht erreichbar).' });
+  }
+  if (!sendMail) return res.json({ ok: true, to: null });
+
+  try {
+    const html = buildEmailHtml(client, password.trim(), galleryUrl);
     await transporter.sendMail({
       from:    process.env.MAIL_FROM || process.env.SMTP_USER,
       to:      client.email,
@@ -694,7 +707,7 @@ app.post('/api/admin/clients/:clientId/send-email', adminMiddleware, async (req,
         `deine Fotos sind fertig!\n\n` +
         `Link: ${galleryUrl}\n` +
         `E-Mail: ${client.email}\n` +
-        `Passwort: ${password}\n\n` +
+        `Passwort: ${password.trim()}\n\n` +
         `Viele Grüße,\nMiguel`
     });
     res.json({ ok: true, to: client.email });

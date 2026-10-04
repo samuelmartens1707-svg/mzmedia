@@ -1040,7 +1040,7 @@
           <input type="text" id="ncPassword" placeholder="z.B. Sommer2025!" required autocomplete="off" />
           <button type="button" class="btn btn-outline btn-sm" onclick="generatePassword('ncPassword')">Generieren</button>
         </div>
-        <span class="field-hint">Der Kunde erhält dieses Passwort per E-Mail.</span>
+        <span class="field-hint">Der Kunde erhält es mit der Bilder-Mail, die du nach dem Hochladen der Bilder verschickst.</span>
       </div>
       <div class="field">
         <label for="ncType">Shooting-Art</label>
@@ -1183,42 +1183,42 @@
   </div>
 </div>
 
-<!-- ─── SUCCESS MODAL (credentials) ─── -->
-<div class="modal-backdrop" id="credentialsModal" role="dialog" aria-modal="true" aria-labelledby="credTitle">
+<!-- ─── BILDER-MAIL (Zugangsdaten an den Kunden senden) ─── -->
+<div class="modal-backdrop" id="accessModal" role="dialog" aria-modal="true" aria-labelledby="accessTitle">
   <div class="modal">
-    <h2 class="modal-title" id="credTitle">Kunde <em>angelegt!</em></h2>
-    <p style="font-size:.88rem;color:var(--mid);margin-bottom:1.6rem;line-height:1.7;">
-      Schick dem Kunden folgende Zugangsdaten. Das Passwort wird nur einmal angezeigt.
-    </p>
+    <h2 class="modal-title" id="accessTitle">Bilder-Mail <em>senden</em></h2>
+    <p id="accessIntro" style="font-size:.88rem;color:var(--mid);margin-bottom:1.4rem;line-height:1.7;"></p>
+    <div class="modal-err" id="accessErr" role="alert"></div>
     <div class="credential-box" style="margin-bottom:1.4rem;">
-      <div class="credential-box-label">Zugangsdaten</div>
+      <div class="credential-box-label">Zugangsdaten in der Mail</div>
       <div class="credential-row">
         <span class="credential-key">Link</span>
-        <span class="credential-val" id="credLink" style="font-size:.78rem;"></span>
-        <button class="btn-copy" onclick="copyText('credLink')">Kopieren</button>
+        <span class="credential-val" id="accessLink" style="font-size:.78rem;"></span>
       </div>
       <div class="credential-row">
         <span class="credential-key">E-Mail</span>
-        <span class="credential-val" id="credEmail"></span>
-        <button class="btn-copy" onclick="copyText('credEmail')">Kopieren</button>
-      </div>
-      <div class="credential-row">
-        <span class="credential-key">Passwort</span>
-        <span class="credential-val" id="credPassword"></span>
-        <button class="btn-copy" onclick="copyText('credPassword')">Kopieren</button>
+        <span class="credential-val" id="accessEmail"></span>
       </div>
     </div>
-    <button class="btn btn-outline" onclick="copyAllCredentials()" style="margin-bottom:.6rem;width:100%;">
-      Alles kopieren (für E-Mail)
-    </button>
-    <button class="btn btn-primary" id="btnSendEmail" onclick="sendCredentialsEmail()" style="margin-bottom:.8rem;width:100%;justify-content:center;">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-      E-Mail automatisch senden
-    </button>
-    <div id="emailSendStatus" style="font-size:.8rem;text-align:center;min-height:1.2rem;" role="status" aria-live="polite"></div>
-    <div class="modal-actions" style="margin-top:1rem;">
-      <button class="btn btn-primary" onclick="closeCredentialsModal()">Fertig</button>
+    <div class="field" id="fldAccessPw">
+      <label for="accessPassword">Passwort</label>
+      <div class="field-with-btn">
+        <input type="text" id="accessPassword" autocomplete="off" />
+        <button type="button" class="btn btn-outline btn-sm" onclick="generatePassword('accessPassword'); updateAccessPwHint()">Neu generieren</button>
+      </div>
+      <span class="field-hint" id="accessPwHint"></span>
     </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" onclick="closeAccessModal()">Abbrechen</button>
+      <button type="button" class="btn btn-primary" id="btnAccessSend" onclick="submitAccess(true)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Mail senden
+      </button>
+    </div>
+    <p style="text-align:right;margin-top:1rem;font-size:.78rem;color:var(--mid);">
+      Lieber selbst weitergeben (z. B. per WhatsApp)?
+      <button type="button" class="btn-copy" id="btnAccessCopy" onclick="submitAccess(false)" style="font-size:.78rem;text-transform:none;letter-spacing:0;text-decoration:underline;">Passwort speichern &amp; Text kopieren</button>
+    </p>
   </div>
 </div>
 
@@ -1273,8 +1273,9 @@
   let adminToken        = localStorage.getItem(ADMIN_TOKEN_KEY) || null;
   let allClients        = [];
   let currentClient     = null;
-  let newClientPassword = '';
-  let lastCreatedClient = null;   // for email sending after creation
+  // Passwörter, die in dieser Sitzung vergeben wurden (clientId → Passwort). In der DB liegt nur
+  // der Hash — nach einem Neuladen ist das Passwort nicht mehr bekannt und wird beim Senden neu gesetzt.
+  const knownPasswords  = new Map();
   let currentEditClientId = null;
 
   // ─── Init ───────────────────────────────────────────────
@@ -1546,7 +1547,10 @@
           </div>
         </div>
       </div>
-      <button class="btn btn-primary" style="margin:1rem 0;" onclick="openInvoiceModal('${c.id}')">Rechnung erstellen</button>
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin:1rem 0;">
+        <button class="btn btn-primary" onclick="openAccessModal()">Bilder-Mail senden</button>
+        <button class="btn btn-outline" onclick="openInvoiceModal('${c.id}')">Rechnung erstellen</button>
+      </div>
       <div class="credential-box">
         <div class="credential-box-label">Zugangsdaten</div>
         <div class="credential-row">
@@ -1574,6 +1578,7 @@
     const data = await res.json();
     const photos = data.photos || [];
 
+    c.photoCount = photos.length;
     document.getElementById('photosSectionTitle').textContent =
       `Vorhandene Bilder (${photos.length})`;
 
@@ -1632,12 +1637,11 @@
       bar.style.width = '100%';
       if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
       const data = await res.json();
-      status.textContent = `✓ ${data.uploaded.length} Bild${data.uploaded.length > 1 ? 'er' : ''} hochgeladen.`;
       showToast(data.uploaded.length + ' Bilder hochgeladen');
       fileInput.value = '';
       await loadDetailPhotos(currentClient);
-      // update count
-      currentClient.photoCount = (currentClient.photoCount || 0) + data.uploaded.length;
+      status.innerHTML = `✓ ${data.uploaded.length} Bild${data.uploaded.length > 1 ? 'er' : ''} hochgeladen. Fertig mit dem Hochladen?
+        <button type="button" class="btn btn-primary btn-sm" style="margin-left:.6rem;" onclick="openAccessModal()">Bilder-Mail an ${esc(currentClient.name)} senden</button>`;
     } catch (err) {
       status.textContent = 'Fehler: ' + err.message;
     }
@@ -1654,7 +1658,6 @@
     if (res.ok) {
       showToast('Bild gelöscht');
       await loadDetailPhotos(currentClient);
-      currentClient.photoCount = Math.max(0, (currentClient.photoCount || 1) - 1);
     }
   }
 
@@ -3095,12 +3098,12 @@
       const data = await res.json();
       if (!res.ok) { errEl.textContent = data.error; errEl.classList.add('show'); return; }
 
-      newClientPassword = password;
-      lastCreatedClient = data;
+      knownPasswords.set(data.id, password);
       await loadClients();
       renderDashboard();
       closeNewClientModal();
-      showCredentials(email, password);
+      await openClientDetail(data.id);
+      showToast('Kunde angelegt — jetzt Bilder hochladen');
     } catch {
       errEl.textContent = 'Fehler beim Anlegen. Bitte erneut versuchen.';
       errEl.classList.add('show');
@@ -3110,77 +3113,95 @@
     }
   });
 
-  // ─── Credentials modal ──────────────────────────────────
-  function showCredentials(email, password) {
-    const url = window.location.origin + '/gallery.html';
-    document.getElementById('credLink').textContent     = url;
-    document.getElementById('credEmail').textContent    = email;
-    document.getElementById('credPassword').textContent = password;
-    document.getElementById('credentialsModal').classList.add('show');
-  }
-  function closeCredentialsModal() {
-    document.getElementById('credentialsModal').classList.remove('show');
-    document.getElementById('emailSendStatus').textContent = '';
+  // ─── Bilder-Mail (Zugangsdaten senden) ───────────────────
+  // Wird bewusst erst nach dem Hochladen der Bilder verschickt (Button auf der Kundenseite).
+  function galleryLink() {
+    return window.location.origin + '/website/gallery.html';
   }
 
-  async function sendCredentialsEmail() {
-    const client = lastCreatedClient || currentClient;
-    if (!client) return;
+  function openAccessModal() {
+    const c = currentClient;
+    if (!c) return;
+    const count = c.photoCount || 0;
+    document.getElementById('accessIntro').innerHTML =
+      `${esc(c.name)} bekommt eine Mail mit dem Link zur Galerie und den Zugangsdaten.` +
+      (count
+        ? ` In der Galerie ${count === 1 ? 'liegt' : 'liegen'} aktuell <strong>${count} Bild${count === 1 ? '' : 'er'}</strong>.`
+        : ' <strong style="color:#b00020;">Achtung: Es sind noch keine Bilder hochgeladen.</strong>');
+    document.getElementById('accessLink').textContent  = galleryLink();
+    document.getElementById('accessEmail').textContent = c.email;
+    document.getElementById('accessErr').classList.remove('show');
+    document.getElementById('fldAccessPw').classList.remove('error');
 
-    const password  = newClientPassword;
+    const known = knownPasswords.get(c.id);
+    const input = document.getElementById('accessPassword');
+    if (known) {
+      input.value = known;
+      input.dataset.known = known;
+    } else {
+      delete input.dataset.known;
+      generatePassword('accessPassword');
+    }
+    updateAccessPwHint();
+    document.getElementById('accessModal').classList.add('show');
+  }
+
+  function updateAccessPwHint() {
+    const input = document.getElementById('accessPassword');
+    document.getElementById('accessPwHint').textContent = input.dataset.known && input.value === input.dataset.known
+      ? 'Das beim Anlegen vergebene Passwort.'
+      : 'Neues Passwort — es ersetzt beim Senden das bisherige (das alte ist aus Sicherheitsgründen nicht einsehbar).';
+  }
+  document.getElementById('accessPassword').addEventListener('input', updateAccessPwHint);
+
+  function closeAccessModal() {
+    document.getElementById('accessModal').classList.remove('show');
+  }
+
+  // sendMail = true: Passwort setzen + Mail senden; false: Passwort setzen + Text kopieren
+  async function submitAccess(sendMail) {
+    const c        = currentClient;
+    const input    = document.getElementById('accessPassword');
+    const errEl    = document.getElementById('accessErr');
+    const password = input.value.trim();
+    errEl.classList.remove('show');
     if (!password) {
-      showToast('Passwort nicht verfügbar — bitte manuell senden.');
+      document.getElementById('fldAccessPw').classList.add('error');
       return;
     }
+    document.getElementById('fldAccessPw').classList.remove('error');
 
-    const btn        = document.getElementById('btnSendEmail');
-    const statusEl   = document.getElementById('emailSendStatus');
-    const galleryUrl = window.location.origin + '/website/gallery.html';
-
-    btn.disabled     = true;
-    btn.innerHTML    = '<div class="spinner" style="border-top-color:#fff;width:14px;height:14px;"></div> Wird gesendet …';
-    statusEl.style.color = 'var(--mid)';
-    statusEl.textContent = '';
+    const btn = document.getElementById(sendMail ? 'btnAccessSend' : 'btnAccessCopy');
+    const btnHtml = btn.innerHTML;
+    document.querySelectorAll('#accessModal button').forEach(b => { b.disabled = true; });
+    btn.innerHTML = sendMail ? '<div class="spinner"></div> Wird gesendet …' : 'Wird gespeichert …';
 
     try {
-      const res  = await adminFetch('/api/admin/clients/' + client.id + '/send-email', {
+      const res  = await adminFetch('/api/admin/clients/' + c.id + '/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password, galleryUrl })
+        body: JSON.stringify({ password, galleryUrl: galleryLink(), sendMail })
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Senden fehlgeschlagen.');
 
-      if (!res.ok) {
-        statusEl.style.color = '#b00020';
-        statusEl.textContent = '✗ ' + data.error;
+      knownPasswords.set(c.id, password);
+      if (sendMail) {
+        showToast('Bilder-Mail gesendet an ' + data.to);
       } else {
-        statusEl.style.color = 'var(--sage)';
-        statusEl.textContent = '✓ E-Mail gesendet an ' + data.to;
-        showToast('E-Mail gesendet');
+        await navigator.clipboard.writeText(
+          `Hallo ${c.name},\n\ndeine Bilder sind fertig!\n\nLink: ${galleryLink()}\nE-Mail: ${c.email}\nPasswort: ${password}\n\nViele Grüße,\nMiguel`
+        );
+        showToast('Passwort gespeichert, Text kopiert');
       }
-    } catch {
-      statusEl.style.color = '#b00020';
-      statusEl.textContent = '✗ Server nicht erreichbar.';
+      closeAccessModal();
+    } catch (err) {
+      errEl.textContent = err.message === 'Failed to fetch' ? 'Server nicht erreichbar.' : err.message;
+      errEl.classList.add('show');
     } finally {
-      btn.disabled = false;
-      btn.innerHTML = `
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-        E-Mail automatisch senden`;
+      document.querySelectorAll('#accessModal button').forEach(b => { b.disabled = false; });
+      btn.innerHTML = btnHtml;
     }
-  }
-  function copyText(elId) {
-    const text = document.getElementById(elId).textContent;
-    navigator.clipboard.writeText(text);
-    showToast('Kopiert');
-  }
-  function copyAllCredentials() {
-    const url  = document.getElementById('credLink').textContent;
-    const mail = document.getElementById('credEmail').textContent;
-    const pw   = document.getElementById('credPassword').textContent;
-    navigator.clipboard.writeText(
-      `Hallo,\n\ndeine Bilder sind fertig!\n\nLink: ${url}\nE-Mail: ${mail}\nPasswort: ${pw}\n\nViele Grüße,\nMiguel`
-    );
-    showToast('E-Mail-Text kopiert');
   }
 
   // ─── Bild-Editor (Zuschneiden & Drehen) ─────────────────
