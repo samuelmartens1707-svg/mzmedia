@@ -507,6 +507,63 @@
       .drag-handle { display: none; }
     }
 
+    /* ─── WEBSITE-BILDER (Seiten-Vorschau im Bearbeiten-Modus) ─── */
+    .site-toolbar {
+      display: flex; flex-wrap: wrap; gap: .8rem 1.2rem;
+      align-items: center; justify-content: space-between; margin-bottom: .8rem;
+    }
+    .site-tabs, .site-device { display: flex; border: 1px solid var(--sand); background: var(--white); }
+    .site-tab, .site-device-btn {
+      min-height: 40px; padding: 0 1.3rem; border: none; background: none; cursor: pointer;
+      font-family: 'DM Sans', sans-serif; font-size: .75rem; font-weight: 500;
+      letter-spacing: .12em; text-transform: uppercase; color: var(--mid);
+      transition: background .2s, color .2s;
+    }
+    .site-tab + .site-tab, .site-device-btn + .site-device-btn { border-left: 1px solid var(--sand); }
+    .site-tab:hover, .site-device-btn:hover { color: var(--dark); }
+    .site-tab[aria-pressed="true"], .site-device-btn[aria-pressed="true"] { background: var(--dark); color: var(--cream); }
+    .site-device-btn { padding: 0 1rem; font-size: .68rem; }
+    .site-toolbar-right { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
+    .site-status { font-size: .8rem; color: var(--mid); margin-bottom: 1rem; min-height: 1.3em; }
+    .site-frame-wrap {
+      position: relative; display: flex; justify-content: center;
+      height: calc(100svh - 250px); min-height: 480px;
+      background: var(--white); border: 1px solid var(--sand);
+    }
+    .site-frame { width: 100%; height: 100%; border: 0; display: block; background: var(--cream); }
+    .site-frame-wrap.mobile { background: var(--sand); padding: 1rem 0; }
+    .site-frame-wrap.mobile .site-frame { width: 390px; max-width: 100%; box-shadow: 0 6px 24px rgba(35,39,31,.18); }
+    .site-frame-wrap.loading::after {
+      content: 'Seite wird geladen …';
+      position: absolute; top: .8rem; right: .8rem;
+      background: var(--dark); color: var(--cream);
+      font-size: .72rem; letter-spacing: .08em; padding: .45rem .8rem;
+    }
+
+    /* Seitliches Bearbeiten-Panel */
+    .drawer {
+      position: fixed; top: 0; right: 0; z-index: 150;
+      width: min(580px, 100vw); height: 100svh;
+      background: var(--cream); border-left: 1px solid var(--sand);
+      box-shadow: -12px 0 36px rgba(35,39,31,.16);
+      display: flex; flex-direction: column;
+      transform: translateX(100%); visibility: hidden;
+      transition: transform .25s ease, visibility 0s .25s;
+    }
+    .drawer.open { transform: none; visibility: visible; transition: transform .25s ease; }
+    .drawer-head {
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;
+      padding: 1.4rem 1.6rem 1.1rem; border-bottom: 1px solid var(--sand); background: var(--white);
+    }
+    .drawer-eyebrow { font-size: .65rem; letter-spacing: .2em; text-transform: uppercase; color: var(--terra); }
+    .drawer-title { font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; font-weight: 300; line-height: 1.15; }
+    .drawer-where { font-size: .78rem; color: var(--mid); margin-top: .3rem; line-height: 1.5; }
+    .drawer-body { flex: 1; overflow-y: auto; padding: 1.4rem 1.6rem 2rem; }
+    .drawer .drop-zone { padding: 2rem 1.2rem; }
+    .drawer .slot-grid { grid-template-columns: 1fr; margin-bottom: 0; }
+    .drawer .admin-photo-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    .gallery-item.flash .admin-photo-card { outline: 3px solid var(--sage); outline-offset: 2px; }
+
     /* ─── NEW CLIENT MODAL ─── */
     .modal-backdrop {
       position: fixed; inset: 0; z-index: 200;
@@ -688,7 +745,7 @@
       </button>
       <button class="sidebar-nav-item" id="navHomeImages" onclick="showPage('homeImages')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-        Homepage-Bilder
+        Website-Bilder
       </button>
       <button class="sidebar-nav-item" id="navInvoices" onclick="showPage('invoices')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -786,39 +843,32 @@
       </div>
     </div>
 
-    <!-- HOMEPAGE IMAGES PAGE -->
+    <!-- WEBSITE-BILDER PAGE — echte Seite als Vorschau, Bilder direkt darin bearbeiten -->
     <div class="page" id="pageHomeImages">
-      <div class="page-header">
+      <div class="page-header" style="margin-bottom:1.6rem;">
         <div>
-          <h1 class="page-title">Homepage-<em>Bilder</em></h1>
-          <p class="page-subtitle">Hero, About und Portfolio-Galerie der öffentlichen Startseite verwalten.</p>
+          <h1 class="page-title">Website-<em>Bilder</em></h1>
+          <p class="page-subtitle">Seite auswählen und die Bilder direkt in der Vorschau austauschen, hinzufügen oder entfernen.</p>
         </div>
       </div>
-
-      <div class="photos-section-title">Feste Bildbereiche der Startseite</div>
-      <p class="section-hint">Jeder Bereich zeigt genau ein Bild an einer festen Stelle der Startseite. Neues Bild einfach auf die Karte ziehen oder „Bild auswählen“ klicken, das alte Bild wird dabei ersetzt.</p>
-      <div id="singletonSlots" class="slot-grid"></div>
-
-      <div class="upload-section-title">Portfolio-Galerie — Bilder hinzufügen</div>
-      <div class="upload-section">
-        <div class="drop-zone" id="galleryDropZone">
-          <input type="file" id="galleryFileInput" multiple accept="image/jpeg,image/png,image/webp,image/gif" aria-label="Galerie-Bilder auswählen" />
-          <div class="drop-icon" aria-hidden="true">📁</div>
-          <div class="drop-text">Bilder hier ablegen oder klicken zum Auswählen</div>
-          <div class="drop-hint">Vor dem Hochladen können Sie für jedes Bild Kategorie und Beschreibung festlegen · JPEG, PNG, WebP · max. 8 MB pro Bild · empfohlen: ca. 2000–2500px breit</div>
+      <div class="site-toolbar">
+        <div class="site-tabs" role="group" aria-label="Seite zum Bearbeiten">
+          <button type="button" class="site-tab" data-site-page="start" aria-pressed="true">Startseite</button>
+          <button type="button" class="site-tab" data-site-page="galerie" aria-pressed="false">Galerie</button>
+          <button type="button" class="site-tab" data-site-page="mediabox" aria-pressed="false">Mediabox</button>
         </div>
-        <div class="staging" id="galleryStaging" hidden></div>
-        <div class="upload-progress" id="galleryUploadProgress"><div class="upload-progress-bar" id="galleryUploadProgressBar"></div></div>
-        <div class="upload-status" id="galleryUploadStatus" role="status" aria-live="polite"></div>
+        <div class="site-toolbar-right">
+          <div class="site-device" role="group" aria-label="Ansicht">
+            <button type="button" class="site-device-btn" data-device="desktop" aria-pressed="true">Desktop</button>
+            <button type="button" class="site-device-btn" data-device="mobile" aria-pressed="false">Handy</button>
+          </div>
+          <a class="btn btn-outline btn-sm" id="siteOpenLink" href="/website/" target="_blank" rel="noopener">Seite öffnen ↗</a>
+        </div>
       </div>
-
-      <div class="photos-section-title">
-        <span id="galleryPhotosTitle">Portfolio-Galerie — vorhandene Bilder</span>
-        <button type="button" class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="openAiSuggest('gallery')">✨ KI-Vorschlag</button>
+      <p class="site-status" id="siteStatus" role="status" aria-live="polite"></p>
+      <div class="site-frame-wrap" id="siteFrameWrap">
+        <iframe id="siteFrame" class="site-frame" title="Vorschau der Website im Bearbeiten-Modus"></iframe>
       </div>
-      <p class="section-hint">Die Reihenfolge hier ist die Reihenfolge auf der Website. Bilder mit der Maus an die gewünschte Stelle ziehen, oder ▲ ▼ nutzen. Jede Änderung wird sofort gespeichert.</p>
-      <div class="admin-photo-grid" id="galleryPhotoGrid"></div>
-      <datalist id="galleryCategoryList"></datalist>
     </div>
 
     <!-- MEDIABOX PAGE -->
@@ -826,35 +876,12 @@
       <div class="page-header">
         <div>
           <h1 class="page-title">Mediabox<em> verwalten</em></h1>
-          <p class="page-subtitle">Bilder vergangener Events und den Belegungskalender der Fotobox pflegen.</p>
+          <p class="page-subtitle">Belegungskalender der Fotobox pflegen.</p>
         </div>
+        <button type="button" class="btn btn-outline" onclick="editSitePage('mediabox')">Bilder der Mediabox-Seite bearbeiten →</button>
       </div>
 
-      <div class="photos-section-title">Titelbild</div>
-      <div id="mediaboxHeroSlot" class="slot-grid"></div>
-
-      <div class="upload-section-title">Event-Galerie — Bilder hinzufügen</div>
-      <div class="upload-section">
-        <div class="drop-zone" id="mediaboxDropZone">
-          <input type="file" id="mediaboxFileInput" multiple accept="image/jpeg,image/png,image/webp,image/gif" aria-label="Mediabox-Bilder auswählen" />
-          <div class="drop-icon" aria-hidden="true">📁</div>
-          <div class="drop-text">Bilder hier ablegen oder klicken zum Auswählen</div>
-          <div class="drop-hint">Vor dem Hochladen können Sie für jedes Bild Anlass/Event und Beschreibung festlegen · JPEG, PNG, WebP · max. 8 MB pro Bild · empfohlen: ca. 2000–2500px breit</div>
-        </div>
-        <div class="staging" id="mediaboxStaging" hidden></div>
-        <div class="upload-progress" id="mediaboxUploadProgress"><div class="upload-progress-bar" id="mediaboxUploadProgressBar"></div></div>
-        <div class="upload-status" id="mediaboxUploadStatus" role="status" aria-live="polite"></div>
-      </div>
-
-      <div class="photos-section-title">
-        <span id="mediaboxPhotosTitle">Event-Galerie — vorhandene Bilder</span>
-        <button type="button" class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="openAiSuggest('mediabox-gallery')">✨ KI-Vorschlag</button>
-      </div>
-      <p class="section-hint">Die Reihenfolge hier ist die Reihenfolge auf der Mediabox-Seite. Bilder mit der Maus an die gewünschte Stelle ziehen, oder ▲ ▼ nutzen. Jede Änderung wird sofort gespeichert.</p>
-      <div class="admin-photo-grid" id="mediaboxPhotoGrid"></div>
-      <datalist id="mediaboxCategoryList"></datalist>
-
-      <div class="photos-section-title" style="margin-top:2.6rem;">Belegungskalender</div>
+      <div class="photos-section-title">Belegungskalender</div>
       <div class="upload-section" style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;">
         <label class="field" style="margin-bottom:0;">
           <span style="font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--mid);display:block;margin-bottom:.4rem;">Datum</span>
@@ -931,6 +958,67 @@
 
   </main>
 </div>
+
+<!-- ─── BILDER-PANEL (öffnet sich aus der Website-Vorschau) ─── -->
+<aside class="drawer" id="imgDrawer" role="dialog" aria-modal="false" aria-labelledby="imgDrawerTitle">
+  <div class="drawer-head">
+    <div>
+      <div class="drawer-eyebrow" id="imgDrawerEyebrow"></div>
+      <h2 class="drawer-title" id="imgDrawerTitle"></h2>
+      <p class="drawer-where" id="imgDrawerWhere"></p>
+    </div>
+    <button type="button" class="btn-icon" onclick="closeImageDrawer()" aria-label="Panel schließen" title="Schließen">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div data-drawer-block="slot" hidden>
+      <div id="drawerSlotCard" class="slot-grid"></div>
+    </div>
+    <div data-drawer-block="gallery" hidden>
+      <div class="upload-section-title">Bilder hinzufügen</div>
+      <div class="upload-section">
+        <div class="drop-zone" id="galleryDropZone">
+          <input type="file" id="galleryFileInput" multiple accept="image/jpeg,image/png,image/webp,image/gif" aria-label="Galerie-Bilder auswählen" />
+          <div class="drop-icon" aria-hidden="true">📁</div>
+          <div class="drop-text">Bilder hier ablegen oder klicken zum Auswählen</div>
+          <div class="drop-hint">Vor dem Hochladen können Sie für jedes Bild Kategorie und Beschreibung festlegen · JPEG, PNG, WebP · max. 8 MB pro Bild · empfohlen: ca. 2000–2500px breit</div>
+        </div>
+        <div class="staging" id="galleryStaging" hidden></div>
+        <div class="upload-progress" id="galleryUploadProgress"><div class="upload-progress-bar" id="galleryUploadProgressBar"></div></div>
+        <div class="upload-status" id="galleryUploadStatus" role="status" aria-live="polite"></div>
+      </div>
+
+      <div class="photos-section-title">
+        <span id="galleryPhotosTitle">Vorhandene Bilder</span>
+        <button type="button" class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="openAiSuggest('gallery')">✨ KI-Vorschlag</button>
+      </div>
+      <p class="section-hint">Die Reihenfolge hier ist die Reihenfolge auf der Website. Bilder mit der Maus an die gewünschte Stelle ziehen, oder ▲ ▼ nutzen. Jede Änderung wird sofort gespeichert.</p>
+      <div class="admin-photo-grid" id="galleryPhotoGrid"></div>
+      <datalist id="galleryCategoryList"></datalist>
+    </div>
+    <div data-drawer-block="mediabox-gallery" hidden>
+      <div class="upload-section-title">Bilder hinzufügen</div>
+      <div class="upload-section">
+        <div class="drop-zone" id="mediaboxDropZone">
+          <input type="file" id="mediaboxFileInput" multiple accept="image/jpeg,image/png,image/webp,image/gif" aria-label="Mediabox-Bilder auswählen" />
+          <div class="drop-icon" aria-hidden="true">📁</div>
+          <div class="drop-text">Bilder hier ablegen oder klicken zum Auswählen</div>
+          <div class="drop-hint">Vor dem Hochladen können Sie für jedes Bild Anlass/Event und Beschreibung festlegen · JPEG, PNG, WebP · max. 8 MB pro Bild · empfohlen: ca. 2000–2500px breit</div>
+        </div>
+        <div class="staging" id="mediaboxStaging" hidden></div>
+        <div class="upload-progress" id="mediaboxUploadProgress"><div class="upload-progress-bar" id="mediaboxUploadProgressBar"></div></div>
+        <div class="upload-status" id="mediaboxUploadStatus" role="status" aria-live="polite"></div>
+      </div>
+
+      <div class="photos-section-title">
+        <span id="mediaboxPhotosTitle">Vorhandene Bilder</span>
+        <button type="button" class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="openAiSuggest('mediabox-gallery')">✨ KI-Vorschlag</button>
+      </div>
+      <p class="section-hint">Die Reihenfolge hier ist die Reihenfolge auf der Mediabox-Seite. Bilder mit der Maus an die gewünschte Stelle ziehen, oder ▲ ▼ nutzen. Jede Änderung wird sofort gespeichert.</p>
+      <div class="admin-photo-grid" id="mediaboxPhotoGrid"></div>
+      <datalist id="mediaboxCategoryList"></datalist>
+    </div>
+  </div>
+</aside>
 
 <!-- ─── NEW CLIENT MODAL ─── -->
 <div class="modal-backdrop" id="newClientModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
@@ -1180,6 +1268,7 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
+  const BASE = '/website'; // muss vor showApp() stehen (Init weiter unten nutzt adminFetch sofort)
   const ADMIN_TOKEN_KEY = 'mz_admin_token';
   let adminToken        = localStorage.getItem(ADMIN_TOKEN_KEY) || null;
   let allClients        = [];
@@ -1350,6 +1439,7 @@
 
   // ─── Pages ──────────────────────────────────────────────
   function showPage(name) {
+    if (name !== 'homeImages') closeImageDrawer();
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.sidebar-nav-item').forEach(b => b.classList.remove('active'));
 
@@ -1363,7 +1453,8 @@
     } else if (name === 'homeImages') {
       document.getElementById('pageHomeImages').classList.add('active');
       document.getElementById('navHomeImages').classList.add('active');
-      loadHomeImages();
+      loadSiteImages();
+      if (siteFrameKey !== sitePage) openSitePage(sitePage);
     } else if (name === 'invoices') {
       document.getElementById('pageInvoices').classList.add('active');
       document.getElementById('navInvoices').classList.add('active');
@@ -1371,7 +1462,6 @@
     } else if (name === 'mediabox') {
       document.getElementById('pageMediabox').classList.add('active');
       document.getElementById('navMediabox').classList.add('active');
-      loadMediaboxImages();
       loadMediaboxBookings();
     } else if (name === 'detail') {
       document.getElementById('pageDetail').classList.add('active');
@@ -1625,20 +1715,24 @@
   const GALLERIES = {
     'gallery': {
       slot: 'gallery', prefix: 'gallery',
-      title: 'Portfolio-Galerie — vorhandene Bilder',
+      label: 'Portfolio-Galerie',
+      where: 'Erscheint auf der Startseite unter „Ausgewählte Projekte“ und auf der Galerie-Seite — beide zeigen dieselben Bilder.',
+      title: 'Vorhandene Bilder',
       categoryLabel: 'Kategorie', categoryPlaceholder: 'z. B. Portrait',
       emptyText: 'Noch keine Galerie-Bilder hochgeladen.',
       toastName: 'Galerie-Bilder',
-      reload: () => loadHomeImages(),
+      reload: () => onImagesChanged(),
       items: [], staged: []
     },
     'mediabox-gallery': {
       slot: 'mediabox-gallery', prefix: 'mediabox',
-      title: 'Event-Galerie — vorhandene Bilder',
+      label: 'Event-Galerie',
+      where: 'Erscheint auf der Mediabox-Seite unter „Bisherige Events“.',
+      title: 'Vorhandene Bilder',
       categoryLabel: 'Anlass/Event', categoryPlaceholder: 'z. B. Hochzeit Meyer 2025',
       emptyText: 'Noch keine Mediabox-Bilder hochgeladen.',
       toastName: 'Mediabox-Bilder',
-      reload: () => loadMediaboxImages(),
+      reload: () => onImagesChanged(),
       items: [], staged: []
     },
   };
@@ -1650,26 +1744,29 @@
     return data.images || [];
   }
 
-  async function loadHomeImages() {
+  // Lädt alle Bild-Metadaten einmal und verteilt sie auf Panel-Inhalte und Vorschau
+  let siteImages = [];
+
+  async function loadSiteImages() {
     const images = await fetchAdminHomeImages();
     if (!images) {
-      document.getElementById('singletonSlots').innerHTML = '<div class="no-photos">Datenbank aktuell nicht erreichbar.</div>';
-      document.getElementById('galleryPhotoGrid').innerHTML = '';
-      return;
+      showToast('Datenbank aktuell nicht erreichbar.');
+      Object.values(GALLERIES).forEach(cfg => {
+        document.getElementById(cfg.prefix + 'PhotoGrid').innerHTML = '<div class="no-photos">Datenbank aktuell nicht erreichbar.</div>';
+      });
+      return false;
     }
-    renderSingletonSlotCards('singletonSlots', ['hero', 'about-main', 'about-accent'], images, loadHomeImages);
-    setGalleryItems(GALLERIES['gallery'], images);
+    siteImages = images;
+    Object.values(GALLERIES).forEach(cfg => setGalleryItems(cfg, images));
+    if (drawerState?.type === 'slot') renderDrawerSlot();
+    decorateSiteFrame();
+    return true;
   }
 
-  async function loadMediaboxImages() {
-    const images = await fetchAdminHomeImages();
-    if (!images) {
-      document.getElementById('mediaboxHeroSlot').innerHTML = '<div class="no-photos">Datenbank aktuell nicht erreichbar.</div>';
-      document.getElementById('mediaboxPhotoGrid').innerHTML = '';
-      return;
-    }
-    renderSingletonSlotCards('mediaboxHeroSlot', ['mediabox-hero'], images, loadMediaboxImages);
-    setGalleryItems(GALLERIES['mediabox-gallery'], images);
+  // Nach jeder Änderung: Daten neu laden und die Vorschau aktualisieren
+  async function onImagesChanged() {
+    await loadSiteImages();
+    refreshSitePreview();
   }
 
   function setGalleryItems(cfg, images) {
@@ -2059,6 +2156,7 @@
     });
     if (res.ok) {
       showToast('Reihenfolge gespeichert');
+      refreshSitePreview();
     } else {
       showToast('Reihenfolge konnte nicht gespeichert werden.');
       await cfg.reload();
@@ -2094,6 +2192,7 @@
     if (item) item[field] = value;
     if (field === 'category') updateCategoryDatalist(cfg);
     showToast(`${label} gespeichert`);
+    refreshSitePreview();
   }
 
   Object.values(GALLERIES).forEach(cfg => {
@@ -2104,6 +2203,363 @@
   // Versehentlich neben eine Ablagefläche gezogene Dateien nicht im Browser-Tab öffnen
   window.addEventListener('dragover', e => { if (hasFiles(e)) e.preventDefault(); });
   window.addEventListener('drop',     e => { if (hasFiles(e)) e.preventDefault(); });
+
+  // ─── Website-Bilder: echte Seite als Vorschau im Bearbeiten-Modus ───
+  // Die öffentliche Seite wird unverändert in einem iframe (gleiche Domain) geladen; das Admin-Panel
+  // legt die Bearbeiten-Knöpfe von außen über die Bilder. index/galerie/mediabox.html wissen davon nichts.
+  // Galerie-Bilder werden über ihre URL (/api/home-image/<id>) einem Datensatz zugeordnet.
+  const SITE_PAGES = {
+    start: {
+      label: 'Startseite', path: '/',
+      hint: 'Auf „Bild ändern“ klicken, um ein Bild auszutauschen. Die Portfolio-Bilder sind dieselben wie auf der Galerie-Seite.',
+      slots: [
+        { slot: 'hero',          target: '.hero-img' },
+        { slot: 'about-main',    target: '.about-img-main' },
+        { slot: 'about-accent',  target: '.about-img-accent' },
+        { slot: 'mediabox-hero', target: '.mediabox-teaser-img' },
+      ],
+      galleries: [{ gallery: 'gallery', grid: '.gallery-grid', item: '.gal-item' }],
+    },
+    galerie: {
+      label: 'Galerie', path: '/galerie.html',
+      hint: 'Alle Portfolio-Bilder. Änderungen hier gelten auch für „Ausgewählte Projekte“ auf der Startseite.',
+      slots: [],
+      galleries: [{ gallery: 'gallery', grid: '#galerieGrid', item: '.galerie-item' }],
+    },
+    mediabox: {
+      label: 'Mediabox', path: '/mediabox.html',
+      hint: 'Titelbild (erscheint auch als Teaser auf der Startseite) und Bilder vergangener Events.',
+      slots: [{ slot: 'mediabox-hero', target: '.mb-hero-img' }],
+      galleries: [{ gallery: 'mediabox-gallery', grid: '#mbGalerieGrid', item: '.galerie-item' }],
+    },
+  };
+
+  const SITE_EDIT_CSS = `
+    html.mz-edit, html.mz-edit * { cursor: auto !important; }
+    html.mz-edit a, html.mz-edit button, html.mz-edit [tabindex] { cursor: pointer !important; }
+    html.mz-edit .cursor, html.mz-edit .cursor-ring { display: none !important; }
+    .mz-slot { outline: 2px dashed rgba(70,96,63,.6); outline-offset: -6px; }
+    .mz-slot:hover, .mz-slot.mz-drop { outline: 2px solid #46603F; }
+    .mz-slot-ui {
+      position: absolute; inset: 0; z-index: 40; pointer-events: none;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+      background: rgba(35,39,31,0); transition: background .2s;
+    }
+    .mz-slot:hover .mz-slot-ui, .mz-slot.mz-drop .mz-slot-ui { background: rgba(35,39,31,.3); }
+    .mz-slot-ui > * { pointer-events: auto; }
+    .mz-tag {
+      font: 500 10px/1 'DM Sans', system-ui, sans-serif; letter-spacing: .16em; text-transform: uppercase;
+      color: #F6F1E4; background: rgba(35,39,31,.75); padding: 5px 8px;
+    }
+    .mz-btn {
+      font: 500 12px/1.2 'DM Sans', system-ui, sans-serif; letter-spacing: .06em;
+      background: #23271F; color: #F6F1E4; border: 1px solid rgba(255,255,255,.2);
+      padding: 9px 14px; min-height: 36px; box-shadow: 0 4px 14px rgba(0,0,0,.28);
+      transition: background .2s, color .2s;
+    }
+    .mz-btn:hover { background: #46603F; }
+    .mz-btn-icon { width: 34px; height: 34px; min-height: 34px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; }
+    .mz-danger:hover { background: #c0392b; }
+    .mz-item-ui { position: absolute; top: 8px; right: 8px; z-index: 40; display: flex; gap: 6px; }
+    .mz-bar {
+      position: relative; z-index: 5;
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px;
+      margin-bottom: 14px; padding: 12px 14px;
+      background: #23271F; color: #F6F1E4; font: 400 13px/1.4 'DM Sans', system-ui, sans-serif;
+    }
+    .mz-bar strong { font-weight: 500; }
+    .mz-bar-hint { display: block; color: rgba(246,241,228,.6); font-size: 12px; }
+    .mz-bar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .mz-bar .mz-btn { box-shadow: none; background: #F6F1E4; color: #23271F; }
+    .mz-bar .mz-btn:hover { background: #DCD2B8; }
+    .mz-bar .mz-btn-primary { background: #46603F; color: #F6F1E4; }
+    .mz-bar .mz-btn-primary:hover { background: #3a5034; }
+    [data-mz-drop-gallery].mz-drop { outline: 2px dashed #46603F; outline-offset: 4px; }
+  `;
+
+  let sitePage = 'start';       // gewählter Tab
+  let siteFrameKey = null;      // Seite, die gerade im iframe geladen ist (null = keine bearbeitbare Seite)
+  let siteScrollRestore = null; // Scroll-Position, die nach einem Neuladen wiederhergestellt wird
+  let siteRefreshTimer = null;
+  let siteObserver = null;
+  let drawerState = null;       // { type: 'slot', slot } | { type: 'gallery', gallery }
+
+  function editSitePage(key) {
+    sitePage = key;
+    showPage('homeImages');
+  }
+
+  function sitePageFromPath(pathname) {
+    const file = pathname.split('/').pop();
+    if (file === '' || file === 'index.html') return 'start';
+    if (file === 'galerie.html') return 'galerie';
+    if (file === 'mediabox.html') return 'mediabox';
+    return null;
+  }
+
+  function updateSiteToolbar() {
+    const key = siteFrameKey ?? sitePage;
+    document.querySelectorAll('.site-tab').forEach(btn => {
+      btn.setAttribute('aria-pressed', String(btn.dataset.sitePage === key));
+    });
+    const page = SITE_PAGES[key];
+    document.getElementById('siteOpenLink').href = BASE + (page ? page.path : '/');
+    document.getElementById('siteStatus').textContent = siteFrameKey === null && document.getElementById('siteFrame').getAttribute('src')
+      ? 'Auf dieser Seite gibt es keine bearbeitbaren Bilder — oben eine Seite auswählen.'
+      : page.hint;
+  }
+
+  function openSitePage(key) {
+    sitePage = key;
+    siteFrameKey = key;
+    siteScrollRestore = null;
+    updateSiteToolbar();
+    document.getElementById('siteFrameWrap').classList.add('loading');
+    document.getElementById('siteFrame').src = BASE + SITE_PAGES[key].path;
+  }
+
+  // Lädt die Vorschau neu (gebündelt, falls mehrere Änderungen kurz hintereinander kommen)
+  function refreshSitePreview() {
+    clearTimeout(siteRefreshTimer);
+    siteRefreshTimer = setTimeout(() => {
+      const frame = document.getElementById('siteFrame');
+      if (!frame.getAttribute('src') || !frame.contentWindow) return;
+      siteScrollRestore = frame.contentWindow.scrollY;
+      document.getElementById('siteFrameWrap').classList.add('loading');
+      frame.contentWindow.location.reload();
+    }, 250);
+  }
+
+  document.querySelectorAll('.site-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      closeImageDrawer();
+      openSitePage(btn.dataset.sitePage);
+    });
+  });
+
+  document.querySelectorAll('.site-device-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.site-device-btn').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+      document.getElementById('siteFrameWrap').classList.toggle('mobile', btn.dataset.device === 'mobile');
+    });
+  });
+
+  document.getElementById('siteFrame').addEventListener('load', () => {
+    const frame = document.getElementById('siteFrame');
+    if (!frame.getAttribute('src')) return;
+    document.getElementById('siteFrameWrap').classList.remove('loading');
+    let doc;
+    try { doc = frame.contentDocument; } catch { doc = null; }
+    if (!doc) return;
+
+    // Besucher kann in der Vorschau auch über die Navigation die Seite wechseln
+    siteFrameKey = sitePageFromPath(frame.contentWindow.location.pathname);
+    if (siteFrameKey) sitePage = siteFrameKey;
+    updateSiteToolbar();
+    if (!siteFrameKey) return;
+
+    prepareSiteFrame(doc);
+    decorateSiteFrame();
+
+    if (siteScrollRestore) {
+      // Bilder/Galerien werden asynchron geladen — Scroll-Position mehrfach nachziehen,
+      // bis der Admin selbst scrollt
+      const y = siteScrollRestore;
+      const win = frame.contentWindow;
+      let userScrolled = false;
+      ['wheel', 'touchstart', 'keydown'].forEach(ev => win.addEventListener(ev, () => { userScrolled = true; }, { once: true, passive: true }));
+      [0, 200, 600, 1200].forEach(ms => setTimeout(() => {
+        if (!userScrolled && Math.abs(win.scrollY - y) > 5) win.scrollTo(0, y);
+      }, ms));
+      siteScrollRestore = null;
+    }
+  });
+
+  // Einmal pro geladenem Dokument: Bearbeiten-Styles, Klick-/Drop-Handling, Beobachter für Nachladen
+  function prepareSiteFrame(doc) {
+    const style = doc.createElement('style');
+    style.textContent = SITE_EDIT_CSS;
+    doc.head.appendChild(style);
+    doc.documentElement.classList.add('mz-edit');
+
+    // Klicks auf die Bearbeiten-Knöpfe — Capture-Phase, damit z. B. die Lightbox nicht aufgeht
+    doc.addEventListener('click', e => {
+      const btn = e.target.closest('[data-mz]');
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const { mz, slot, gallery, id } = btn.dataset;
+      if (mz === 'slot') openImageDrawer({ type: 'slot', slot });
+      else if (mz === 'manage') openImageDrawer({ type: 'gallery', gallery });
+      else if (mz === 'add') {
+        openImageDrawer({ type: 'gallery', gallery });
+        document.getElementById(GALLERIES[gallery].prefix + 'FileInput').click();
+      } else if (mz === 'edit') openImageDrawer({ type: 'gallery', gallery, highlightId: Number(id) });
+      else if (mz === 'delete') deleteImage(Number(id), onImagesChanged);
+    }, true);
+    doc.addEventListener('keydown', e => {
+      if (e.target.closest?.('.mz-edit-ui')) e.stopPropagation(); // Enter auf Knopf ≠ Lightbox öffnen
+      if (e.key === 'Escape') closeImageDrawer();
+    }, true);
+
+    // Formulare (Kontakt, Mediabox-Anfrage) in der Vorschau nicht wirklich abschicken
+    doc.addEventListener('submit', e => {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      showToast('Formulare sind in der Vorschau deaktiviert.');
+    }, true);
+
+    // Dateien direkt auf ein Bild bzw. eine Galerie in der Vorschau ziehen
+    const dropTargetOf = el => el?.closest?.('[data-mz-drop-slot], [data-mz-drop-gallery]') || null;
+    const clearDrop = () => doc.querySelectorAll('.mz-drop').forEach(el => el.classList.remove('mz-drop'));
+    doc.addEventListener('dragover', e => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      const target = dropTargetOf(e.target);
+      doc.querySelectorAll('.mz-drop').forEach(el => { if (el !== target) el.classList.remove('mz-drop'); });
+      target?.classList.add('mz-drop');
+    });
+    doc.addEventListener('dragleave', e => { if (!e.relatedTarget) clearDrop(); });
+    doc.addEventListener('drop', e => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      clearDrop();
+      const target = dropTargetOf(e.target);
+      const files = e.dataTransfer.files;
+      if (target?.dataset.mzDropSlot) {
+        if (files.length > 1) showToast('Hier passt nur ein Bild — das erste wird verwendet.');
+        uploadSingletonImage(target.dataset.mzDropSlot, files[0], onImagesChanged);
+      } else if (target?.dataset.mzDropGallery) {
+        const gallery = target.dataset.mzDropGallery;
+        openImageDrawer({ type: 'gallery', gallery });
+        stageFiles(GALLERIES[gallery], files);
+      } else {
+        showToast('Bitte auf ein Bild oder eine Galerie ziehen.');
+      }
+    });
+
+    // Die Seiten laden ihre Bilder selbst nach (und die Galerie rendert bei Filterwechsel neu) —
+    // danach die Knöpfe erneut anbringen. Nur childList, damit der Custom-Cursor nichts auslöst.
+    siteObserver?.disconnect();
+    siteObserver = new MutationObserver(() => decorateSiteFrame());
+    siteObserver.observe(doc.body, { childList: true, subtree: true });
+  }
+
+  // Bringt alle Bearbeiten-Elemente (neu) an — idempotent, wird nach jedem Nachladen aufgerufen
+  function decorateSiteFrame() {
+    const frame = document.getElementById('siteFrame');
+    const page = SITE_PAGES[siteFrameKey];
+    let doc;
+    try { doc = frame.contentDocument; } catch { return; }
+    if (!page || !doc?.documentElement.classList.contains('mz-edit')) return;
+
+    siteObserver?.disconnect(); // eigene Änderungen sollen den Beobachter nicht erneut auslösen
+    doc.querySelectorAll('.mz-edit-ui').forEach(el => el.remove());
+    page.slots.forEach(s => decorateSlot(doc, s));
+    page.galleries.forEach(g => decorateGallery(doc, g));
+    siteObserver?.observe(doc.body, { childList: true, subtree: true });
+  }
+
+  function decorateSlot(doc, { slot, target }) {
+    const el = doc.querySelector(target);
+    if (!el) return;
+    const info = SINGLETON_SLOTS[slot];
+    const hasImage = siteImages.some(i => i.slot === slot);
+    const compact = el.clientWidth < 220;
+    el.classList.add('mz-slot');
+    el.dataset.mzDropSlot = slot;
+    el.title = `${info.label} — Bild hierher ziehen zum Ersetzen`;
+
+    const ui = doc.createElement('div');
+    ui.className = 'mz-edit-ui mz-slot-ui';
+    ui.innerHTML = `
+      ${compact ? '' : `<span class="mz-tag">${esc(info.label)}</span>`}
+      <button type="button" class="mz-btn" data-mz="slot" data-slot="${slot}" aria-label="${esc(info.label)} ${hasImage ? 'ändern' : 'einsetzen'}">
+        ${hasImage ? '✎ Bild ändern' : '+ Bild einsetzen'}
+      </button>`;
+    el.appendChild(ui);
+  }
+
+  function decorateGallery(doc, { gallery, grid, item }) {
+    const gridEl = doc.querySelector(grid);
+    if (!gridEl) return;
+    const cfg = GALLERIES[gallery];
+    const count = cfg.items.length;
+    gridEl.dataset.mzDropGallery = gallery;
+
+    const bar = doc.createElement('div');
+    bar.className = 'mz-edit-ui mz-bar';
+    bar.dataset.mzDropGallery = gallery;
+    const gridStyle = doc.defaultView.getComputedStyle(gridEl);
+    bar.style.marginLeft = gridStyle.paddingLeft;
+    bar.style.marginRight = gridStyle.paddingRight;
+    bar.innerHTML = `
+      <span><strong>${esc(cfg.label)}</strong> · ${count} Bild${count === 1 ? '' : 'er'}
+        <span class="mz-bar-hint">Bilder auch direkt hierher ziehen</span></span>
+      <span class="mz-bar-actions">
+        <button type="button" class="mz-btn mz-btn-primary" data-mz="add" data-gallery="${gallery}">+ Bilder hinzufügen</button>
+        <button type="button" class="mz-btn" data-mz="manage" data-gallery="${gallery}">Reihenfolge &amp; Texte</button>
+      </span>`;
+    gridEl.before(bar);
+
+    gridEl.querySelectorAll(item).forEach(itemEl => {
+      const img = itemEl.querySelector('img[src*="/api/home-image/"]');
+      const id = img?.getAttribute('src').match(/home-image\/(\d+)/)?.[1];
+      if (!id) return; // Platzhalter ohne echtes Bild
+      const ui = doc.createElement('div');
+      ui.className = 'mz-edit-ui mz-item-ui';
+      ui.innerHTML = `
+        <button type="button" class="mz-btn mz-btn-icon" data-mz="edit" data-gallery="${gallery}" data-id="${id}" title="Bearbeiten (Zuschnitt, ${esc(cfg.categoryLabel)}, Beschreibung)" aria-label="Bild bearbeiten">✎</button>
+        <button type="button" class="mz-btn mz-btn-icon mz-danger" data-mz="delete" data-id="${id}" title="Bild entfernen" aria-label="Bild entfernen">✕</button>`;
+      itemEl.appendChild(ui);
+    });
+  }
+
+  // ─── Bilder-Panel (rechts) ───────────────────────────────
+  function openImageDrawer(state) {
+    drawerState = state;
+    const block = state.type === 'slot' ? 'slot' : state.gallery;
+    document.querySelectorAll('[data-drawer-block]').forEach(b => { b.hidden = b.dataset.drawerBlock !== block; });
+
+    if (state.type === 'slot') {
+      const info = SINGLETON_SLOTS[state.slot];
+      document.getElementById('imgDrawerEyebrow').textContent = 'Einzelbild';
+      document.getElementById('imgDrawerTitle').textContent = info.label;
+      document.getElementById('imgDrawerWhere').textContent = info.where;
+      renderDrawerSlot();
+    } else {
+      const cfg = GALLERIES[state.gallery];
+      document.getElementById('imgDrawerEyebrow').textContent = 'Galerie';
+      document.getElementById('imgDrawerTitle').textContent = cfg.label;
+      document.getElementById('imgDrawerWhere').textContent = cfg.where;
+    }
+    document.getElementById('imgDrawer').classList.add('open');
+
+    if (state.highlightId) {
+      const cfg = GALLERIES[state.gallery];
+      const el = document.querySelector(`#${cfg.prefix}PhotoGrid .gallery-item[data-id="${state.highlightId}"]`);
+      if (el) {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        el.classList.add('flash');
+        setTimeout(() => el.classList.remove('flash'), 1800);
+      }
+    }
+  }
+
+  function renderDrawerSlot() {
+    renderSingletonSlotCards('drawerSlotCard', [drawerState.slot], siteImages, onImagesChanged);
+  }
+
+  function closeImageDrawer() {
+    document.getElementById('imgDrawer').classList.remove('open');
+    drawerState = null;
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape' || !drawerState) return;
+    if (document.querySelector('.modal-backdrop.show')) return; // erst das offene Modal schließen
+    closeImageDrawer();
+  });
 
   // ─── Mediabox: Belegungskalender ──────────────────────────
   async function loadMediaboxBookings() {
@@ -2226,7 +2682,6 @@
 
   async function applyAiSuggest() {
     if (!aiSuggestData || !aiSuggestSlot) return;
-    const slot = aiSuggestSlot;
     const btn = document.getElementById('btnApplyAiSuggest');
     btn.disabled = true;
     btn.textContent = 'Wird übernommen …';
@@ -2245,7 +2700,7 @@
       }
       showToast('KI-Vorschlag übernommen');
       closeAiSuggest();
-      if (slot === 'mediabox-gallery') await loadMediaboxImages(); else await loadHomeImages();
+      await onImagesChanged();
     } catch (err) {
       showToast('Fehler beim Übernehmen: ' + err.message);
     } finally {
@@ -2882,8 +3337,7 @@
         if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
         showToast('Bild aktualisiert');
         closeImageEditor();
-        if (document.getElementById('pageMediabox').classList.contains('active')) await loadMediaboxImages();
-        else await loadHomeImages();
+        await onImagesChanged();
       } catch (err) {
         showToast('Fehler: ' + err.message);
       } finally {
@@ -2898,7 +3352,6 @@
   });
 
   // ─── Helpers ─────────────────────────────────────────────
-  const BASE = '/website';
   function adminFetch(url, opts = {}) {
     const fullUrl = url.startsWith('/') ? BASE + url : url;
     return fetch(fullUrl, {
