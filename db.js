@@ -85,6 +85,13 @@ async function ensureHomeImagesMediaboxSlots() {
   console.log('[DB] home_images.slot-Enum um mediabox-hero/mediabox-gallery erweitert.');
 }
 
+// Alt-Text pro Galerie-Bild — ursprünglich nur per scripts/add-alt-text-to-home-images.js
+// nachgezogen; fehlte die Spalte, endeten ALLE Bilder-Routen (Startseite, Admin-Liste,
+// Upload) mit SQL-Fehler → 503 "Datenbank nicht erreichbar", obwohl die DB lief.
+const HOME_IMAGES_OPTIONAL_COLUMNS = [
+  { name: 'alt_text', ddl: 'alt_text VARCHAR(160) NULL AFTER category' },
+];
+
 // Cached promise so every home-images route can safely call this first —
 // cheap after the first success, and self-heals if the DB was down at boot.
 let ensured = null;
@@ -99,6 +106,11 @@ function ensureHomeImagesTable() {
           // jahrelang ohne dieses Enum) — z. B. fehlende ALTER-Rechte des DB-Users nur loggen,
           // Mediabox-Slots bleiben dann bis zum nächsten erfolgreichen Versuch eingeschränkt.
           console.warn('[DB] slot-Enum von home_images konnte nicht erweitert werden:', err.message);
+        }
+        try {
+          await ensureColumns('home_images', HOME_IMAGES_OPTIONAL_COLUMNS);
+        } catch (err) {
+          console.warn('[DB] Optionale Spalten an home_images konnten nicht ergänzt werden:', err.message);
         }
       })
       .catch(err => {

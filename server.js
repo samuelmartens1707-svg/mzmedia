@@ -838,6 +838,7 @@ app.get('/api/home-images', async (req, res) => {
                    .map(r => ({ id: r.id, category: r.category, altText: r.alt_text, url: homeImageUrl(r.id) })),
     });
   } catch (err) {
+    console.error('[home-images] Laden fehlgeschlagen:', err.message);
     res.status(503).json({ error: 'Bilder aktuell nicht verfügbar.' });
   }
 });
@@ -865,6 +866,7 @@ app.get('/api/admin/home-images', adminMiddleware, async (req, res) => {
     );
     res.json({ images: rows.map(r => ({ ...r, url: homeImageUrl(r.id) })) });
   } catch (err) {
+    console.error('[admin/home-images] Laden fehlgeschlagen:', err.message);
     res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
   }
 });
@@ -906,6 +908,7 @@ app.post('/api/admin/home-images/gallery', adminMiddleware, uploadMemory.array('
     }
     res.json({ uploaded });
   } catch (err) {
+    console.error('[admin/home-images/gallery] Upload fehlgeschlagen:', err.message);
     res.status(503).json({ error: 'Bilder konnten nicht gespeichert werden.' });
   }
 });
@@ -1110,6 +1113,7 @@ app.get('/api/mediabox-images', async (req, res) => {
                    .map(r => ({ id: r.id, category: r.category, altText: r.alt_text, url: homeImageUrl(r.id) })),
     });
   } catch (err) {
+    console.error('[home-images] Laden fehlgeschlagen:', err.message);
     res.status(503).json({ error: 'Bilder aktuell nicht verfügbar.' });
   }
 });
