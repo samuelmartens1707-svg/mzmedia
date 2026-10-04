@@ -87,21 +87,6 @@
       letter-spacing: .14em; text-transform: uppercase;
       color: var(--dark); text-decoration: none;
     }
-    .nav-right { display: flex; align-items: center; gap: 1.4rem; }
-    .nav-client-name {
-      font-size: .8rem; letter-spacing: .1em;
-      color: var(--mid);
-    }
-    .btn-logout {
-      min-height: 36px; padding: 0 1.2rem;
-      border: 1px solid var(--sand); background: transparent;
-      font-family: 'DM Sans', sans-serif;
-      font-size: .72rem; letter-spacing: .12em;
-      text-transform: uppercase; color: var(--mid);
-      cursor: pointer; transition: border-color .25s, color .25s;
-      display: none;
-    }
-    .btn-logout:hover { border-color: var(--terra); color: var(--terra); }
 
     /* ─── LOGIN SCREEN ─── */
     .login-screen {
@@ -248,19 +233,14 @@
     .gallery-buttons { display: flex; gap: .6rem; flex-wrap: wrap; }
     .btn-share {
       min-height: 44px; padding: 0 1.6rem;
-      background: transparent; color: var(--dark); border: 1px solid var(--sand);
+      background: var(--sage); color: #fff; border: 1px solid var(--sage);
       font-family: 'DM Sans', sans-serif; font-size: .78rem; font-weight: 500;
       letter-spacing: .12em; text-transform: uppercase;
       cursor: pointer; transition: border-color .25s, color .25s;
       display: none; align-items: center; gap: .6rem;
     }
     .btn-share.show { display: flex; }
-    .btn-share:hover { border-color: var(--terra); color: var(--terra); }
-    .login-divider {
-      display: flex; align-items: center; gap: .8rem; margin: 1.8rem 0 1.2rem;
-      font-size: .7rem; letter-spacing: .14em; text-transform: uppercase; color: var(--light);
-    }
-    .login-divider::before, .login-divider::after { content: ''; flex: 1; height: 1px; background: var(--sand); }
+    .btn-share:hover { background: #3a5034; border-color: #3a5034; }
     .btn-download-all svg { flex-shrink: 0; }
 
     /* Photo grid */
@@ -400,99 +380,34 @@
   <header>
     <nav class="nav" aria-label="Seitennavigation">
       <a href="/" class="nav-logo" aria-label="mz media — zur Startseite">mz media</a>
-      <div class="nav-right">
-        <span class="nav-client-name" id="navClientName" aria-live="polite"></span>
-        <button class="btn-logout" id="btnLogout" type="button">Abmelden</button>
-      </div>
     </nav>
   </header>
 
   <main>
-    <!-- LOGIN -->
+    <!-- LINK ANFORDERN (Zugang nur per Link, kein Passwort) -->
     <section class="login-screen" id="loginScreen" aria-labelledby="loginTitle">
       <div class="login-card">
-        <!-- LOGIN PANE -->
-        <div id="loginPane">
-          <p class="login-eyebrow" aria-hidden="true">Kundenbereich</p>
-          <h1 class="login-title" id="loginTitle">Deine <em>Bilder.</em></h1>
-          <p class="login-sub">Deine Galerie öffnest du direkt über den Link aus der Mail, die du von mir bekommen hast — ganz ohne Passwort.</p>
+        <p class="login-eyebrow" aria-hidden="true">Kundenbereich</p>
+        <h1 class="login-title" id="loginTitle">Deine <em>Bilder.</em></h1>
+        <p class="login-sub">Deine Galerie öffnest du direkt über den Link aus der Mail, die du von mir bekommen hast — ganz ohne Passwort. Link nicht mehr zur Hand? Gib deine E-Mail-Adresse ein, dann bekommst du ihn noch einmal.</p>
 
-          <div class="login-error" id="loginError" role="alert" aria-live="assertive"></div>
-
-          <button type="button" class="btn-login" id="btnShowForgot">Link erneut zusenden</button>
-
-          <div class="login-divider">oder mit Passwort anmelden</div>
-
-          <form id="loginForm" novalidate>
-            <div class="form-group" id="grpEmail">
-              <label for="inputEmail">E-Mail-Adresse</label>
-              <input type="email" id="inputEmail" name="email"
-                autocomplete="email" placeholder="deine@email.de"
-                required aria-required="true" aria-describedby="errEmail" />
-              <span class="form-error" id="errEmail" role="alert">Bitte gib deine E-Mail-Adresse ein.</span>
-            </div>
-            <div class="form-group" id="grpPassword">
-              <label for="inputPassword">Passwort</label>
-              <input type="password" id="inputPassword" name="password"
-                autocomplete="current-password" placeholder="••••••••"
-                required aria-required="true" aria-describedby="errPassword" />
-              <span class="form-error" id="errPassword" role="alert">Bitte gib dein Passwort ein.</span>
-            </div>
-            <button type="submit" class="btn-login" id="btnLogin">Anmelden</button>
-          </form>
-
-          <a href="/" class="login-back">← Zurück zur Website</a>
+        <div class="login-error" id="forgotError" role="alert" aria-live="assertive"></div>
+        <div class="login-success" id="forgotSuccess" role="status" aria-live="polite">
+          Falls es zu dieser E-Mail-Adresse eine Galerie gibt, ist der Link gerade unterwegs. Bitte prüfe auch deinen Spam-Ordner.
         </div>
 
-        <!-- FORGOT PASSWORD PANE -->
-        <div id="forgotPane" style="display:none">
-          <p class="login-eyebrow" aria-hidden="true">Kundenbereich</p>
-          <h1 class="login-title">Link <em>anfordern.</em></h1>
-          <p class="login-sub">Gib die E-Mail-Adresse ein, an die deine Bilder geschickt wurden — du bekommst den Link zu deiner Galerie noch einmal.</p>
-
-          <div class="login-error" id="forgotError" role="alert" aria-live="assertive"></div>
-          <div class="login-success" id="forgotSuccess" role="status" aria-live="polite">
-            Falls es zu dieser E-Mail-Adresse eine Galerie gibt, ist der Link gerade unterwegs. Bitte prüfe auch deinen Spam-Ordner.
+        <form id="forgotForm" novalidate>
+          <div class="form-group" id="grpForgotEmail">
+            <label for="inputForgotEmail">E-Mail-Adresse</label>
+            <input type="email" id="inputForgotEmail" name="email"
+              autocomplete="email" placeholder="deine@email.de"
+              required aria-required="true" aria-describedby="errForgotEmail" />
+            <span class="form-error" id="errForgotEmail" role="alert">Bitte gib deine E-Mail-Adresse ein.</span>
           </div>
+          <button type="submit" class="btn-login" id="btnForgotSubmit">Link zusenden</button>
+        </form>
 
-          <form id="forgotForm" novalidate>
-            <div class="form-group" id="grpForgotEmail">
-              <label for="inputForgotEmail">E-Mail-Adresse</label>
-              <input type="email" id="inputForgotEmail" name="email"
-                autocomplete="email" placeholder="deine@email.de"
-                required aria-required="true" aria-describedby="errForgotEmail" />
-              <span class="form-error" id="errForgotEmail" role="alert">Bitte gib deine E-Mail-Adresse ein.</span>
-            </div>
-            <button type="submit" class="btn-login" id="btnForgotSubmit">Link anfordern</button>
-          </form>
-
-          <button type="button" class="login-forgot-link" id="btnBackToLoginFromForgot">← Zurück</button>
-        </div>
-
-        <!-- RESET PASSWORD PANE -->
-        <div id="resetPane" style="display:none">
-          <p class="login-eyebrow" aria-hidden="true">Kundenbereich</p>
-          <h1 class="login-title">Neues <em>Passwort.</em></h1>
-          <p class="login-sub">Vergib ein neues Passwort für dein Konto.</p>
-
-          <div class="login-error" id="resetError" role="alert" aria-live="assertive"></div>
-          <div class="login-success" id="resetSuccess" role="status" aria-live="polite">
-            Dein Passwort wurde geändert. Du kannst dich jetzt anmelden.
-          </div>
-
-          <form id="resetForm" novalidate>
-            <div class="form-group" id="grpNewPassword">
-              <label for="inputNewPassword">Neues Passwort</label>
-              <input type="password" id="inputNewPassword" name="password"
-                autocomplete="new-password" placeholder="Mind. 8 Zeichen"
-                required minlength="8" aria-required="true" aria-describedby="errNewPassword" />
-              <span class="form-error" id="errNewPassword" role="alert">Mindestens 8 Zeichen.</span>
-            </div>
-            <button type="submit" class="btn-login" id="btnResetSubmit">Passwort setzen</button>
-          </form>
-
-          <a href="/" class="login-back">← Zurück zur Website</a>
-        </div>
+        <a href="/" class="login-back">← Zurück zur Website</a>
       </div>
     </section>
 
@@ -514,7 +429,7 @@
             <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
             <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
           </svg>
-          Galerie teilen
+          Mit Freunden teilen
         </button>
         <button class="btn-download-all" id="btnDownloadAll" type="button">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -570,30 +485,20 @@
   <script>
     const API = '/website';
 
-    let token     = localStorage.getItem('mz_token') || null;
-    let clientId  = localStorage.getItem('mz_client_id') || null;
     let currentPhotos = [];
+    let shareUrl = null; // Freunde-Link — nur bekannt, wenn der Kunde seinen persönlichen Link öffnet
 
-    // Galerie-Link (gallery.html?g=<token>): Zugang ohne Login, teilbar mit Freunden
+    // Zugang nur per Link: gallery.html?g=<token> — persönlicher Link des Kunden oder Freunde-Link
     const galleryToken = (new URLSearchParams(location.search).get('g') || '').toLowerCase();
     const linkMode = /^[a-f0-9]{64}$/.test(galleryToken);
+    localStorage.removeItem('mz_token'); // Altlast vom früheren Passwort-Login
 
     // ─── DOM refs ───
     const loginScreen   = document.getElementById('loginScreen');
     const galleryScreen = document.getElementById('galleryScreen');
-    const loginForm     = document.getElementById('loginForm');
-    const loginError    = document.getElementById('loginError');
-    const loginPane      = document.getElementById('loginPane');
-    const forgotPane     = document.getElementById('forgotPane');
-    const resetPane      = document.getElementById('resetPane');
     const forgotForm     = document.getElementById('forgotForm');
     const forgotError    = document.getElementById('forgotError');
     const forgotSuccess  = document.getElementById('forgotSuccess');
-    const resetForm      = document.getElementById('resetForm');
-    const resetError     = document.getElementById('resetError');
-    const resetSuccess   = document.getElementById('resetSuccess');
-    const btnLogout     = document.getElementById('btnLogout');
-    const navClientName = document.getElementById('navClientName');
     const photoGrid     = document.getElementById('photoGrid');
     const loadingState  = document.getElementById('loadingState');
     const emptyState    = document.getElementById('emptyState');
@@ -602,41 +507,21 @@
     const lightboxImg   = document.getElementById('lightboxImg');
     const lightboxDl    = document.getElementById('lightboxDl');
 
-    // ─── Auth check on load ───
-    const resetToken = new URLSearchParams(location.search).get('reset');
+    // ─── Beim Laden ───
     if (linkMode) {
       showGallery();
     } else if (new URLSearchParams(location.search).has('g')) {
       showInvalidLink();
-    } else if (resetToken) {
-      loginPane.style.display = 'none';
-      resetPane.style.display = '';
-    } else if (token) {
-      showGallery();
     }
 
     function showInvalidLink() {
       galleryScreen.classList.remove('show');
       loginScreen.style.display = '';
-      loginError.textContent = 'Dieser Link ist ungültig oder wurde deaktiviert. Fordere unten einen neuen an oder melde dich bei mir.';
-      loginError.classList.add('show');
+      forgotError.textContent = 'Dieser Link ist ungültig oder wurde deaktiviert. Fordere unten einen neuen an oder melde dich bei mir.';
+      forgotError.classList.add('show');
     }
 
-    // ─── Pane switching (Login ↔ Passwort vergessen) ───
-    document.getElementById('btnShowForgot').addEventListener('click', () => {
-      loginError.classList.remove('show');
-      loginPane.style.display = 'none';
-      forgotPane.style.display = '';
-    });
-    document.getElementById('btnBackToLoginFromForgot').addEventListener('click', () => {
-      forgotError.classList.remove('show');
-      forgotSuccess.classList.remove('show');
-      forgotForm.reset();
-      forgotPane.style.display = 'none';
-      loginPane.style.display = '';
-    });
-
-    // ─── Forgot password ───
+    // ─── Link erneut zusenden ───
     forgotForm.addEventListener('submit', async e => {
       e.preventDefault();
       forgotError.classList.remove('show');
@@ -649,6 +534,7 @@
       const btn = document.getElementById('btnForgotSubmit');
       btn.disabled = true;
       btn.textContent = 'Wird gesendet …';
+      forgotError.classList.remove('show');
 
       try {
         const res  = await fetch('/api/resend-gallery-link', {
@@ -669,116 +555,8 @@
         forgotError.classList.add('show');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Link anfordern';
+        btn.textContent = 'Link zusenden';
       }
-    });
-
-    // ─── Reset password ───
-    resetForm.addEventListener('submit', async e => {
-      e.preventDefault();
-      resetError.classList.remove('show');
-
-      const password = document.getElementById('inputNewPassword').value;
-      if (!password || password.length < 8) {
-        document.getElementById('grpNewPassword').classList.add('error');
-        return;
-      }
-      document.getElementById('grpNewPassword').classList.remove('error');
-
-      const btn = document.getElementById('btnResetSubmit');
-      btn.disabled = true;
-      btn.textContent = 'Wird gespeichert …';
-
-      try {
-        const res  = await fetch('/api/reset-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: resetToken, password })
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          resetError.textContent = data.error || 'Passwort konnte nicht gesetzt werden.';
-          resetError.classList.add('show');
-          return;
-        }
-        resetSuccess.classList.add('show');
-        resetForm.reset();
-        history.replaceState(null, '', location.pathname);
-        setTimeout(() => {
-          resetPane.style.display = 'none';
-          loginPane.style.display = '';
-        }, 2500);
-      } catch {
-        resetError.textContent = 'Server nicht erreichbar. Bitte später versuchen.';
-        resetError.classList.add('show');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Passwort setzen';
-      }
-    });
-
-    // ─── Login ───
-    loginForm.addEventListener('submit', async e => {
-      e.preventDefault();
-      loginError.classList.remove('show');
-
-      const email    = document.getElementById('inputEmail').value.trim();
-      const password = document.getElementById('inputPassword').value;
-
-      // Inline validation
-      let valid = true;
-      if (!email) { document.getElementById('grpEmail').classList.add('error'); valid = false; }
-      else         { document.getElementById('grpEmail').classList.remove('error'); }
-      if (!password){ document.getElementById('grpPassword').classList.add('error'); valid = false; }
-      else          { document.getElementById('grpPassword').classList.remove('error'); }
-      if (!valid) return;
-
-      const btn = document.getElementById('btnLogin');
-      btn.disabled = true;
-      btn.textContent = 'Anmelden …';
-
-      try {
-        const res  = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        });
-        const data = await res.json();
-
-        if (!res.ok) {
-          loginError.textContent = data.error || 'Anmeldung fehlgeschlagen.';
-          loginError.classList.add('show');
-          return;
-        }
-
-        token    = data.token;
-        clientId = data.id;
-        localStorage.setItem('mz_token', token);
-        showGallery();
-      } catch {
-        loginError.textContent = 'Server nicht erreichbar. Bitte später versuchen.';
-        loginError.classList.add('show');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Anmelden';
-      }
-    });
-
-    // Clear errors on input
-    loginForm.querySelectorAll('input').forEach(i => {
-      i.addEventListener('input', () => i.closest('.form-group')?.classList.remove('error'));
-    });
-
-    // ─── Logout ───
-    btnLogout.addEventListener('click', () => {
-      localStorage.removeItem('mz_token');
-      localStorage.removeItem('mz_client_id');
-      token = null; clientId = null;
-      galleryScreen.classList.remove('show');
-      loginScreen.style.display = '';
-      btnLogout.style.display = 'none';
-      navClientName.textContent = '';
-      loginForm.reset();
     });
 
     // ─── Show gallery ───
@@ -790,17 +568,9 @@
       photoGrid.innerHTML = '';
 
       try {
-        const res  = linkMode
-          ? await fetch('/api/g/' + galleryToken)
-          : await fetch('/api/my-photos', { headers: { Authorization: 'Bearer ' + token } });
-
-        if (linkMode && res.status === 404) {
+        const res = await fetch('/api/g/' + galleryToken);
+        if (res.status === 404) {
           showInvalidLink();
-          return;
-        }
-        if (res.status === 401) {
-          localStorage.removeItem('mz_token');
-          location.reload();
           return;
         }
 
@@ -809,15 +579,17 @@
 
         // Update UI
         document.getElementById('clientNameDisplay').textContent = data.name || '';
-        if (linkMode) {
-          // Der Link kann auch bei Freunden landen — neutral statt "Hallo, …"
+        if (data.role === 'owner') {
+          // Persönlicher Link des Kunden: "Hallo, …" + Button, um den Freunde-Link zu teilen
+          if (data.shareToken) {
+            shareUrl = location.origin + location.pathname + '?g=' + data.shareToken;
+            document.getElementById('btnShare').classList.add('show');
+          }
+        } else {
+          // Freunde-Link: neutral, ohne Teilen-Button
           document.getElementById('clientNameDisplay').previousSibling.textContent = 'Die Bilder von ';
           document.querySelector('.gallery-eyebrow').textContent = 'Galerie';
           document.title = 'Bilder von ' + (data.name || '') + ' — mz media';
-          document.getElementById('btnShare').classList.add('show');
-        } else {
-          navClientName.textContent = data.name || '';
-          btnLogout.style.display = 'flex';
         }
 
         const meta = [];
@@ -850,11 +622,10 @@
         card.setAttribute('role', 'listitem');
 
         const img = document.createElement('img');
-        if (!linkMode) img.src = photo.url + '?token=' + encodeURIComponent(token);
         img.alt = 'Foto ' + (i + 1);
         img.loading = 'lazy';
 
-        // Auth: fetch with token, convert to blob URL
+        // Bild als Blob laden (Cache teilt sich Grid und Lightbox)
         photoBlobUrl(photo).then(blobUrl => {
           img.src = blobUrl;
           img.dataset.blobUrl = blobUrl;
@@ -892,23 +663,20 @@
     // Blob-URL je Foto nur einmal laden (Grid und Lightbox teilen sie sich)
     const blobUrlCache = new Map();
     function photoBlobUrl(photo) {
-      if (!blobUrlCache.has(photo.url)) blobUrlCache.set(photo.url, loadAuthImage(photo.url, token));
+      if (!blobUrlCache.has(photo.url)) blobUrlCache.set(photo.url, loadImageBlob(photo.url));
       return blobUrlCache.get(photo.url);
     }
 
-    // ─── Load image with auth header ───
-    async function loadAuthImage(url, tok) {
-      const res = await fetch(url, linkMode ? {} : { headers: { Authorization: 'Bearer ' + tok } });
+    // ─── Bild als Blob laden (für Grid und Lightbox gemeinsam gecacht) ───
+    async function loadImageBlob(url) {
+      const res = await fetch(url);
       const blob = await res.blob();
       return URL.createObjectURL(blob);
     }
 
     // ─── Download single photo ───
     async function downloadPhoto(photo) {
-      const res  = linkMode
-        ? await fetch('/api/g/' + galleryToken + '/download/' + encodeURIComponent(photo.filename))
-        : await fetch('/api/download/' + extractClientId(photo.url) + '/' + photo.filename,
-            { headers: { Authorization: 'Bearer ' + token } });
+      const res  = await fetch('/api/g/' + galleryToken + '/download/' + encodeURIComponent(photo.filename));
       const blob = await res.blob();
       const a    = document.createElement('a');
       a.href     = URL.createObjectURL(blob);
@@ -916,10 +684,12 @@
       a.click();
     }
 
-    // ─── Galerie teilen (Handy: Teilen-Menü, Desktop: Link kopieren) ───
+    // ─── Mit Freunden teilen: teilt den Freunde-Link, nie den persönlichen ───
+    // (Handy: Teilen-Menü mit WhatsApp & Co., Desktop: Link kopieren)
     document.getElementById('btnShare').addEventListener('click', async () => {
+      if (!shareUrl) return;
       const name = document.getElementById('clientNameDisplay').textContent;
-      const shareData = { title: 'Bilder von ' + name + ' — mz media', url: location.href };
+      const shareData = { title: 'Bilder von ' + name + ' — mz media', text: 'Schau mal, die Bilder von ' + name + ' sind fertig:', url: shareUrl };
       if (navigator.share) {
         try { await navigator.share(shareData); } catch { /* abgebrochen */ }
         return;
@@ -927,12 +697,12 @@
       const btn = document.getElementById('btnShare');
       const label = btn.lastChild;
       try {
-        await navigator.clipboard.writeText(location.href);
-        label.textContent = ' Link kopiert ✓';
+        await navigator.clipboard.writeText(shareUrl);
+        label.textContent = ' Freunde-Link kopiert ✓';
       } catch {
-        prompt('Link zum Teilen kopieren:', location.href);
+        prompt('Link für Freunde & Familie kopieren:', shareUrl);
       }
-      setTimeout(() => { label.textContent = ' Galerie teilen'; }, 2200);
+      setTimeout(() => { label.textContent = ' Mit Freunden teilen'; }, 2200);
     });
 
     // ─── Download all ───
@@ -1009,11 +779,6 @@
     });
 
     // ─── Helpers ───
-    function extractClientId(url) {
-      const parts = url.split('/');
-      return parts[parts.indexOf('photo') + 1];
-    }
-
     function formatDate(str) {
       if (!str) return '';
       const d = new Date(str);

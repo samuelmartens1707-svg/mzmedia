@@ -10,7 +10,7 @@ Fotografen-Website für **Miguel Zimmermann** (mz media), Espelkamp. Öffentlich
 public/                 – EINZIGER Ordner, den express.static() öffentlich ausliefert (server.js)
   index.html            – Öffentliche Hauptseite (Hero, Portfolio-Ausschnitt, Services, Mediabox-Teaser, Kontakt)
   galerie.html          – Öffentliche Portfolio-Galerie (alle Bilder, Kategorie-Filter per Datalist, Lightbox)
-  gallery.html          – Kunden-Galerie (Login erforderlich, JWT-Auth)
+  gallery.html          – Kunden-Galerie (Zugang nur per geheimem Link: persönlich oder Freunde-Link)
   mediabox.html         – Öffentliche Mediabox-Seite (Fotobox-Vermietung): Anlässe, Event-Galerie, Belegungskalender, Anfrageformular
   admin.html            – Admin-Panel (separates Passwort, noindex)
   impressum.html / datenschutz.html / agb.html – Rechtliche Pflichtseiten (noindex, follow)
@@ -30,7 +30,7 @@ data/
   clients.json  – NUR NOCH Backup/Legacy, wird zur Laufzeit nicht mehr gelesen
 uploads/
   <clientId>/   – Fotos je Kunde (bis 50 MB, JPEG/PNG/WebP/GIF) — NICHT öffentlich, nur über
-                  authentifizierte Routen (/api/photo, /api/download, /api/admin/photo) erreichbar
+                  den Galerie-Link (/api/g/:token/…) bzw. Admin-Routen (/api/admin/photo) erreichbar
 templates/
   credentials-email.html – E-Mail-Template für Zugangsdaten
 ```
@@ -43,7 +43,7 @@ immer nach `public/`, alles andere niemals dorthin.
 
 ## Tech-Stack
 - **Backend:** Node.js + Express 5, CommonJS
-- **Auth:** JWT (7d Client, 1d Admin) + bcryptjs
+- **Auth:** Admin per JWT (1d) + bcryptjs; Kunden ausschließlich per geheimem Galerie-Link (kein Login)
 - **Upload:** multer (50 MB Limit für Kundenfotos / 8 MB für Homepage-Bilder, nur Bilder)
 - **Datenbank:** MySQL/MariaDB via `mysql2/promise` (`db.js`) — Kunden-Daten (`clients`) und Homepage-Bilder (`home_images`) liegen beide in der DB, analog zur JoTech-Website. Nur die Kundenfotos selbst liegen weiterhin als Dateien unter `uploads/<clientId>/`.
 - **Mail:** nodemailer (SMTP via .env)
@@ -91,10 +91,6 @@ Admin-Login-Box (`admin.html`, `.login-box`, liegt auf `--dark`): `#323C2B`.
 ## Server / API
 ```
 POST /api/contact               – Kontaktformular (Rate-Limit 3/min, Honeypot)
-POST /api/login                 – Kunden-Login → JWT
-GET  /api/my-photos             – Fotos des eingeloggten Kunden (auth)
-GET  /api/photo/:id/:file       – Foto abrufen (auth, nur eigene)
-GET  /api/download/:id/:file    – Foto-Download (auth, nur eigene)
 POST /api/admin/login            – Admin-Login → JWT
 POST /api/admin/change-password  – Admin-Passwort ändern (auth, Body: currentPassword/newPassword)
 POST /api/admin/forgot-password  – Reset-Link an ADMIN_EMAIL schicken
@@ -106,13 +102,13 @@ PATCH /api/admin/clients/:id    – Kunde bearbeiten (Name, Email, Shooting-Datu
 DELETE /api/admin/clients/:id   – Kunde löschen (inkl. uploads/<id>/-Ordner; invoices/password_resets kaskadieren per FK)
 POST /api/admin/clients/:id/photos       – Fotos hochladen
 DELETE /api/admin/clients/:id/photos/:f  – Foto löschen
-POST /api/admin/clients/:id/send-email  – „Bilder sind fertig“-Mail mit persönlichem Galerie-Link (Body: { galleryUrl } = Basis-URL von gallery.html; kein Passwort)
-GET  /api/admin/clients/:id/gallery-link?base=… – Galerie-Link anzeigen (legt Token bei Bedarf an)
-POST /api/admin/clients/:id/gallery-link/regenerate – Link sperren = neuen Token erzeugen (alter sofort ungültig)
-GET  /api/g/:token                      – Galerie per Link (ohne Login): Name, Shooting-Infos, Fotoliste
+POST /api/admin/clients/:id/send-email  – „Bilder sind fertig“-Mail: persönlicher Link + Freunde-Link mit WhatsApp-/Mail-Teilen-Buttons (Body: { galleryUrl } = Basis-URL von gallery.html)
+GET  /api/admin/clients/:id/gallery-link?base=… – { url, shareUrl }: Kunden-Link + Freunde-Link (legt Tokens bei Bedarf an)
+POST /api/admin/clients/:id/gallery-link/regenerate – Body { galleryUrl, which: 'personal'|'share' }: diesen Link sperren = neuer Token (der andere bleibt gültig)
+GET  /api/g/:token                      – Galerie per Link: role 'owner' (Kunden-Link, inkl. shareToken für den Teilen-Button) oder 'guest' (Freunde-Link), Name, Fotoliste
 GET  /api/g/:token/photo/:file          – Foto per Link anzeigen
 GET  /api/g/:token/download/:file       – Foto per Link herunterladen
-POST /api/resend-gallery-link           – Galerie-Link erneut an die hinterlegte Mail schicken (Rate-Limit, antwortet immer ok)
+POST /api/resend-gallery-link           – persönlichen Galerie-Link erneut an die hinterlegte Mail schicken (Rate-Limit, antwortet immer ok)
 POST /api/admin/clients/:id/invoice     – Rechnungsadresse speichern + Rechnung über sevDesk erstellen und versenden
 GET  /api/admin/invoices                – Alle bisher versendeten Rechnungen (admin)
 
@@ -154,12 +150,15 @@ POST /api/mediabox-anfrage                       – Buchungsanfrage der Mediabo
   - Feste Bildbereiche (`SINGLETON_SLOTS`) haben sprechende Namen, eine Ortsbeschreibung, Formatempfehlung und eine Mini-Skizze der Startseite (`slotSketch()`); Dateien können direkt auf die Karte gezogen werden.
   - Auf Geräten ohne Hover (`@media (hover: none)`) sind Bearbeiten/Löschen als Leiste immer sichtbar.
 
-### Kunden-Zugang per Galerie-Link (kein Passwort)
-- Jeder Kunde hat einen geheimen Token `clients.gallery_token` (32 Byte hex, über `CLIENTS_OPTIONAL_COLUMNS` automatisch angelegt). Link: `gallery.html?g=<token>`. Wer den Link hat, kann ansehen + herunterladen — **bewusst teilbar mit Freunden**, läuft nicht ab.
-- `/api/g/:token/*` prüft den Token bei **jeder** Anfrage gegen die DB (kein JWT) → „Link sperren & neuen erzeugen“ im Admin wirkt sofort. Dateinamen laufen durch `safePhotoPath()` (kein `/`, `\`, `..`, nur Bild-Endungen).
-- Ablauf im Admin: Kunde anlegen (ohne Passwort, Server setzt intern ein zufälliges) → Kundenseite → Bilder hochladen → „Bilder-Mail senden“ (oder „Text kopieren“ für WhatsApp). Bestandskunden ohne Token bekommen ihn beim ersten Anzeigen/Versenden.
+### Kunden-Zugang per Galerie-Link (es gibt KEIN Kunden-Passwort mehr)
+- Jeder Kunde hat zwei geheime Tokens (32 Byte hex, über `CLIENTS_OPTIONAL_COLUMNS` automatisch angelegt):
+  - `clients.gallery_token` — **persönlicher Link** des Kunden (`gallery.html?g=…`): „Hallo, …“ + Button „Mit Freunden teilen“
+  - `clients.share_token` — **Freunde-&-Familie-Link**: „Die Bilder von …“, ansehen + herunterladen, kein Teilen-Button
+- `/api/g/:token/*` prüft den Token bei **jeder** Anfrage gegen die DB (kein JWT) → „Sperren“ im Admin wirkt sofort und betrifft nur den jeweiligen Link. Der Freunde-Link-Token wird nur bei `role: 'owner'` mitgeliefert — über den Freunde-Link kommt man nie an den persönlichen Link. Dateinamen laufen durch `safePhotoPath()`.
+- Mail (`templates/credentials-email.html`): Button zum persönlichen Link + Box „Für Freunde & Familie“ mit „Per WhatsApp teilen“ (`wa.me/?text=`) und „Per E-Mail teilen“ (`mailto:`), beide nur mit dem Freunde-Link (`shareMessage()` in `server.js`). Kopier-Buttons gehen in Mails technisch nicht — der Link steht zusätzlich als Text da.
+- Ablauf im Admin: Kunde anlegen (nur Name/E-Mail/Shooting) → Bilder hochladen → „Bilder-Mail senden“ (oder „Text kopieren“). `password_hash` ist eine Altlast (NOT NULL) und wird mit einem Zufallswert befüllt; Passwort-Login, `/api/login`, `/api/forgot-password`, `/api/reset-password`, `/api/my-photos`, `/api/photo`, `/api/download` wurden entfernt. Bestandskunden fordern auf `gallery.html` per E-Mail ihren Link an.
 - `/api/resend-gallery-link` baut die Link-URL **serverseitig** (`serverGalleryBaseUrl()`), nie aus dem Request — sonst ließe sich ein echter Token an eine fremde Domain mailen. Admin-Routen nehmen die Basis-URL vom (authentifizierten) Admin-Panel, geprüft per `isValidGalleryBaseUrl()`.
-- `gallery.html`: mit `?g=` Link-Modus (kein Login, Überschrift „Die Bilder von …“, Button „Galerie teilen“ = `navigator.share()` bzw. Link kopieren); ohne `?g=` Login-Screen mit „Link erneut zusenden“ und darunter dem alten Passwort-Login (Fallback für Bestandskunden mit Passwort-Mail). `<meta name="referrer" content="no-referrer">`, damit der Token nicht per Referer abfließt.
+- `gallery.html`: ohne gültiges `?g=` nur „Link zusenden“ (E-Mail-Feld). `<meta name="referrer" content="no-referrer">`, damit Tokens nicht per Referer abfließen. „Mit Freunden teilen“ = `navigator.share()` (Teilen-Menü) bzw. Freunde-Link kopieren.
 - Lightbox mit Vor/Zurück (Pfeile, Pfeiltasten, Wischen), Zähler „n / N“; Blob-URLs je Foto gecacht, Nachbarbilder vorgeladen.
 
 ### Kundendaten (DB-Speicherung, seit dieser Umstellung)

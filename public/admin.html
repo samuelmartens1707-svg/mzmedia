@@ -1175,32 +1175,36 @@
   </div>
 </div>
 
-<!-- ─── BILDER-MAIL (Galerie-Link an den Kunden senden) ─── -->
+<!-- ─── BILDER-MAIL (Galerie-Links an den Kunden senden) ─── -->
 <div class="modal-backdrop" id="accessModal" role="dialog" aria-modal="true" aria-labelledby="accessTitle">
-  <div class="modal">
+  <div class="modal" style="max-width:580px;">
     <h2 class="modal-title" id="accessTitle">Bilder-Mail <em>senden</em></h2>
     <p id="accessIntro" style="font-size:.88rem;color:var(--mid);margin-bottom:1.4rem;line-height:1.7;"></p>
     <div class="modal-err" id="accessErr" role="alert"></div>
     <div class="credential-box" style="margin-bottom:1.4rem;">
-      <div class="credential-box-label">Galerie-Link</div>
+      <div class="credential-box-label">Persönlicher Link des Kunden</div>
       <div class="credential-row">
-        <span class="credential-val" id="accessLink" style="font-size:.78rem;"></span>
+        <span class="credential-val" id="accessLink" style="font-size:.76rem;"></span>
+        <button type="button" class="btn-copy" onclick="regenerateGalleryLink('personal')" style="color:#b00020;" title="Falls der Link in falsche Hände geraten ist">Sperren</button>
       </div>
-      <p style="font-size:.74rem;color:var(--mid);margin-top:.6rem;line-height:1.5;">
-        Kein Passwort nötig. Der Kunde kann den Link an Freunde weiterleiten — jeder mit dem Link kann die Bilder ansehen und herunterladen.
+      <div class="credential-box-label" style="margin-top:.9rem;">Link für Freunde &amp; Familie</div>
+      <div class="credential-row">
+        <span class="credential-val" id="accessShareLink" style="font-size:.76rem;"></span>
+        <button type="button" class="btn-copy" onclick="regenerateGalleryLink('share')" style="color:#b00020;" title="Sperrt nur den Freunde-Link — der Kunde behält seinen Zugang">Sperren</button>
+      </div>
+      <p style="font-size:.74rem;color:var(--mid);margin-top:.7rem;line-height:1.5;">
+        Kein Passwort nötig. Die Mail enthält beide Links, den Freunde-Link mit Buttons zum Teilen per WhatsApp oder E-Mail.
+        „Sperren“ erzeugt einen neuen Link, der alte funktioniert sofort nicht mehr.
       </p>
     </div>
     <div class="modal-actions">
-      <button type="button" class="btn btn-outline" id="btnAccessCopy" onclick="copyGalleryLink(true)" title="Fertigen Text mit Link kopieren, z. B. für WhatsApp">Text kopieren</button>
+      <button type="button" class="btn btn-outline" onclick="closeAccessModal()">Abbrechen</button>
+      <button type="button" class="btn btn-outline" id="btnAccessCopy" onclick="copyGalleryLink('text')" title="Fertigen Text mit beiden Links kopieren, z. B. für WhatsApp">Text kopieren</button>
       <button type="button" class="btn btn-primary" id="btnAccessSend" onclick="sendGalleryMail()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
         Mail senden
       </button>
     </div>
-    <p style="display:flex;justify-content:space-between;gap:1rem;margin-top:1.2rem;font-size:.78rem;color:var(--mid);">
-      <button type="button" class="btn-copy" onclick="closeAccessModal()" style="font-size:.78rem;text-transform:none;letter-spacing:0;">Abbrechen</button>
-      <button type="button" class="btn-copy" id="btnAccessRegenerate" onclick="regenerateGalleryLink()" style="font-size:.78rem;text-transform:none;letter-spacing:0;color:#b00020;" title="Falls der Link in falsche Hände geraten ist">Link sperren &amp; neuen erzeugen</button>
-    </p>
   </div>
 </div>
 
@@ -1255,7 +1259,7 @@
   let adminToken        = localStorage.getItem(ADMIN_TOKEN_KEY) || null;
   let allClients        = [];
   let currentClient     = null;
-  const galleryLinks    = new Map(); // clientId → persönlicher Galerie-Link (gallery.html?g=…)
+  const galleryLinks    = new Map(); // clientId → { url, shareUrl } (Kunden-Link + Freunde-Link)
   let currentEditClientId = null;
 
   // ─── Init ───────────────────────────────────────────────
@@ -1531,17 +1535,20 @@
         <button class="btn btn-outline" onclick="openInvoiceModal('${c.id}')">Rechnung erstellen</button>
       </div>
       <div class="credential-box">
-        <div class="credential-box-label">Galerie-Link (ohne Passwort, teilbar)</div>
+        <div class="credential-box-label">Link für ${esc(c.name)}</div>
         <div class="credential-row">
           <span class="credential-val" id="detailGalleryLink" style="font-size:.74rem;color:var(--light);">wird geladen …</span>
-          <button class="btn-copy" onclick="copyGalleryLink()">Kopieren</button>
+          <button class="btn-copy" onclick="copyGalleryLink('url')">Kopieren</button>
+        </div>
+        <div class="credential-box-label" style="margin-top:.8rem;">Link für Freunde &amp; Familie</div>
+        <div class="credential-row">
+          <span class="credential-val" id="detailShareLink" style="font-size:.74rem;color:var(--light);">wird geladen …</span>
+          <button class="btn-copy" onclick="copyGalleryLink('shareUrl')">Kopieren</button>
         </div>
       </div>`;
-    fetchGalleryLink(c).then(url => {
+    fetchGalleryLink(c).then(links => {
       if (currentClient?.id !== c.id) return;
-      const el = document.getElementById('detailGalleryLink');
-      el.textContent = url || 'Link nicht verfügbar (Datenbank?)';
-      el.style.color = url ? '' : 'var(--light)';
+      showLinksIn('detailGalleryLink', 'detailShareLink', links);
     });
   }
 
@@ -3080,29 +3087,39 @@
     return window.location.origin + BASE + '/gallery.html';
   }
 
+  // → { url, shareUrl } oder null
   async function fetchGalleryLink(c) {
     if (galleryLinks.has(c.id)) return galleryLinks.get(c.id);
     try {
       const res = await adminFetch(`/api/admin/clients/${c.id}/gallery-link?base=${encodeURIComponent(galleryBaseUrl())}`);
       if (!res.ok) return null;
-      const { url } = await res.json();
-      galleryLinks.set(c.id, url);
-      return url;
+      const links = await res.json();
+      galleryLinks.set(c.id, links);
+      return links;
     } catch { return null; }
   }
 
-  function galleryShareText(c, url) {
-    return `Hallo ${c.name},\n\ndeine Bilder sind fertig! Hier kannst du sie ansehen und herunterladen:\n${url}\n\n` +
-      `Du kannst den Link auch an Freunde und Familie weiterleiten.\n\nViele Grüße,\nMiguel`;
+  function showLinksIn(personalElId, shareElId, links) {
+    [[personalElId, links?.url], [shareElId, links?.shareUrl]].forEach(([id, value]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = value || 'Link nicht verfügbar (Datenbank?)';
+      el.style.color = value ? '' : 'var(--light)';
+    });
   }
 
-  // withText = true: fertiger Nachrichtentext (z. B. für WhatsApp), sonst nur der Link
-  async function copyGalleryLink(withText = false) {
+  function galleryShareText(c, links) {
+    return `Hallo ${c.name},\n\ndeine Bilder sind fertig! Hier kannst du sie ansehen und herunterladen:\n${links.url}\n\n` +
+      `Für Freunde und Familie gibt es einen eigenen Link zum Teilen:\n${links.shareUrl}\n\nViele Grüße,\nMiguel`;
+  }
+
+  // what: 'url' (Kunden-Link), 'shareUrl' (Freunde-Link) oder 'text' (fertige Nachricht mit beiden)
+  async function copyGalleryLink(what) {
     const c = currentClient;
-    const url = c && await fetchGalleryLink(c);
-    if (!url) { showToast('Link nicht verfügbar.'); return; }
-    await navigator.clipboard.writeText(withText ? galleryShareText(c, url) : url);
-    showToast(withText ? 'Text mit Link kopiert' : 'Link kopiert');
+    const links = c && await fetchGalleryLink(c);
+    if (!links) { showToast('Link nicht verfügbar.'); return; }
+    await navigator.clipboard.writeText(what === 'text' ? galleryShareText(c, links) : links[what]);
+    showToast(what === 'text' ? 'Text mit beiden Links kopiert' : 'Link kopiert');
   }
 
   async function openAccessModal() {
@@ -3110,16 +3127,17 @@
     if (!c) return;
     const count = c.photoCount || 0;
     document.getElementById('accessIntro').innerHTML =
-      `${esc(c.name)} (${esc(c.email)}) bekommt eine Mail mit dem persönlichen Link zur Galerie.` +
+      `${esc(c.name)} (${esc(c.email)}) bekommt eine Mail mit dem persönlichen Link zur Galerie und einem Link zum Teilen mit Freunden &amp; Familie.` +
       (count
         ? ` In der Galerie ${count === 1 ? 'liegt' : 'liegen'} aktuell <strong>${count} Bild${count === 1 ? '' : 'er'}</strong>.`
         : ' <strong style="color:#b00020;">Achtung: Es sind noch keine Bilder hochgeladen.</strong>');
     document.getElementById('accessErr').classList.remove('show');
     document.getElementById('accessLink').textContent = 'wird geladen …';
+    document.getElementById('accessShareLink').textContent = 'wird geladen …';
     document.getElementById('accessModal').classList.add('show');
-    const url = await fetchGalleryLink(c);
-    document.getElementById('accessLink').textContent = url || 'Link nicht verfügbar';
-    if (!url) {
+    const links = await fetchGalleryLink(c);
+    showLinksIn('accessLink', 'accessShareLink', links);
+    if (!links) {
       document.getElementById('accessErr').textContent = 'Galerie-Link konnte nicht geladen werden (Datenbank nicht erreichbar?).';
       document.getElementById('accessErr').classList.add('show');
     }
@@ -3160,9 +3178,13 @@
     }
   }
 
-  async function regenerateGalleryLink() {
+  // which: 'personal' (Kunden-Link) oder 'share' (Freunde-Link) — der jeweils andere bleibt gültig
+  async function regenerateGalleryLink(which) {
     const c = currentClient;
-    if (!confirm('Link wirklich sperren? Der bisherige Link funktioniert danach nicht mehr — auch nicht für den Kunden. Schick ihm anschließend den neuen Link.')) return;
+    const question = which === 'personal'
+      ? 'Persönlichen Link des Kunden sperren? Der bisherige Link funktioniert danach nicht mehr — schick dem Kunden anschließend die Bilder-Mail neu. Der Freunde-Link bleibt gültig.'
+      : 'Freunde-Link sperren? Alle, denen der Link geschickt wurde, sehen die Bilder danach nicht mehr. Der Kunde behält seinen Zugang und bekommt in seiner Galerie automatisch den neuen Freunde-Link zum Teilen.';
+    if (!confirm(question)) return;
     const errEl = document.getElementById('accessErr');
     errEl.classList.remove('show');
     setAccessButtonsDisabled(true);
@@ -3170,15 +3192,14 @@
       const res  = await adminFetch(`/api/admin/clients/${c.id}/gallery-link/regenerate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ galleryUrl: galleryBaseUrl() })
+        body: JSON.stringify({ galleryUrl: galleryBaseUrl(), which })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Link konnte nicht erneuert werden.');
-      galleryLinks.set(c.id, data.url);
-      document.getElementById('accessLink').textContent = data.url;
-      const detailEl = document.getElementById('detailGalleryLink');
-      if (detailEl) detailEl.textContent = data.url;
-      showToast('Alter Link gesperrt — neuer Link erzeugt');
+      galleryLinks.set(c.id, data);
+      showLinksIn('accessLink', 'accessShareLink', data);
+      showLinksIn('detailGalleryLink', 'detailShareLink', data);
+      showToast(which === 'personal' ? 'Kunden-Link gesperrt — neuer Link erzeugt' : 'Freunde-Link gesperrt — neuer Link erzeugt');
     } catch (err) {
       errEl.textContent = err.message;
       errEl.classList.add('show');

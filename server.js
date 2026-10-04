@@ -15,7 +15,6 @@ const {
   pool,
   ensureHomeImagesTable,
   ensureClientsTable,
-  ensurePasswordResetsTable,
   ensureAdminSettingsTable,
   ensureAdminPasswordResetsTable,
   ensureInvoicesTable,
@@ -39,10 +38,6 @@ ensureHomeImagesTable()
 ensureClientsTable()
   .then(() => console.log('[DB] clients Tabelle bereit.'))
   .catch(err => console.warn('[DB] Verbindung fehlgeschlagen — Kunden-Login/Verwaltung vorübergehend deaktiviert:', err.message));
-
-ensurePasswordResetsTable()
-  .then(() => console.log('[DB] password_resets Tabelle bereit.'))
-  .catch(err => console.warn('[DB] Verbindung fehlgeschlagen — Passwort-vergessen vorübergehend deaktiviert:', err.message));
 
 ensureAdminSettingsTable()
   .then(() => console.log('[DB] admin_settings Tabelle bereit.'))
@@ -91,7 +86,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-function buildEmailHtml(client, galleryUrl) {
+function buildEmailHtml(client, galleryUrl, shareUrl) {
   const templatePath = path.join(__dirname, 'templates', 'credentials-email.html');
   let html = fs.readFileSync(templatePath, 'utf8');
 
@@ -107,6 +102,11 @@ function buildEmailHtml(client, galleryUrl) {
     .replace(/{{CLIENT_NAME}}/g,    client.name)
     .replace(/{{CLIENT_EMAIL}}/g,   client.email)
     .replace(/{{GALLERY_URL}}/g,    galleryUrl)
+    .replace(/{{SHARE_URL}}/g,      shareUrl)
+    .replace(/{{WHATSAPP_SHARE_URL}}/g, 'https://wa.me/?text=' + encodeURIComponent(shareMessage(client, shareUrl)))
+    .replace(/{{MAIL_SHARE_URL}}/g,
+      'mailto:?subject=' + encodeURIComponent(`Die Bilder von ${client.name}`) +
+      '&body=' + encodeURIComponent(shareMessage(client, shareUrl)))
     .replace(/{{FROM_EMAIL}}/g,     process.env.SMTP_USER || '')
     .replace(/{{#if SHOOTING_INFO}}[\s\S]*?{{\/if}}/g,
       shootingInfo ? `vom Shooting <strong style="color:#23271F;">${shootingInfo}</strong>` : '');
@@ -155,30 +155,48 @@ async function findClientById(id) {
   return row || null;
 }
 
-// ─── Galerie-Link (Zugang ohne Passwort) ─────────────────────
-// Jeder Kunde hat einen geheimen, zufälligen Token (clients.gallery_token). Wer den Link
-// gallery.html?g=<token> hat, sieht und lädt die Bilder — bewusst teilbar mit Freunden.
-// Der Token wird bei JEDER Anfrage gegen die DB geprüft, Sperren (= neuer Token) wirkt sofort.
+// ─── Galerie-Links (einziger Zugang, kein Passwort) ──────────
+// Jeder Kunde hat ZWEI geheime, zufällige Tokens:
+//   gallery_token — persönlicher Link des Kunden (Mail an ihn, "Hallo, …", Teilen-Button)
+//   share_token   — Link für Freunde & Familie (ansehen + herunterladen, kein Teilen-Button)
+// Beide werden bei JEDER Anfrage gegen die DB geprüft; Sperren (= neuer Token) wirkt sofort
+// und betrifft nur den jeweiligen Link.
 const GALLERY_TOKEN_RE = /^[a-f0-9]{64}$/;
+const TOKEN_COLUMNS = { personal: 'gallery_token', share: 'share_token' };
 
 function newGalleryToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
+// Liefert { client, role: 'owner' | 'guest' } oder null
 async function findClientByGalleryToken(token) {
   if (!GALLERY_TOKEN_RE.test(token || '')) return null;
-  const [[row]] = await pool.query(`SELECT ${CLIENT_FIELDS_SQL} FROM clients WHERE gallery_token = ?`, [token]);
-  return row || null;
+  const [[row]] = await pool.query(
+    `SELECT ${CLIENT_FIELDS_SQL}, gallery_token AS galleryToken, share_token AS shareToken
+       FROM clients WHERE gallery_token = ? OR share_token = ?`,
+    [token, token]
+  );
+  if (!row) return null;
+  return { client: row, role: row.galleryToken === token ? 'owner' : 'guest' };
 }
 
-// Liefert den Token des Kunden und legt ihn beim ersten Mal an (Bestandskunden haben noch keinen)
-async function ensureGalleryToken(clientId) {
-  const [[row]] = await pool.query('SELECT gallery_token AS token FROM clients WHERE id = ?', [clientId]);
+// Liefert { personal, share } und legt fehlende Tokens beim ersten Mal an
+async function ensureGalleryTokens(clientId) {
+  const [[row]] = await pool.query(
+    'SELECT gallery_token AS personal, share_token AS share FROM clients WHERE id = ?', [clientId]
+  );
   if (!row) return null;
-  if (row.token) return row.token;
-  const token = newGalleryToken();
-  await pool.query('UPDATE clients SET gallery_token = ? WHERE id = ?', [token, clientId]);
-  return token;
+  for (const kind of Object.keys(TOKEN_COLUMNS)) {
+    if (row[kind]) continue;
+    row[kind] = newGalleryToken();
+    await pool.query(`UPDATE clients SET ${TOKEN_COLUMNS[kind]} = ? WHERE id = ?`, [row[kind], clientId]);
+  }
+  return { personal: row.personal, share: row.share };
+}
+
+// Fertiger Text für WhatsApp / Mail, wenn der Kunde den Freunde-Link weitergibt
+function shareMessage(client, shareLink) {
+  return `Schau mal, die Bilder von ${client.name} sind fertig: ${shareLink}`;
 }
 
 // galleryBaseUrl kommt vom Admin-Panel (z. B. https://miguelzimmermann.de/website/gallery.html)
@@ -209,19 +227,6 @@ function listClientPhotos(clientId) {
   const dir = path.join(UPLOADS_DIR, clientId);
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir).filter(f => PHOTO_FILE_RE.test(f));
-}
-
-function authMiddleware(req, res, next) {
-  const header = req.headers.authorization;
-  if (!header || !header.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Nicht angemeldet.' });
-  }
-  try {
-    req.client = jwt.verify(header.slice(7), SECRET);
-    next();
-  } catch {
-    res.status(401).json({ error: 'Sitzung abgelaufen. Bitte neu anmelden.' });
-  }
 }
 
 // ─── Middleware ─────────────────────────────────────────────
@@ -300,159 +305,34 @@ app.post('/api/contact', async (req, res) => {
   }
 });
 
-// POST /api/login
-app.post('/api/login', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: 'Email und Passwort erforderlich.' });
-
-  let client;
-  try {
-    await ensureClientsTable();
-    client = await findClientByEmail(email);
-  } catch (err) {
-    return res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
-  }
-  if (!client) return res.status(401).json({ error: 'E-Mail oder Passwort falsch.' });
-
-  const ok = await bcrypt.compare(password, client.passwordHash);
-  if (!ok) return res.status(401).json({ error: 'E-Mail oder Passwort falsch.' });
-
-  const token = jwt.sign({ id: client.id, email: client.email, name: client.name }, SECRET, { expiresIn: '7d' });
-  res.json({ token, name: client.name, shootingDate: client.shootingDate, shootingType: client.shootingType });
-});
-
-// POST /api/forgot-password — Body: { email }
-// Antwortet immer mit { ok: true }, egal ob die E-Mail existiert (kein Leak, welche
-// Adressen registriert sind). Existiert sie, wird ein Reset-Link per Mail verschickt.
-app.post('/api/forgot-password', async (req, res) => {
-  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
-  if (isRateLimited(ip)) {
-    return res.status(429).json({ error: 'Zu viele Anfragen. Bitte warte einen Moment.' });
-  }
-
-  const { email } = req.body;
-  if (!email?.trim()) return res.status(400).json({ error: 'Bitte eine E-Mail-Adresse eingeben.' });
-
-  try {
-    await ensurePasswordResetsTable();
-    const client = await findClientByEmail(email);
-
-    if (client && process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-      const token     = crypto.randomBytes(32).toString('hex');
-      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-
-      await pool.query(
-        'INSERT INTO password_resets (client_id, token_hash, expires_at) VALUES (?, ?, NOW() + INTERVAL 1 HOUR)',
-        [client.id, tokenHash]
-      );
-
-      const resetUrl = `${req.protocol}://${req.get('host')}${BASE_PATH}/gallery.html?reset=${token}`;
-      await transporter.sendMail({
-        from:    process.env.MAIL_FROM || process.env.SMTP_USER,
-        to:      client.email,
-        subject: 'Passwort zurücksetzen — mz media',
-        html: `
-          <p style="font-family:sans-serif;">Hallo ${escapeHtml(client.name)},</p>
-          <p style="font-family:sans-serif;">du kannst dein Passwort über den folgenden Link zurücksetzen (gültig für 1 Stunde):</p>
-          <p style="font-family:sans-serif;"><a href="${resetUrl}">${resetUrl}</a></p>
-          <p style="font-family:sans-serif;">Wenn du das nicht angefordert hast, kannst du diese Mail ignorieren.</p>
-        `,
-        text: `Hallo ${client.name},\n\nPasswort zurücksetzen (gültig 1 Stunde): ${resetUrl}\n\nWenn du das nicht angefordert hast, ignoriere diese Mail.`,
-      });
-    }
-  } catch (err) {
-    console.error('[FORGOT-PASSWORD] Fehler:', err.message);
-    // Bewusst trotzdem { ok: true } — kein Hinweis nach außen, ob ein Fehler DB- oder Mail-seitig war.
-  }
-
-  res.json({ ok: true });
-});
-
-// POST /api/reset-password — Body: { token, password }
-app.post('/api/reset-password', async (req, res) => {
-  const { token, password } = req.body;
-  if (!token || !password) return res.status(400).json({ error: 'Token und neues Passwort erforderlich.' });
-  if (password.length < 8) return res.status(400).json({ error: 'Passwort muss mindestens 8 Zeichen haben.' });
-
-  try {
-    await ensurePasswordResetsTable();
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const [[reset]] = await pool.query(
-      'SELECT id, client_id FROM password_resets WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW()',
-      [tokenHash]
-    );
-    if (!reset) return res.status(400).json({ error: 'Link ist ungültig oder abgelaufen. Bitte fordere einen neuen an.' });
-
-    const passwordHash = await bcrypt.hash(password, 10);
-    await pool.query('UPDATE clients SET password_hash = ? WHERE id = ?', [passwordHash, reset.client_id]);
-    await pool.query('UPDATE password_resets SET used_at = NOW() WHERE id = ?', [reset.id]);
-
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
-  }
-});
-
-// GET /api/my-photos  — returns list of photo filenames for logged-in client
-app.get('/api/my-photos', authMiddleware, async (req, res) => {
-  let client;
-  try {
-    await ensureClientsTable();
-    client = await findClientById(req.client.id);
-  } catch (err) {
-    return res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
-  }
-  if (!client) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
-
-  const dir = path.join(UPLOADS_DIR, client.id);
-  let files = [];
-  if (fs.existsSync(dir)) {
-    files = fs.readdirSync(dir)
-      .filter(f => /\.(jpe?g|png|webp|gif)$/i.test(f))
-      .map(f => ({ filename: f, url: `/api/photo/${client.id}/${f}` }));
-  }
-  res.json({ photos: files, name: client.name, shootingDate: client.shootingDate, shootingType: client.shootingType });
-});
-
-// GET /api/photo/:clientId/:filename  — serve photo (auth required)
-app.get('/api/photo/:clientId/:filename', authMiddleware, (req, res) => {
-  if (req.client.id !== req.params.clientId) return res.status(403).json({ error: 'Kein Zugriff.' });
-
-  const filePath = path.join(UPLOADS_DIR, req.params.clientId, req.params.filename);
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Bild nicht gefunden.' });
-  res.sendFile(filePath);
-});
-
-// GET /api/download/:clientId/:filename  — force download
-app.get('/api/download/:clientId/:filename', authMiddleware, (req, res) => {
-  if (req.client.id !== req.params.clientId) return res.status(403).json({ error: 'Kein Zugriff.' });
-
-  const filePath = path.join(UPLOADS_DIR, req.params.clientId, req.params.filename);
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Bild nicht gefunden.' });
-  res.download(filePath, req.params.filename);
-});
-
 // ─── Galerie per Link (ohne Login) ─────────────────────────
 const INVALID_LINK_MSG = 'Dieser Link ist ungültig oder wurde deaktiviert.';
 
 async function galleryClientFromParams(req, res) {
   try {
     await ensureClientsTable();
-    const client = await findClientByGalleryToken(req.params.token);
-    if (!client) res.status(404).json({ error: INVALID_LINK_MSG });
-    return client;
+    const found = await findClientByGalleryToken(req.params.token);
+    if (!found) res.status(404).json({ error: INVALID_LINK_MSG });
+    return found;
   } catch (err) {
     res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
     return null;
   }
 }
 
-// GET /api/g/:token — Name/Shooting-Infos + Fotoliste der Galerie
+// GET /api/g/:token — Name/Shooting-Infos + Fotoliste der Galerie.
+// role 'owner' (persönlicher Link) bekommt zusätzlich den Freunde-Token für den Teilen-Button.
 app.get('/api/g/:token', async (req, res) => {
-  const client = await galleryClientFromParams(req, res);
-  if (!client) return;
+  const found = await galleryClientFromParams(req, res);
+  if (!found) return;
+  const { client, role } = found;
   const t = req.params.token;
+  let shareToken = null;
+  if (role === 'owner') {
+    try { shareToken = (await ensureGalleryTokens(client.id)).share; } catch { /* Teilen dann nicht verfügbar */ }
+  }
   res.json({
+    role, shareToken,
     name: client.name, shootingDate: client.shootingDate, shootingType: client.shootingType,
     photos: listClientPhotos(client.id).map(f => ({ filename: f, url: `/api/g/${t}/photo/${encodeURIComponent(f)}` })),
   });
@@ -460,25 +340,25 @@ app.get('/api/g/:token', async (req, res) => {
 
 // GET /api/g/:token/photo/:filename — Foto anzeigen
 app.get('/api/g/:token/photo/:filename', async (req, res) => {
-  const client = await galleryClientFromParams(req, res);
-  if (!client) return;
-  const filePath = safePhotoPath(client.id, req.params.filename);
+  const found = await galleryClientFromParams(req, res);
+  if (!found) return;
+  const filePath = safePhotoPath(found.client.id, req.params.filename);
   if (!filePath || !fs.existsSync(filePath)) return res.status(404).json({ error: 'Bild nicht gefunden.' });
   res.sendFile(filePath);
 });
 
 // GET /api/g/:token/download/:filename — Foto herunterladen
 app.get('/api/g/:token/download/:filename', async (req, res) => {
-  const client = await galleryClientFromParams(req, res);
-  if (!client) return;
-  const filePath = safePhotoPath(client.id, req.params.filename);
+  const found = await galleryClientFromParams(req, res);
+  if (!found) return;
+  const filePath = safePhotoPath(found.client.id, req.params.filename);
   if (!filePath || !fs.existsSync(filePath)) return res.status(404).json({ error: 'Bild nicht gefunden.' });
   res.download(filePath, req.params.filename);
 });
 
 // POST /api/resend-gallery-link — Body: { email }
 // Für Kunden, die ihren Link nicht mehr finden. Antwortet immer { ok: true } (kein Leak,
-// welche Adressen registriert sind) — wie /api/forgot-password.
+// welche Adressen registriert sind).
 app.post('/api/resend-gallery-link', async (req, res) => {
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
   if (isRateLimited(ip)) {
@@ -492,7 +372,7 @@ app.post('/api/resend-gallery-link', async (req, res) => {
     await ensureClientsTable();
     const client = await findClientByEmail(email.trim());
     if (client && process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-      const link = galleryLinkUrl(serverGalleryBaseUrl(req), await ensureGalleryToken(client.id));
+      const link = galleryLinkUrl(serverGalleryBaseUrl(req), (await ensureGalleryTokens(client.id)).personal);
       await transporter.sendMail({
         from:    process.env.MAIL_FROM || process.env.SMTP_USER,
         to:      client.email,
@@ -691,7 +571,7 @@ app.get('/api/admin/clients/:id', adminMiddleware, async (req, res) => {
 
 // POST /api/admin/clients  — create new client
 app.post('/api/admin/clients', adminMiddleware, async (req, res) => {
-  const { name, email, password, shootingDate, shootingType } = req.body;
+  const { name, email, shootingDate, shootingType } = req.body;
   if (!name || !email) return res.status(400).json({ error: 'Name und Email erforderlich.' });
 
   try {
@@ -701,17 +581,17 @@ app.post('/api/admin/clients', adminMiddleware, async (req, res) => {
     }
 
     const id = 'c' + Date.now();
-    // Zugang läuft über den Galerie-Link; ohne Passwort wird ein zufälliges, nie
-    // mitgeteiltes gesetzt (password_hash ist NOT NULL, Passwort-Login bleibt für Bestandskunden).
-    const passwordHash = await bcrypt.hash(password || crypto.randomBytes(24).toString('hex'), 10);
+    // Zugang läuft ausschließlich über die Galerie-Links. password_hash ist (Altlast) NOT NULL —
+    // wird mit einem zufälligen, nie verwendeten Wert befüllt.
+    const passwordHash = await bcrypt.hash(crypto.randomBytes(24).toString('hex'), 10);
     await pool.query(
       'INSERT INTO clients (id, name, email, password_hash, shooting_date, shooting_type) VALUES (?, ?, ?, ?, ?, ?)',
       [id, name, email, passwordHash, shootingDate || '', shootingType || '']
     );
     try {
-      await ensureGalleryToken(id);
+      await ensureGalleryTokens(id);
     } catch (err) {
-      console.warn('[CLIENTS] Galerie-Link konnte nicht angelegt werden:', err.message);
+      console.warn('[CLIENTS] Galerie-Links konnten nicht angelegt werden:', err.message);
     }
     res.status(201).json({ id, name, email });
   } catch (err) {
@@ -805,45 +685,53 @@ app.get('/api/my-photos-admin/:clientId', adminMiddleware, (req, res) => {
   res.json({ photos: photos.map(f => ({ filename: f })) });
 });
 
-// GET /api/admin/clients/:clientId/gallery-link?base=<gallery.html-URL> — Link anzeigen (legt Token bei Bedarf an)
+// GET /api/admin/clients/:clientId/gallery-link?base=<gallery.html-URL>
+// → { url, shareUrl } (persönlicher Link + Freunde-Link; legt Tokens bei Bedarf an)
 app.get('/api/admin/clients/:clientId/gallery-link', adminMiddleware, async (req, res) => {
   if (!isValidGalleryBaseUrl(req.query.base)) return res.status(400).json({ error: 'Ungültige Galerie-URL.' });
   try {
     await ensureClientsTable();
-    const token = await ensureGalleryToken(req.params.clientId);
-    if (!token) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
-    res.json({ url: galleryLinkUrl(req.query.base, token) });
+    const tokens = await ensureGalleryTokens(req.params.clientId);
+    if (!tokens) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+    res.json({ url: galleryLinkUrl(req.query.base, tokens.personal), shareUrl: galleryLinkUrl(req.query.base, tokens.share) });
   } catch (err) {
     res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
   }
 });
 
-// POST /api/admin/clients/:clientId/gallery-link/regenerate — Body: { galleryUrl }
-// Sperrt den bisherigen Link sofort (neuer Token)
+// POST /api/admin/clients/:clientId/gallery-link/regenerate — Body: { galleryUrl, which: 'personal' | 'share' }
+// Sperrt den gewählten Link sofort (neuer Token); der andere Link bleibt gültig.
 app.post('/api/admin/clients/:clientId/gallery-link/regenerate', adminMiddleware, async (req, res) => {
-  if (!isValidGalleryBaseUrl(req.body.galleryUrl)) return res.status(400).json({ error: 'Ungültige Galerie-URL.' });
+  const { galleryUrl, which } = req.body;
+  if (!isValidGalleryBaseUrl(galleryUrl)) return res.status(400).json({ error: 'Ungültige Galerie-URL.' });
+  if (!TOKEN_COLUMNS[which]) return res.status(400).json({ error: 'Unbekannter Link-Typ.' });
   try {
     await ensureClientsTable();
-    const token = newGalleryToken();
-    const [result] = await pool.query('UPDATE clients SET gallery_token = ? WHERE id = ?', [token, req.params.clientId]);
-    if (result.affectedRows === 0) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
-    res.json({ url: galleryLinkUrl(req.body.galleryUrl, token) });
+    const tokens = await ensureGalleryTokens(req.params.clientId);
+    if (!tokens) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+    tokens[which] = newGalleryToken();
+    await pool.query(`UPDATE clients SET ${TOKEN_COLUMNS[which]} = ? WHERE id = ?`, [tokens[which], req.params.clientId]);
+    res.json({ url: galleryLinkUrl(galleryUrl, tokens.personal), shareUrl: galleryLinkUrl(galleryUrl, tokens.share) });
   } catch (err) {
     res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
   }
 });
 
 // POST /api/admin/clients/:clientId/send-email — Body: { galleryUrl }
-// "Bilder sind fertig"-Mail mit dem persönlichen Galerie-Link (kein Passwort).
+// "Bilder sind fertig"-Mail: persönlicher Link + Freunde-Link mit Teilen-Buttons (WhatsApp/Mail).
 app.post('/api/admin/clients/:clientId/send-email', adminMiddleware, async (req, res) => {
   const { galleryUrl } = req.body;
   if (!isValidGalleryBaseUrl(galleryUrl)) return res.status(400).json({ error: 'Ungültige Galerie-URL.' });
 
-  let client, link;
+  let client, link, shareLink;
   try {
     await ensureClientsTable();
     client = await findClientById(req.params.clientId);
-    if (client) link = galleryLinkUrl(galleryUrl, await ensureGalleryToken(client.id));
+    if (client) {
+      const tokens = await ensureGalleryTokens(client.id);
+      link      = galleryLinkUrl(galleryUrl, tokens.personal);
+      shareLink = galleryLinkUrl(galleryUrl, tokens.share);
+    }
   } catch (err) {
     return res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
   }
@@ -854,7 +742,7 @@ app.post('/api/admin/clients/:clientId/send-email', adminMiddleware, async (req,
   }
 
   try {
-    const html = buildEmailHtml(client, link);
+    const html = buildEmailHtml(client, link, shareLink);
     await transporter.sendMail({
       from:    process.env.MAIL_FROM || process.env.SMTP_USER,
       to:      client.email,
@@ -862,9 +750,8 @@ app.post('/api/admin/clients/:clientId/send-email', adminMiddleware, async (req,
       html,
       text:
         `Hallo ${client.name},\n\n` +
-        `deine Fotos sind fertig! Hier kannst du sie ansehen und herunterladen:\n${link}\n\n` +
-        `Du möchtest die Bilder mit Freunden oder Familie teilen? Leite ihnen einfach diesen Link weiter.\n` +
-        `Jeder mit dem Link sieht die Galerie — wenn er in falsche Hände geraten ist, melde dich, dann sperre ich ihn.\n\n` +
+        `deine Fotos sind fertig! Hier kannst du sie ansehen und herunterladen (dein persönlicher Link):\n${link}\n\n` +
+        `Für Freunde & Familie gibt es einen eigenen Link zum Teilen:\n${shareLink}\n\n` +
         `Viele Grüße,\nMiguel`
     });
     res.json({ ok: true, to: client.email });
