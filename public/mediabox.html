@@ -65,7 +65,7 @@
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
+    html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
     body {
       background: var(--cream);
       color: var(--dark);
@@ -148,6 +148,17 @@
       transition: color .3s;
     }
     .nav-links a:hover { color: var(--terra); }
+
+    /* Kopfleiste: blendet sich beim Runterscrollen aus, beim Hochscrollen wieder ein */
+    .nav { transition: transform .35s ease, background-color .35s ease, border-color .35s ease; border-bottom: 1px solid transparent; }
+    .nav.nav--hidden { transform: translateY(-100%); }
+    .nav.nav--scrolled {
+      background: rgba(246, 241, 228, .92); /* --cream */
+      -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+      border-bottom-color: var(--sand);
+      mix-blend-mode: normal;
+    }
+    .nav-toggle { display: none; }
 
     /* ─── Buttons / labels ─── */
     .btn-primary {
@@ -455,7 +466,47 @@
     /* ─── Responsive ─── */
     @media (max-width: 960px) {
       .nav { padding: 1.4rem 1.6rem; }
-      .nav-links { display: none; }
+      /* Handy: Hamburger + Vollbild-Menü */
+      .nav-logo, .nav-toggle { position: relative; z-index: 2; }
+      .nav-toggle {
+        display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 7px;
+        width: 44px; height: 44px; margin-right: -10px;
+        background: none; border: 0; padding: 0; cursor: pointer;
+      }
+      .nav-toggle span {
+        display: block; width: 24px; height: 1.5px; background: var(--dark);
+        transition: transform .35s ease;
+      }
+      .nav.nav--open { mix-blend-mode: normal; transform: none; background: transparent; border-bottom-color: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
+      .nav--open .nav-toggle span:first-child { transform: translateY(4.25px) rotate(45deg); }
+      .nav--open .nav-toggle span:last-child { transform: translateY(-4.25px) rotate(-45deg); }
+      .nav-links {
+        position: fixed; inset: 0; z-index: 1;
+        display: flex; flex-direction: column; justify-content: center; gap: .3rem;
+        padding: 5rem 2rem 3rem;
+        background: var(--cream);
+        opacity: 0; visibility: hidden; pointer-events: none;
+        transition: opacity .35s ease, visibility 0s linear .35s;
+        overflow-y: auto;
+      }
+      .nav--open .nav-links { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity .35s ease; }
+      .nav-links li { opacity: 0; transform: translateY(10px); transition: opacity .4s ease, transform .4s ease; }
+      .nav--open .nav-links li { opacity: 1; transform: none; }
+      .nav--open .nav-links li:nth-child(2) { transition-delay: .04s; }
+      .nav--open .nav-links li:nth-child(3) { transition-delay: .08s; }
+      .nav--open .nav-links li:nth-child(4) { transition-delay: .12s; }
+      .nav--open .nav-links li:nth-child(5) { transition-delay: .16s; }
+      .nav--open .nav-links li:nth-child(6) { transition-delay: .2s; }
+      .nav--open .nav-links li:nth-child(7) { transition-delay: .24s; }
+      .nav-links a {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 2.2rem; font-weight: 400;
+        text-transform: none; letter-spacing: .02em;
+        color: var(--dark); min-height: 52px;
+      }
+      .nav-links li:last-child { margin-top: 1.2rem; }
+      .nav-links li:last-child a { font-family: 'DM Sans', sans-serif; font-size: .85rem; letter-spacing: .16em; text-transform: uppercase; min-height: 44px; }
+      html.nav-locked, html.nav-locked body { overflow: hidden; }
 
       .mb-hero { grid-template-columns: 1fr; min-height: auto; }
       .mb-hero-left { padding: 7rem 1.6rem 3rem; }
@@ -481,13 +532,14 @@
   <header>
     <nav class="nav" role="navigation" aria-label="Hauptnavigation">
       <a href="/" class="nav-logo" aria-label="mz media — zur Startseite">mz media</a>
-      <ul class="nav-links" role="list">
+      <ul class="nav-links" id="navLinks" role="list">
         <li><a href="/#about">Über mich</a></li>
         <li><a href="galerie.html">Galerie</a></li>
         <li><a href="mediabox.html" aria-current="page" style="color:var(--terra);border-bottom:1px solid var(--terra);padding-bottom:1px;">Mediabox</a></li>
         <li><a href="/#kontakt">Kontakt</a></li>
         <li><a href="gallery.html" style="color:var(--terra);border-bottom:1px solid var(--terra);padding-bottom:1px;">Meine Bilder</a></li>
       </ul>
+      <button class="nav-toggle" type="button" aria-label="Menü öffnen" aria-expanded="false" aria-controls="navLinks"><span></span><span></span></button>
     </nav>
   </header>
 
@@ -656,6 +708,42 @@
   </div>
 
   <script>
+    // ─── Navigation: Ein-/Ausblenden beim Scrollen + Handy-Menü ───
+    (() => {
+      const nav = document.querySelector('.nav');
+      const toggle = nav.querySelector('.nav-toggle');
+      const links = nav.querySelector('.nav-links');
+      let lastY = window.scrollY, ticking = false;
+
+      const update = () => {
+        const y = window.scrollY;
+        nav.classList.toggle('nav--scrolled', y > 10);
+        if (!nav.classList.contains('nav--open')) {
+          if (y > lastY + 6 && y > nav.offsetHeight) nav.classList.add('nav--hidden');
+          else if (y < lastY - 6 || y <= nav.offsetHeight) nav.classList.remove('nav--hidden');
+        }
+        if (Math.abs(y - lastY) > 6) lastY = y;
+        ticking = false;
+      };
+      window.addEventListener('scroll', () => {
+        if (!ticking) { ticking = true; requestAnimationFrame(update); }
+      }, { passive: true });
+      update();
+
+      const setOpen = open => {
+        nav.classList.toggle('nav--open', open);
+        document.documentElement.classList.toggle('nav-locked', open);
+        toggle.setAttribute('aria-expanded', String(open));
+        toggle.setAttribute('aria-label', open ? 'Menü schließen' : 'Menü öffnen');
+        if (open) nav.classList.remove('nav--hidden');
+      };
+      toggle.addEventListener('click', () => setOpen(!nav.classList.contains('nav--open')));
+      links.addEventListener('click', e => { if (e.target.closest('a')) setOpen(false); });
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && nav.classList.contains('nav--open')) { setOpen(false); toggle.focus(); }
+      });
+      matchMedia('(min-width: 961px)').addEventListener('change', e => { if (e.matches) setOpen(false); });
+    })();
     // ─── Custom cursor (desktop only) ───
     const cursor    = document.getElementById('cursor');
     const cursorRing = document.getElementById('cursorRing');

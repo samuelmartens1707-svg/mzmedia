@@ -82,6 +82,7 @@ Admin-Login-Box (`admin.html`, `.login-box`, liegt auf `--dark`): `#323C2B`.
 - **Animationen:** fadeUp + fadeIn beim Page-Load (hero elements)
 - **Buttons:** `.btn-primary` (terra bg) / `.btn-ghost` (border-bottom only)
 - **Section-Labels:** kleiner terra-farbener Strich vor dem Label-Text
+- **Navigation (index/galerie/mediabox, identischer Block in allen drei):** fixe Leiste, ganz oben transparent (multiply), beim Runterscrollen ausgeblendet (`.nav--hidden`), beim Hochscrollen mit Cream-Hintergrund zurück (`.nav--scrolled`). ≤ 960px: Hamburger (`.nav-toggle`) öffnet `.nav-links` als Vollbild-Overlay (`.nav--open`, Scroll-Sperre über `html.nav-locked`).
 
 ### Admin-Panel (admin.html)
 - Dunkles Login-Screen (Hintergrund `--dark`, Box `#3A2A1A`)
