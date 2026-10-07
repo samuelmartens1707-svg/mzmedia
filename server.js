@@ -23,6 +23,7 @@ const {
 const sevdesk = require('./sevdesk');
 const ai = require('./ai');
 const { setupMonitoring } = require('./monitoring');
+const { setupSeo, publicImage } = require('./seo');
 
 const app      = express();
 const PORT     = process.env.PORT || 3000;
@@ -64,6 +65,15 @@ app.use(compression());
 app.use((req, res, next) => {
   console.log(`[REQ] ${req.method} ${req.url}`);
   next();
+});
+
+// Öffentliche Seiten gibt es nur einmal (ohne /website-Präfix) — sonst doppelte Inhalte für Google.
+// Admin, Kunden-Galerie und API bleiben unter BASE_PATH erreichbar.
+app.use((req, res, next) => {
+  const m = req.method === 'GET' && BASE_PATH && req.url.match(new RegExp(`^${BASE_PATH}/(index\\.html|galerie\\.html|mediabox\\.html)?(\\?.*)?$`));
+  if (!m) return next();
+  const page = !m[1] || m[1] === 'index.html' ? '' : m[1];
+  res.redirect(301, '/' + page + (m[2] || ''));
 });
 
 // Strip BASE_PATH prefix so all routes work identically locally and on server
@@ -238,6 +248,10 @@ app.use(express.json());
 const monitoring = setupMonitoring({
   app, pool, transporter, uploadsDir: UPLOADS_DIR, ensureHomeImagesTable, ensureClientsTable,
 });
+
+// Bildvarianten, Seiten mit eingesetzten Bildern, Sitemap, og-image — vor express.static,
+// damit /, /galerie.html, /mediabox.html mit Bildern im HTML ausgeliefert werden
+setupSeo({ app, pool, ensureHomeImagesTable });
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── Multer (per-client upload folder) ─────────────────────
@@ -880,25 +894,22 @@ const uploadMemory = multer({
   }
 });
 
-function homeImageUrl(id) { return `/api/home-image/${id}`; }
+function homeImageUrl(id, version) { return `/api/home-image/${id}` + (version ? `?v=${version}` : ''); }
 
 // GET /api/home-images — öffentlich, Metadaten aller Homepage-Bilder
 app.get('/api/home-images', async (req, res) => {
   try {
     await ensureHomeImagesTable();
     const [rows] = await pool.query(
-      'SELECT id, slot, category, alt_text, sort_order FROM home_images ORDER BY sort_order ASC, id ASC'
+      'SELECT id, slot, category, alt_text, sort_order, data_version FROM home_images ORDER BY sort_order ASC, id ASC'
     );
-    const bySlot = s => rows.find(r => r.slot === s);
-    const hero         = bySlot('hero');
-    const aboutMain    = bySlot('about-main');
-    const aboutAccent  = bySlot('about-accent');
+    // publicImage() (seo.js): url (Original) + src/srcset (WebP-Varianten) + alt
+    const bySlot = s => { const r = rows.find(x => x.slot === s); return r ? publicImage(r) : null; };
     res.json({
-      hero:        hero        ? { id: hero.id,        url: homeImageUrl(hero.id) }        : null,
-      aboutMain:   aboutMain   ? { id: aboutMain.id,    url: homeImageUrl(aboutMain.id) }   : null,
-      aboutAccent: aboutAccent ? { id: aboutAccent.id,  url: homeImageUrl(aboutAccent.id) } : null,
-      gallery: rows.filter(r => r.slot === 'gallery')
-                   .map(r => ({ id: r.id, category: r.category, altText: r.alt_text, url: homeImageUrl(r.id) })),
+      hero:        bySlot('hero'),
+      aboutMain:   bySlot('about-main'),
+      aboutAccent: bySlot('about-accent'),
+      gallery: rows.filter(r => r.slot === 'gallery').map(publicImage),
     });
   } catch (err) {
     console.error('[home-images] Laden fehlgeschlagen:', err.message);
@@ -913,7 +924,8 @@ app.get('/api/home-image/:id', async (req, res) => {
     const [[row]] = await pool.query('SELECT data, mime_type FROM home_images WHERE id = ?', [req.params.id]);
     if (!row) return res.status(404).end();
     res.set('Content-Type', row.mime_type);
-    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    // Nur mit Versions-Parameter dauerhaft cachebar — der Zuschnitt-Editor ersetzt Bilder unter derselben ID
+    res.set('Cache-Control', req.query.v ? 'public, max-age=31536000, immutable' : 'public, max-age=300');
     res.end(row.data);
   } catch (err) {
     res.status(503).end();
@@ -925,9 +937,9 @@ app.get('/api/admin/home-images', adminMiddleware, async (req, res) => {
   try {
     await ensureHomeImagesTable();
     const [rows] = await pool.query(
-      'SELECT id, slot, category, alt_text AS altText, filename, mime_type, sort_order, created_at FROM home_images ORDER BY sort_order ASC, id ASC'
+      'SELECT id, slot, category, alt_text AS altText, filename, mime_type, sort_order, created_at, data_version FROM home_images ORDER BY sort_order ASC, id ASC'
     );
-    res.json({ images: rows.map(r => ({ ...r, url: homeImageUrl(r.id) })) });
+    res.json({ images: rows.map(r => ({ ...r, url: homeImageUrl(r.id, r.data_version) })) });
   } catch (err) {
     console.error('[admin/home-images] Laden fehlgeschlagen:', err.message);
     res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
@@ -1050,11 +1062,12 @@ app.put('/api/admin/home-images/:id', adminMiddleware, uploadMemory.single('imag
   try {
     await ensureHomeImagesTable();
     const [result] = await pool.query(
-      'UPDATE home_images SET filename = ?, mime_type = ?, data = ? WHERE id = ?',
+      'UPDATE home_images SET filename = ?, mime_type = ?, data = ?, data_version = data_version + 1 WHERE id = ?',
       [req.file.originalname, req.file.mimetype, req.file.buffer, req.params.id]
     );
     if (!result.affectedRows) return res.status(404).json({ error: 'Bild nicht gefunden.' });
-    res.json({ id: Number(req.params.id), url: homeImageUrl(req.params.id) });
+    const [[row]] = await pool.query('SELECT data_version FROM home_images WHERE id = ?', [req.params.id]);
+    res.json({ id: Number(req.params.id), url: homeImageUrl(req.params.id, row?.data_version) });
   } catch (err) {
     res.status(503).json({ error: 'Bild konnte nicht gespeichert werden.' });
   }
@@ -1162,18 +1175,67 @@ app.post('/api/admin/home-images/:slot/ai-suggest', adminMiddleware, async (req,
   }
 });
 
+// POST /api/admin/home-images/:slot/ai-alt-texts — admin, KI-Vorschläge für Bildbeschreibungen
+// (Alt-Texte) aller Bilder einer Galerie, die noch keine haben. Schreibt NICHTS in die DB — der
+// Admin übernimmt die Vorschläge im Panel einzeln oder gesammelt (PATCH /api/admin/home-images/:id).
+const AI_ALT_TEXT_MAX_IMAGES = 20; // pro Anfrage, hält Kosten/Antwortzeit überschaubar
+app.post('/api/admin/home-images/:slot/ai-alt-texts', adminMiddleware, async (req, res) => {
+  const { slot } = req.params;
+  if (!AI_SUGGEST_SLOTS.includes(slot)) return res.status(400).json({ error: 'Ungültiger Slot.' });
+
+  let rows, remaining;
+  try {
+    await ensureHomeImagesTable();
+    [rows] = await pool.query(
+      "SELECT id, category, data FROM home_images WHERE slot = ? AND (alt_text IS NULL OR alt_text = '') ORDER BY sort_order ASC, id ASC LIMIT ?",
+      [slot, AI_ALT_TEXT_MAX_IMAGES]
+    );
+    const [[count]] = await pool.query(
+      "SELECT COUNT(*) AS n FROM home_images WHERE slot = ? AND (alt_text IS NULL OR alt_text = '')", [slot]
+    );
+    remaining = Math.max(0, count.n - rows.length);
+  } catch (err) {
+    return res.status(503).json({ error: 'Datenbank aktuell nicht erreichbar.' });
+  }
+  if (!rows.length) return res.json({ altTexts: [], remaining: 0 });
+
+  let images;
+  try {
+    images = await Promise.all(rows.map(async row => {
+      const resized = await sharp(row.data)
+        .rotate()
+        .resize(AI_IMAGE_MAX_DIMENSION, AI_IMAGE_MAX_DIMENSION, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 70 })
+        .toBuffer();
+      return { id: row.id, category: row.category, mimeType: 'image/jpeg', base64: resized.toString('base64') };
+    }));
+  } catch (err) {
+    return res.status(500).json({ error: 'Bilder konnten für die KI-Anfrage nicht aufbereitet werden.' });
+  }
+
+  try {
+    const result = await ai.proposeAltTexts(images, slot === 'mediabox-gallery' ? 'mediabox' : 'portfolio');
+    console.log(`[AI-ALT-TEXTS] slot=${slot} Bilder=${images.length} usage=`, result.usage);
+    const validIds = new Set(rows.map(r => r.id));
+    res.json({ altTexts: result.altTexts.filter(a => validIds.has(a.id) && a.altText), remaining });
+  } catch (err) {
+    if (err.aiConfigMissing) return res.status(501).json({ error: 'KI-Funktion ist nicht konfiguriert.' });
+    console.error('[AI-ALT-TEXTS] Fehler:', err.message);
+    res.status(502).json({ error: 'Beschreibungen konnten nicht erstellt werden: ' + err.message });
+  }
+});
+
 // GET /api/mediabox-images — öffentlich, Metadaten der Mediabox-Bilder (Hero + Event-Galerie)
 app.get('/api/mediabox-images', async (req, res) => {
   try {
     await ensureHomeImagesTable();
     const [rows] = await pool.query(
-      "SELECT id, slot, category, alt_text, sort_order FROM home_images WHERE slot IN ('mediabox-hero', 'mediabox-gallery') ORDER BY sort_order ASC, id ASC"
+      "SELECT id, slot, category, alt_text, sort_order, data_version FROM home_images WHERE slot IN ('mediabox-hero', 'mediabox-gallery') ORDER BY sort_order ASC, id ASC"
     );
     const hero = rows.find(r => r.slot === 'mediabox-hero');
     res.json({
-      hero: hero ? { id: hero.id, url: homeImageUrl(hero.id) } : null,
-      gallery: rows.filter(r => r.slot === 'mediabox-gallery')
-                   .map(r => ({ id: r.id, category: r.category, altText: r.alt_text, url: homeImageUrl(r.id) })),
+      hero: hero ? publicImage(hero) : null,
+      gallery: rows.filter(r => r.slot === 'mediabox-gallery').map(publicImage),
     });
   } catch (err) {
     console.error('[home-images] Laden fehlgeschlagen:', err.message);

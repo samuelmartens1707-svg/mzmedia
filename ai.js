@@ -59,26 +59,36 @@ function getApiKey() {
   return key;
 }
 
-// images: [{ id, category, mimeType, base64 }] — base64 sollte bereits verkleinert sein
-// (siehe resizeForAi() in server.js), damit Anfragegröße/Kosten niedrig bleiben.
-async function proposeGalleryArrangement(images) {
+const ALT_TEXT_TOOL = {
+  name: 'propose_alt_texts',
+  description: 'Gibt für jedes gezeigte Bild eine kurze deutsche Bildbeschreibung (Alt-Text) für Website und Google-Bildersuche zurück.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      altTexts: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            altText: { type: 'string', description: 'Max. 120 Zeichen, sachlich, beschreibt was zu sehen ist.' },
+          },
+          required: ['id', 'altText'],
+        },
+        description: 'Genau ein Eintrag pro übergebenem Bild.',
+      },
+    },
+    required: ['altTexts'],
+  },
+};
+
+// Gemeinsamer Aufruf: Bilder + Text an Claude, erzwungenes Tool → strukturierte Antwort (tool_use.input)
+async function callImageTool({ tool, intro, images, imageLabel, maxTokens }) {
   const apiKey = getApiKey();
 
-  const content = [
-    {
-      type: 'text',
-      text:
-        'Hier sind alle Bilder einer Fotogalerie mit ihrer aktuellen Kategorie. ' +
-        'Schlage eine visuell stimmige Reihenfolge vor (z. B. Abwechslung zwischen Hoch- und ' +
-        'Querformat, ein starkes Bild am Anfang) und markiere nur die Bilder, deren Kategorie ' +
-        'klar nicht zum Bildinhalt passt.',
-    },
-  ];
+  const content = [{ type: 'text', text: intro }];
   for (const img of images) {
-    content.push({
-      type: 'text',
-      text: `Bild-ID ${img.id} (aktuelle Kategorie: "${img.category || 'Sonstiges'}"):`,
-    });
+    content.push({ type: 'text', text: imageLabel(img) });
     content.push({
       type: 'image',
       source: { type: 'base64', media_type: img.mimeType, data: img.base64 },
@@ -96,9 +106,9 @@ async function proposeGalleryArrangement(images) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 2048,
-        tools: [ARRANGEMENT_TOOL],
-        tool_choice: { type: 'tool', name: 'propose_gallery_arrangement' },
+        max_tokens: maxTokens,
+        tools: [tool],
+        tool_choice: { type: 'tool', name: tool.name },
         messages: [{ role: 'user', content }],
       }),
     });
@@ -119,21 +129,66 @@ async function proposeGalleryArrangement(images) {
     throw err;
   }
 
-  const toolUse = (body?.content || []).find(
-    b => b.type === 'tool_use' && b.name === 'propose_gallery_arrangement'
-  );
+  // Sicherheitsfilter können eine Anfrage ablehnen (HTTP 200, stop_reason "refusal")
+  if (body?.stop_reason === 'refusal') {
+    const err = new Error('Claude hat die Anfrage abgelehnt.');
+    err.aiApiError = true;
+    throw err;
+  }
+
+  const toolUse = (body?.content || []).find(b => b.type === 'tool_use' && b.name === tool.name);
   if (!toolUse) {
     const err = new Error('Claude hat keinen verwertbaren Vorschlag zurückgegeben.');
     err.aiApiError = true;
     throw err;
   }
+  return { input: toolUse.input || {}, usage: body.usage };
+}
 
+// images: [{ id, category, mimeType, base64 }] — base64 sollte bereits verkleinert sein
+// (siehe resizeForAi() in server.js), damit Anfragegröße/Kosten niedrig bleiben.
+async function proposeGalleryArrangement(images) {
+  const { input, usage } = await callImageTool({
+    tool: ARRANGEMENT_TOOL,
+    intro:
+      'Hier sind alle Bilder einer Fotogalerie mit ihrer aktuellen Kategorie. ' +
+      'Schlage eine visuell stimmige Reihenfolge vor (z. B. Abwechslung zwischen Hoch- und ' +
+      'Querformat, ein starkes Bild am Anfang) und markiere nur die Bilder, deren Kategorie ' +
+      'klar nicht zum Bildinhalt passt.',
+    images,
+    imageLabel: img => `Bild-ID ${img.id} (aktuelle Kategorie: "${img.category || 'Sonstiges'}"):`,
+    maxTokens: 2048,
+  });
   return {
-    order: toolUse.input.order || [],
-    categoryChanges: toolUse.input.categoryChanges || [],
-    note: toolUse.input.note || '',
-    usage: body.usage,
+    order: input.order || [],
+    categoryChanges: input.categoryChanges || [],
+    note: input.note || '',
+    usage,
   };
 }
 
-module.exports = { proposeGalleryArrangement };
+// Alt-Texte für Bilder ohne Beschreibung. context: 'portfolio' | 'mediabox'.
+// Liefert nur Vorschläge — gespeichert wird erst, wenn der Admin sie im Panel übernimmt.
+async function proposeAltTexts(images, context) {
+  const where = context === 'mediabox'
+    ? 'Bilder vergangener Events, bei denen die Fotobox „Mediabox“ von mz media (Espelkamp) im Einsatz war'
+    : 'Portfolio-Bilder des Fotografen Miguel Zimmermann (mz media) aus Espelkamp, Kreis Minden-Lübbecke';
+  const { input, usage } = await callImageTool({
+    tool: ALT_TEXT_TOOL,
+    intro:
+      `Das sind ${where}. Schreibe für jedes Bild einen deutschen Alt-Text (max. 120 Zeichen): ` +
+      'sachlich beschreiben, was zu sehen ist (Personen, Situation, Ort/Stimmung), so dass jemand ohne ' +
+      'das Bild es sich vorstellen kann und Google es versteht. Nutze die Kategorie als Hinweis auf den Anlass. ' +
+      'Keine Namen erfinden, keine Vermutungen über Identitäten, kein „Bild von“/„Foto von“ am Anfang, ' +
+      'keine Keyword-Listen. Den Ort nur nennen, wenn er natürlich passt.',
+    images,
+    imageLabel: img => `Bild-ID ${img.id} (Kategorie: "${img.category || 'Sonstiges'}"):`,
+    maxTokens: 4096,
+  });
+  return {
+    altTexts: (input.altTexts || []).map(a => ({ id: a.id, altText: String(a.altText || '').trim().slice(0, 160) })),
+    usage,
+  };
+}
+
+module.exports = { proposeGalleryArrangement, proposeAltTexts };

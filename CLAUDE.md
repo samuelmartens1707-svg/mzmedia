@@ -2,7 +2,7 @@
 
 ## Projekt-Überblick
 Fotografen-Website für **Miguel Zimmermann** (mz media), Espelkamp. Öffentliche Website + privates Kunden-Fotoportal.
-- Domain: `https://www.miguelzimmermann.de/`
+- Domain: `https://miguelzimmermann.de/` (**ohne www** — `www.` hat keinen DNS-Eintrag; alle Canonicals/OG/Sitemap/JSON-LD nutzen die Domain ohne www)
 - Sprache: Deutsch (gesamte Website und API-Fehlermeldungen auf Deutsch)
 
 ## Datei-Struktur
@@ -14,7 +14,8 @@ public/                 – EINZIGER Ordner, den express.static() öffentlich au
   mediabox.html         – Öffentliche Mediabox-Seite (Fotobox-Vermietung): Anlässe, Event-Galerie, Belegungskalender, Anfrageformular
   admin.html            – Admin-Panel (separates Passwort, noindex)
   impressum.html / datenschutz.html / agb.html – Rechtliche Pflichtseiten (noindex, follow)
-  robots.txt / sitemap.xml
+  robots.txt            – erlaubt Google die Bild-Routen (/api/home-images, /api/home-image/, /api/mediabox-images, /api/img/), sperrt Rest von /api/
+                          (sitemap.xml gibt es nicht mehr als Datei — wird von seo.js dynamisch erzeugt)
   favicon.svg / site.webmanifest / og-image.jpg
   fonts/                – Selbst gehostete Cormorant-Garamond-/DM-Sans-Dateien (.woff2)
 server.js       – Express-Server (alle API-Routen)
@@ -22,6 +23,7 @@ db.js           – MySQL-Verbindungspool + Auto-Init für home_images, clients,
 sevdesk.js      – Anbindung an die sevDesk-Rechnungs-API (Contact/Invoice/Send)
 ai.js           – Anbindung an die Anthropic-API (Claude) für den KI-Vorschlag im Admin-Panel
 monitoring.js   – Selbsttest /api/health (für UptimeRobot) + gedrosselte Fehler-Mails an ADMIN_EMAIL
+seo.js          – Bildvarianten (/api/img), Bilder serverseitig ins HTML, dynamische sitemap.xml, /og-image.jpg
 Dockerfile      – Node 20 Alpine, Port 3000
 scripts/
   migrate-clients-to-db.js               – Einmalige Migration von data/clients.json in die DB (Legacy)
@@ -210,6 +212,16 @@ POST /api/mediabox-anfrage                       – Buchungsanfrage der Mediabo
 - Abschließender `monitoring.errorHandler` (nach allen Routen): Upload-Fehler (falsches Format, zu groß → `MulterError`) sind Nutzerfehler → `400` mit JSON-Meldung, kein Alarm. Alles andere → `500` JSON + Alarm.
 - Neue Routen brauchen nichts extra: Wer bei Serverfehlern `res.status(5xx).json({ error })` antwortet, wird automatisch gemeldet. Für einen sprechenden Bereichsnamen in der Mail ggf. `AREA_LABELS` in `monitoring.js` ergänzen.
 
+### SEO (`seo.js`)
+- **Bildvarianten:** `GET /api/img/:id/:w/:name.webp?v=<data_version>` (w ∈ 480/960/1600/2400) — per `sharp` verkleinertes WebP, In-Memory-LRU (64 MB), mit `?v=` 1 Jahr `immutable`. `name` ist ein Slug aus Alt-Text/Kategorie (nur für die Bildersuche, wird ignoriert). Öffentliche Bild-JSONs (`/api/home-images`, `/api/mediabox-images`) liefern über `publicImage()` zusätzlich `src` (960), `srcset`, `full` (2400, Lightbox) und `alt` (Alt-Text oder „{Kategorie} – Miguel Zimmermann, Fotograf in Espelkamp“). `url` bleibt das Original (`/api/home-image/:id?v=`).
+- **Cache-Bust:** `home_images.data_version` (Optional-Spalte, automatisch angelegt) zählt beim Ersetzen der Bilddaten (`PUT /api/admin/home-images/:id`, Zuschnitt-Editor) hoch — nicht `updated_at`, das ändert sich auch beim Sortieren. `/api/home-image/:id` ohne `?v` wird nur 5 min gecacht.
+- **Bilder im HTML:** `/`, `/index.html`, `/galerie.html`, `/mediabox.html` laufen vor `express.static` durch `seo.js`: Titel-/About-/Teaser-Bilder bekommen `src`/`srcset` am `<img id=…>`, Galerien werden zwischen `<!--ssr:gallery-->…<!--/ssr:gallery-->` eingesetzt (gleiches Markup wie die Render-Funktionen der Seiten). Google und Browser sehen Bilder ohne JavaScript; die Seiten-Skripte rendern danach wie bisher (Listener, Filter). DB-Fehler → unveränderte Datei. **Wer Markup/IDs dieser Bereiche ändert, muss `seo.js` mitziehen** (und `SITE_PAGES` in admin.html, siehe Website-Bilder).
+- **Startseiten-Filter** werden aus den echten Kategorien der Bilder erzeugt (`renderFilters()` in index.html), nicht mehr fest im HTML.
+- `/sitemap.xml` dynamisch (lastmod aus DB, `image:image` je Bild, 1600er-Variante); `/og-image.jpg` = 1200×630-Zuschnitt des aktuellen Titelbilds (Fallback erstes Galerie-Bild).
+- `/website/`, `/website/index.html`, `/website/galerie.html`, `/website/mediabox.html` → **301** auf die Root-URL (doppelte Inhalte vermeiden); Admin/Kunden-Galerie/API bleiben unter `/website/…`.
+- JSON-LD: Startseite `PhotographyBusiness` (`@id …/#business`, `hasOfferCatalog` mit Hochzeit/Portrait & Paare/Events & Firmen/Kreativ/Fotobox), Galerie `ImageGallery` + `BreadcrumbList`, Mediabox `Service` + `BreadcrumbList`. H1 enthalten die Suchbegriffe als kleine Kicker-Zeile (`.hero-kicker`, `.mb-hero-kicker`).
+- **KI-Bildbeschreibungen:** „✨ Beschreibungen“ im Bilder-Panel → `POST /api/admin/home-images/:slot/ai-alt-texts` (max. 20 Bilder ohne Alt-Text pro Aufruf, `ai.proposeAltTexts()`), schreibt nichts in die DB; Vorschläge erscheinen grün markiert in den Feldern, „Alle übernehmen“ speichert per PATCH.
+
 ### Wichtige ENV-Variablen (.env)
 ```
 PORT            – Standard 3000
@@ -222,7 +234,8 @@ CONTACT_EMAIL   – Empfänger für Kontaktformulare
 ADMIN_EMAIL     – Empfänger für Admin-Passwort-Reset-Links UND Fehler-Mails aus monitoring.js (optional, Fallback: CONTACT_EMAIL → SMTP_USER)
 DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASS – MySQL-Zugang (home_images + clients + admin_settings + invoices + mediabox_bookings)
 SEVDESK_API_TOKEN – sevDesk → Einstellungen → Benutzer → API-Token (32-stelliger Hex-String, ohne "Bearer"-Präfix)
-ANTHROPIC_API_KEY – console.anthropic.com → API-Key (separates Konto, nicht das claude.ai-Abo) für den KI-Vorschlag im Admin-Panel
+ANTHROPIC_API_KEY – console.anthropic.com → API-Key (separates Konto, nicht das claude.ai-Abo) für KI-Vorschlag und KI-Bildbeschreibungen im Admin-Panel
+SITE_URL        – optional, Standard https://miguelzimmermann.de (absolute URLs in sitemap.xml)
 ```
 
 ## Deployment

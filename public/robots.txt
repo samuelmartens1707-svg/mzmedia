@@ -1,10 +1,14 @@
 User-agent: *
 Allow: /
 
-Disallow: /api/
-Disallow: /uploads/
-Disallow: /scripts/
-Disallow: /templates/
-Disallow: /data/
+# Bilder und Bild-Metadaten müssen für Google erreichbar sein (Portfolio, Bildersuche)
+Allow: /api/home-images
+Allow: /api/home-image/
+Allow: /api/mediabox-images
+Allow: /api/img/
 
-Sitemap: https://www.miguelzimmermann.de/sitemap.xml
+Disallow: /api/
+Disallow: /admin.html
+Disallow: /gallery.html
+
+Sitemap: https://miguelzimmermann.de/sitemap.xml

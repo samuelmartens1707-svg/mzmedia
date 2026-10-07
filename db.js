@@ -90,6 +90,9 @@ async function ensureHomeImagesMediaboxSlots() {
 // Upload) mit SQL-Fehler → 503 "Datenbank nicht erreichbar", obwohl die DB lief.
 const HOME_IMAGES_OPTIONAL_COLUMNS = [
   { name: 'alt_text', ddl: 'alt_text VARCHAR(160) NULL AFTER category' },
+  // Zählt hoch, wenn die Bilddaten ersetzt werden (Zuschnitt-Editor) — steckt als ?v= in den
+  // Bild-URLs, damit Browser/Google nach einer Änderung nicht das alte (1 Jahr gecachte) Bild zeigen
+  { name: 'data_version', ddl: 'data_version INT UNSIGNED NOT NULL DEFAULT 1' },
 ];
 
 // Cached promise so every home-images route can safely call this first —

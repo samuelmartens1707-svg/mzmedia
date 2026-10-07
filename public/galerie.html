@@ -6,25 +6,25 @@
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="manifest" href="site.webmanifest" />
   <meta name="theme-color" content="#F6F1E4" />
-  <title>Galerie | Miguel Zimmermann · mz media</title>
-  <meta name="description" content="Portfolio-Galerie von Miguel Zimmermann – Portraits, Events, kreative Shootings und mehr. Alle Projekte nach Kategorie filterbar." />
+  <title>Fotogalerie: Hochzeiten, Portraits &amp; Events | Fotograf Espelkamp</title>
+  <meta name="description" content="Portfolio von Miguel Zimmermann, Fotograf aus Espelkamp: Hochzeitsfotos, Paar- und Portraitshootings, Events und Firmenfeiern aus dem Kreis Minden-Lübbecke." />
   <meta name="robots" content="index, follow" />
-  <link rel="canonical" href="https://www.miguelzimmermann.de/galerie.html" />
+  <link rel="canonical" href="https://miguelzimmermann.de/galerie.html" />
   <base href="/">
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://www.miguelzimmermann.de/galerie.html" />
-  <meta property="og:title" content="Galerie | Miguel Zimmermann · mz media" />
-  <meta property="og:description" content="Portfolio-Galerie – Portraits, Events, kreative Shootings und mehr." />
+  <meta property="og:url" content="https://miguelzimmermann.de/galerie.html" />
+  <meta property="og:title" content="Fotogalerie: Hochzeiten, Portraits &amp; Events | Fotograf Espelkamp" />
+  <meta property="og:description" content="Portfolio von Miguel Zimmermann, Fotograf aus Espelkamp: Hochzeitsfotos, Paar- und Portraitshootings, Events und Firmenfeiern aus dem Kreis Minden-Lübbecke." />
   <meta property="og:locale" content="de_DE" />
-  <meta property="og:image" content="https://www.miguelzimmermann.de/og-image.jpg" />
+  <meta property="og:image" content="https://miguelzimmermann.de/og-image.jpg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Galerie | Miguel Zimmermann · mz media" />
-  <meta name="twitter:description" content="Portfolio-Galerie – Portraits, Events, kreative Shootings und mehr." />
-  <meta name="twitter:image" content="https://www.miguelzimmermann.de/og-image.jpg" />
+  <meta name="twitter:title" content="Fotogalerie: Hochzeiten, Portraits &amp; Events | Fotograf Espelkamp" />
+  <meta name="twitter:description" content="Portfolio von Miguel Zimmermann, Fotograf aus Espelkamp: Hochzeitsfotos, Paar- und Portraitshootings, Events und Firmenfeiern aus dem Kreis Minden-Lübbecke." />
+  <meta name="twitter:image" content="https://miguelzimmermann.de/og-image.jpg" />
 
   <style>
     /* ─── Selbst gehostete Schriftarten (kein Request an Google) ─── */
@@ -354,6 +354,29 @@
       }
     }
   </style>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "ImageGallery",
+        "@id": "https://miguelzimmermann.de/galerie.html#gallery",
+        "name": "Fotogalerie – Hochzeiten, Portraits & Events",
+        "url": "https://miguelzimmermann.de/galerie.html",
+        "inLanguage": "de-DE",
+        "description": "Portfolio von Miguel Zimmermann, Fotograf aus Espelkamp: Hochzeiten, Paar- und Portraitshootings, Events und Firmenfeiern.",
+        "author": { "@id": "https://miguelzimmermann.de/#business" }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Startseite", "item": "https://miguelzimmermann.de/" },
+          { "@type": "ListItem", "position": 2, "name": "Galerie", "item": "https://miguelzimmermann.de/galerie.html" }
+        ]
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
 
@@ -380,13 +403,14 @@
   <main>
     <section class="galerie-hero reveal">
       <div class="section-label" aria-hidden="true">Portfolio</div>
-      <h1>Alle <em>Projekte.</em></h1>
-      <p>Eine Übersicht aller bisherigen Arbeiten — nach Kategorie filterbar.</p>
+      <h1>Fotografie aus Espelkamp — <em>alle Projekte.</em></h1>
+      <p>Hochzeiten, Paarshootings, Portraits und Events: Hier findest du eine Auswahl meiner bisherigen Arbeiten aus Espelkamp, Lübbecke, Minden und dem ganzen Kreis Minden-Lübbecke. Jedes Bild erzählt die Geschichte echter Menschen — natürlich, ungestellt und mit Blick für die kleinen Momente. Über die Kategorien kannst du gezielt nach Hochzeit, Portrait oder Event filtern.</p>
+      <p><a href="/#kontakt" class="btn-ghost">Shooting anfragen →</a></p>
     </section>
 
     <div class="galerie-filters reveal" id="galerieFilters" role="group" aria-label="Galerie-Filter"></div>
 
-    <div class="galerie-grid" id="galerieGrid" role="list" aria-label="Fotogalerie"></div>
+    <div class="galerie-grid" id="galerieGrid" role="list" aria-label="Fotogalerie"><!--ssr:gallery--><!--/ssr:gallery--></div>
   </main>
 
   <!-- ─── FOOTER ─── -->
@@ -543,9 +567,8 @@
       }
       grid.innerHTML = filteredItems.map((item, i) => {
         const label = item.category || 'Sonstiges';
-        const altText = item.altText || label;
-        return `<article class="galerie-item" role="listitem" data-index="${i}" data-label="${esc(label)}" tabindex="0" aria-label="Bild ansehen: ${esc(altText)}">
-          <img src="${item.url}" alt="${esc(altText)}" loading="lazy">
+        return `<article class="galerie-item" role="listitem" data-index="${i}" data-label="${esc(label)}" tabindex="0" aria-label="Bild ansehen: ${esc(item.alt)}">
+          <img src="${item.src}" srcset="${item.srcset}" sizes="(max-width: 600px) 50vw, (max-width: 1200px) 33vw, 25vw" alt="${esc(item.alt)}" loading="lazy" decoding="async">
         </article>`;
       }).join('');
       grid.querySelectorAll('.galerie-item').forEach(el => {
@@ -579,8 +602,8 @@
     }
     function updateLightboxImage() {
       const item = filteredItems[currentIndex];
-      lightboxImg.src = item.url;
-      lightboxImg.alt = item.altText || item.category || 'Sonstiges';
+      lightboxImg.src = item.full; // große WebP-Variante statt Original (mehrere MB)
+      lightboxImg.alt = item.alt;
       lightboxCaption.textContent = item.category || 'Sonstiges';
     }
     function showPrev() { currentIndex = (currentIndex - 1 + filteredItems.length) % filteredItems.length; updateLightboxImage(); }

@@ -563,6 +563,13 @@
     .drawer .slot-grid { grid-template-columns: 1fr; margin-bottom: 0; }
     .drawer .admin-photo-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
     .gallery-item.flash .admin-photo-card { outline: 3px solid var(--sage); outline-offset: 2px; }
+    .gallery-item input.suggested { border-color: var(--sage); background: rgba(70,96,63,.07); }
+    .alt-suggest-bar {
+      display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; justify-content: space-between;
+      margin: -.4rem 0 1rem; padding: .7rem .9rem; font-size: .8rem;
+      background: rgba(70,96,63,.08); border: 1px solid rgba(70,96,63,.3); color: var(--dark);
+    }
+    .alt-suggest-bar[hidden] { display: none; }
 
     /* ─── NEW CLIENT MODAL ─── */
     .modal-backdrop {
@@ -989,8 +996,12 @@
 
       <div class="photos-section-title">
         <span id="galleryPhotosTitle">Vorhandene Bilder</span>
-        <button type="button" class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="openAiSuggest('gallery')">✨ KI-Vorschlag</button>
+        <span style="margin-left:auto;display:flex;gap:.4rem;flex-wrap:wrap;">
+          <button type="button" class="btn btn-outline btn-sm" id="galleryAltBtn" onclick="suggestAltTexts('gallery')" title="KI schlägt Bildbeschreibungen für Bilder ohne Beschreibung vor (wichtig für Google)">✨ Beschreibungen</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="openAiSuggest('gallery')">✨ KI-Vorschlag</button>
+        </span>
       </div>
+      <div class="alt-suggest-bar" id="galleryAltBar" hidden></div>
       <p class="section-hint">Die Reihenfolge hier ist die Reihenfolge auf der Website. Bilder mit der Maus an die gewünschte Stelle ziehen, oder ▲ ▼ nutzen. Jede Änderung wird sofort gespeichert.</p>
       <div class="admin-photo-grid" id="galleryPhotoGrid"></div>
       <datalist id="galleryCategoryList"></datalist>
@@ -1011,8 +1022,12 @@
 
       <div class="photos-section-title">
         <span id="mediaboxPhotosTitle">Vorhandene Bilder</span>
-        <button type="button" class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="openAiSuggest('mediabox-gallery')">✨ KI-Vorschlag</button>
+        <span style="margin-left:auto;display:flex;gap:.4rem;flex-wrap:wrap;">
+          <button type="button" class="btn btn-outline btn-sm" id="mediaboxAltBtn" onclick="suggestAltTexts('mediabox-gallery')" title="KI schlägt Bildbeschreibungen für Bilder ohne Beschreibung vor (wichtig für Google)">✨ Beschreibungen</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="openAiSuggest('mediabox-gallery')">✨ KI-Vorschlag</button>
+        </span>
       </div>
+      <div class="alt-suggest-bar" id="mediaboxAltBar" hidden></div>
       <p class="section-hint">Die Reihenfolge hier ist die Reihenfolge auf der Mediabox-Seite. Bilder mit der Maus an die gewünschte Stelle ziehen, oder ▲ ▼ nutzen. Jede Änderung wird sofort gespeichert.</p>
       <div class="admin-photo-grid" id="mediaboxPhotoGrid"></div>
       <datalist id="mediaboxCategoryList"></datalist>
@@ -2089,7 +2104,9 @@
     });
 
     grid.addEventListener('change', e => {
-      if (e.target.dataset.field) saveGalleryField(cfg, e.target);
+      if (!e.target.dataset.field) return;
+      e.target.classList.remove('suggested');
+      saveGalleryField(cfg, e.target);
     });
 
     grid.addEventListener('dragstart', e => {
@@ -2192,7 +2209,7 @@
   // ─── Website-Bilder: echte Seite als Vorschau im Bearbeiten-Modus ───
   // Die öffentliche Seite wird unverändert in einem iframe (gleiche Domain) geladen; das Admin-Panel
   // legt die Bearbeiten-Knöpfe von außen über die Bilder. index/galerie/mediabox.html wissen davon nichts.
-  // Galerie-Bilder werden über ihre URL (/api/home-image/<id>) einem Datensatz zugeordnet.
+  // Galerie-Bilder werden über ihre URL (/api/home-image/<id> bzw. /api/img/<id>/…) einem Datensatz zugeordnet.
   const SITE_PAGES = {
     start: {
       label: 'Startseite', path: '/',
@@ -2488,8 +2505,9 @@
     gridEl.before(bar);
 
     gridEl.querySelectorAll(item).forEach(itemEl => {
-      const img = itemEl.querySelector('img[src*="/api/home-image/"]');
-      const id = img?.getAttribute('src').match(/home-image\/(\d+)/)?.[1];
+      // Original (/api/home-image/<id>) oder WebP-Variante (/api/img/<id>/…) aus seo.js
+      const img = itemEl.querySelector('img[src*="/api/home-image/"], img[src*="/api/img/"]');
+      const id = img?.getAttribute('src').match(/\/api\/(?:home-image|img)\/(\d+)/)?.[1];
       if (!id) return; // Platzhalter ohne echtes Bild
       const ui = doc.createElement('div');
       ui.className = 'mz-edit-ui mz-item-ui';
@@ -2594,6 +2612,71 @@
       showToast('Termin freigegeben');
       await loadMediaboxBookings();
     }
+  }
+
+  // ─── KI-Bildbeschreibungen (Alt-Texte) ────────────────────
+  // Trägt Vorschläge nur in die Beschreibungsfelder ein (grün markiert) — gespeichert wird erst
+  // über "Alle übernehmen" oder wenn ein einzelnes Feld bestätigt/verlassen wird.
+  async function suggestAltTexts(slot) {
+    const cfg = GALLERIES[slot];
+    const btn = document.getElementById(cfg.prefix + 'AltBtn');
+    const bar = document.getElementById(cfg.prefix + 'AltBar');
+    btn.disabled = true;
+    btn.textContent = 'Claude schreibt …';
+    try {
+      const res  = await adminFetch(`/api/admin/home-images/${slot}/ai-alt-texts`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Beschreibungen konnten nicht erstellt werden.');
+      const grid = document.getElementById(cfg.prefix + 'PhotoGrid');
+      let filled = 0;
+      for (const { id, altText } of data.altTexts) {
+        const input = grid.querySelector(`.gallery-item[data-id="${id}"] input[data-field="altText"]`);
+        if (!input || input.value.trim()) continue; // nie eine vorhandene Beschreibung überschreiben
+        input.value = altText;
+        input.classList.add('suggested');
+        filled++;
+      }
+      if (!filled) {
+        bar.hidden = true;
+        showToast(data.altTexts.length ? 'Keine leeren Beschreibungsfelder mehr.' : 'Alle Bilder haben schon eine Beschreibung.');
+        return;
+      }
+      bar.innerHTML = `<span>✨ ${filled} Beschreibung${filled === 1 ? '' : 'en'} vorgeschlagen (grün markiert) — bitte kurz prüfen.` +
+        (data.remaining ? ` Danach erneut klicken für die nächsten ${data.remaining}.` : '') + `</span>
+        <span style="display:flex;gap:.4rem;">
+          <button type="button" class="btn btn-outline btn-sm" data-alt-action="discard">Verwerfen</button>
+          <button type="button" class="btn btn-primary btn-sm" data-alt-action="apply">Alle übernehmen</button>
+        </span>`;
+      bar.hidden = false;
+      bar.onclick = e => {
+        const action = e.target.closest('[data-alt-action]')?.dataset.altAction;
+        if (action === 'apply') applyAltSuggestions(cfg);
+        else if (action === 'discard') discardAltSuggestions(cfg);
+      };
+    } catch (err) {
+      showToast(err.message === 'Failed to fetch' ? 'Server nicht erreichbar.' : err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '✨ Beschreibungen';
+    }
+  }
+
+  async function applyAltSuggestions(cfg) {
+    const inputs = [...document.querySelectorAll(`#${cfg.prefix}PhotoGrid input.suggested`)];
+    document.getElementById(cfg.prefix + 'AltBar').hidden = true;
+    for (const input of inputs) {
+      input.classList.remove('suggested');
+      await saveGalleryField(cfg, input);
+    }
+    showToast(`${inputs.length} Beschreibung${inputs.length === 1 ? '' : 'en'} gespeichert`);
+  }
+
+  function discardAltSuggestions(cfg) {
+    document.querySelectorAll(`#${cfg.prefix}PhotoGrid input.suggested`).forEach(input => {
+      input.value = input.dataset.saved || '';
+      input.classList.remove('suggested');
+    });
+    document.getElementById(cfg.prefix + 'AltBar').hidden = true;
   }
 
   // ─── KI-Vorschlag (Reihenfolge/Kategorien einer Galerie) ──
