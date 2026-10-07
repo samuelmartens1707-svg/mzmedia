@@ -22,6 +22,7 @@ const {
 } = require('./db');
 const sevdesk = require('./sevdesk');
 const ai = require('./ai');
+const { setupMonitoring } = require('./monitoring');
 
 const app      = express();
 const PORT     = process.env.PORT || 3000;
@@ -232,6 +233,11 @@ function listClientPhotos(clientId) {
 // ─── Middleware ─────────────────────────────────────────────
 app.use(cors());
 app.use(express.json());
+
+// Selbsttest /api/health (für UptimeRobot) + Fehler-Mails bei jeder 5xx-Antwort — vor allen Routen
+const monitoring = setupMonitoring({
+  app, pool, transporter, uploadsDir: UPLOADS_DIR, ensureHomeImagesTable, ensureClientsTable,
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── Multer (per-client upload folder) ─────────────────────
@@ -1294,6 +1300,9 @@ app.post('/api/mediabox-anfrage', async (req, res) => {
 });
 
 // ─── Start ──────────────────────────────────────────────────
+// Muss nach allen Routen stehen
+app.use(monitoring.errorHandler);
+
 app.listen(PORT, () => {
   console.log(`mz media server läuft auf http://localhost:${PORT}`);
 });

@@ -21,6 +21,7 @@ server.js       – Express-Server (alle API-Routen)
 db.js           – MySQL-Verbindungspool + Auto-Init für home_images, clients, invoices, mediabox_bookings
 sevdesk.js      – Anbindung an die sevDesk-Rechnungs-API (Contact/Invoice/Send)
 ai.js           – Anbindung an die Anthropic-API (Claude) für den KI-Vorschlag im Admin-Panel
+monitoring.js   – Selbsttest /api/health (für UptimeRobot) + gedrosselte Fehler-Mails an ADMIN_EMAIL
 Dockerfile      – Node 20 Alpine, Port 3000
 scripts/
   migrate-clients-to-db.js               – Einmalige Migration von data/clients.json in die DB (Legacy)
@@ -91,6 +92,7 @@ Admin-Login-Box (`admin.html`, `.login-box`, liegt auf `--dark`): `#323C2B`.
 
 ## Server / API
 ```
+GET  /api/health                – Selbsttest für UptimeRobot: 200 = ok, 503 = Datenbank/Tabellen/Foto-Ordner/Mailserver klemmt (nur ok/Fehlercode je Bereich)
 POST /api/contact               – Kontaktformular (Rate-Limit 3/min, Honeypot)
 POST /api/admin/login            – Admin-Login → JWT
 POST /api/admin/change-password  – Admin-Passwort ändern (auth, Body: currentPassword/newPassword)
@@ -201,6 +203,13 @@ POST /api/mediabox-anfrage                       – Buchungsanfrage der Mediabo
 - "Passwort vergessen" (Link auf dem Login-Screen) schickt einen 1h gültigen Reset-Link an `ADMIN_EMAIL` (Fallback: `CONTACT_EMAIL`, dann `SMTP_USER`) — Tokens liegen in `admin_password_resets`. Der Link öffnet `admin.html?reset=TOKEN` mit einem Passwort-Setzen-Formular.
 - Da es nur einen Admin-Zugang gibt (keine E-Mail-Eingabe nötig), zeigt `/api/admin/forgot-password` anders als beim Kunden-Flow konkrete Fehler (z. B. „SMTP nicht konfiguriert") statt sich generisch zu geben — es gibt hier nichts zu verheimlichen.
 
+### Monitoring (UptimeRobot + Fehler-Mails, `monitoring.js`)
+- **UptimeRobot** (externes Konto des Users, kostenlos) ruft alle 5 Minuten `https://miguelzimmermann.de/api/health` auf und alarmiert per Mail/App bei Status ≠ 200 oder Nichterreichbarkeit — fängt auch einen komplett ausgefallenen Server/Container ab.
+- `/api/health` prüft parallel (je max. 8 s): `SELECT 1`, `home_images`, `clients`, Schreibtest im `uploads/`-Ordner, `transporter.verify()` (Erfolg 15 min gecacht, Fehlschlag höchstens 1×/min neu geprüft — schont den Mailserver). Antwort enthält nur `ok` bzw. `fehler: <Code>` je Bereich, nie Zugangs- oder Kundendaten.
+- **Fehler-Mails:** Middleware in `setupMonitoring()` meldet jede Antwort mit Status ≥ 500 (außer `/api/health`) sowie `unhandledRejection`/`uncaughtException` per Mail an `ADMIN_EMAIL` — höchstens eine Mail pro Fehlerart (Methode + Routen-Muster + Status) und Stunde, unterdrückte Wiederholungen werden in der nächsten Mail gezählt. Es wird das **Routen-Muster** gemeldet (z. B. `/api/g/:token`), nie die echte URL — keine Tokens/Kunden-IDs in Mails. Fällt der Mailserver selbst aus, geht keine Mail raus (nur Log) — dafür gibt es UptimeRobot.
+- Abschließender `monitoring.errorHandler` (nach allen Routen): Upload-Fehler (falsches Format, zu groß → `MulterError`) sind Nutzerfehler → `400` mit JSON-Meldung, kein Alarm. Alles andere → `500` JSON + Alarm.
+- Neue Routen brauchen nichts extra: Wer bei Serverfehlern `res.status(5xx).json({ error })` antwortet, wird automatisch gemeldet. Für einen sprechenden Bereichsnamen in der Mail ggf. `AREA_LABELS` in `monitoring.js` ergänzen.
+
 ### Wichtige ENV-Variablen (.env)
 ```
 PORT            – Standard 3000
@@ -210,7 +219,7 @@ BASE_PATH       – /website (Reverse-Proxy-Präfix, wird intern gestripped)
 SMTP_HOST / SMTP_PORT / SMTP_SECURE / SMTP_USER / SMTP_PASS
 MAIL_FROM       – Absender-Adresse
 CONTACT_EMAIL   – Empfänger für Kontaktformulare
-ADMIN_EMAIL     – Empfänger für Admin-Passwort-Reset-Links (optional, Fallback: CONTACT_EMAIL → SMTP_USER)
+ADMIN_EMAIL     – Empfänger für Admin-Passwort-Reset-Links UND Fehler-Mails aus monitoring.js (optional, Fallback: CONTACT_EMAIL → SMTP_USER)
 DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASS – MySQL-Zugang (home_images + clients + admin_settings + invoices + mediabox_bookings)
 SEVDESK_API_TOKEN – sevDesk → Einstellungen → Benutzer → API-Token (32-stelliger Hex-String, ohne "Bearer"-Präfix)
 ANTHROPIC_API_KEY – console.anthropic.com → API-Key (separates Konto, nicht das claude.ai-Abo) für den KI-Vorschlag im Admin-Panel
