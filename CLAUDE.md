@@ -105,8 +105,11 @@ GET  /api/admin/clients/:id     – Ein Kunde inkl. Rechnungsadresse (für das V
 POST /api/admin/clients         – Neuen Kunden anlegen
 PATCH /api/admin/clients/:id    – Kunde bearbeiten (Name, Email, Shooting-Datum/-Art)
 DELETE /api/admin/clients/:id   – Kunde löschen (inkl. uploads/<id>/-Ordner; invoices/password_resets kaskadieren per FK)
-POST /api/admin/clients/:id/photos       – Fotos hochladen
+POST /api/admin/clients/:id/photos       – Fotos hochladen (werden in Auswahl-/Ablage-Reihenfolge ans Ende gehängt)
+PUT  /api/admin/clients/:id/photos/order – Reihenfolge speichern, Body { filenames }
+POST /api/admin/clients/:id/photos/delete – mehrere Fotos löschen, Body { filenames } oder { all: true }
 DELETE /api/admin/clients/:id/photos/:f  – Foto löschen
+GET  /api/admin/photo/:id/:f?auth=…[&thumb=1] – Foto fürs Admin-Panel (thumb=1 → 400-px-WebP fürs Sortier-Raster)
 POST /api/admin/clients/:id/send-email  – „Bilder sind fertig“-Mail: persönlicher Link + Freunde-Link mit WhatsApp-/Mail-Teilen-Buttons (Body: { galleryUrl } = Basis-URL von gallery.html)
 GET  /api/admin/clients/:id/gallery-link?base=… – { url, shareUrl }: Kunden-Link + Freunde-Link (legt Tokens bei Bedarf an)
 POST /api/admin/clients/:id/gallery-link/regenerate – Body { galleryUrl, which: 'personal'|'share' }: diesen Link sperren = neuer Token (der andere bleibt gültig)
@@ -154,6 +157,11 @@ POST /api/mediabox-anfrage                       – Buchungsanfrage der Mediabo
   - Kategorie/Alt-Text werden per `PATCH` gespeichert, ohne das Grid neu zu rendern (Fokus bleibt erhalten, bei Fehler Rollback des Feldwerts).
   - Feste Bildbereiche (`SINGLETON_SLOTS`) haben sprechende Namen, eine Ortsbeschreibung, Formatempfehlung und eine Mini-Skizze der Startseite (`slotSketch()`); Dateien können direkt auf die Karte gezogen werden.
   - Auf Geräten ohne Hover (`@media (hover: none)`) sind Bearbeiten/Löschen als Leiste immer sichtbar.
+
+### Kundenfotos: Reihenfolge, Mehrfach-Löschen
+- Reihenfolge liegt als `uploads/<clientId>/.order.json` (Dateinamen-Liste) neben den Fotos; `listClientPhotos()` sortiert danach, unbekannte Dateien ans Ende (nach Dateiname). Gilt für Admin-Raster UND Kunden-Galerie (`/api/g/:token`). `.order.json` ist keine Bilddatei → nie über `safePhotoPath()` auslieferbar.
+- Dateinamen beim Upload: `<Zeitstempel>-<Laufnummer 3-stellig>-<Originalname>` — die Laufnummer hält die Reihenfolge innerhalb eines Uploads (= Reihenfolge der Auswahl/Ablage im Browser). Das Admin-Panel zeigt nur den Originalnamen (`originalPhotoName()`).
+- Admin-Kundenseite: Ziehen oder ▲▼ zum Sortieren (speichert sofort), Häkchen/Klick zum Auswählen (Shift-Klick = Bereich), „Ausgewählte löschen“, „Alle löschen“, „Nach Dateiname sortieren“ (natürliche Sortierung, z. B. DSC0099 vor DSC0100). Raster lädt 400-px-Vorschauen (`?thumb=1`, LRU im Speicher), nicht die Originale.
 
 ### Kunden-Zugang per Galerie-Link (es gibt KEIN Kunden-Passwort mehr)
 - Jeder Kunde hat zwei geheime Tokens (32 Byte hex, über `CLIENTS_OPTIONAL_COLUMNS` automatisch angelegt):

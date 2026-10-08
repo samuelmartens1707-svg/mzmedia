@@ -563,6 +563,40 @@
     .drawer .slot-grid { grid-template-columns: 1fr; margin-bottom: 0; }
     .drawer .admin-photo-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
     .gallery-item.flash .admin-photo-card { outline: 3px solid var(--sage); outline-offset: 2px; }
+
+    /* Kundenfotos: sortieren + mehrfach löschen */
+    .cp-toolbar {
+      display: flex; flex-wrap: wrap; gap: .6rem; align-items: center;
+      margin-bottom: 1rem; padding: .7rem .9rem; background: var(--white); border: 1px solid var(--sand);
+    }
+    .cp-toolbar[hidden] { display: none; }
+    .cp-select-all { display: flex; align-items: center; gap: .5rem; font-size: .8rem; color: var(--dark); cursor: pointer; }
+    .cp-select-all input, .cp-check input { width: 18px; height: 18px; accent-color: var(--terra); cursor: pointer; }
+    .cp-toolbar .cp-danger:hover:not(:disabled), #cpDeleteSelected:not(:disabled) { border-color: #c0392b; color: #c0392b; }
+    .cp-toolbar .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .cp-check {
+      position: absolute; top: .4rem; left: .4rem; z-index: 3;
+      width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+      background: rgba(253,250,244,.9); cursor: pointer;
+    }
+    .cp-item .pos-badge { left: 2.6rem; top: .55rem; }
+    /* Löschen-Knopf klein in der Ecke statt mittig über dem Bild — ein Klick aufs Bild wählt nur aus */
+    .cp-item .admin-photo-overlay,
+    .cp-item:hover .admin-photo-overlay {
+      inset: .4rem .4rem auto auto; padding: 0; background: none; opacity: 1;
+    }
+    .cp-item .admin-photo-overlay .btn-icon { background: rgba(253,250,244,.92); color: #c0392b; border-color: var(--sand); }
+    .cp-item .drag-handle { display: none; }
+    @media (hover: hover) {
+      .cp-item .admin-photo-overlay { opacity: 0; transition: opacity .2s; }
+      .cp-item:hover .admin-photo-overlay { opacity: 1; }
+    }
+    .cp-item.selected .admin-photo-card { outline: 3px solid var(--terra); outline-offset: 2px; }
+    .cp-item.selected .admin-photo-card img { opacity: .8; }
+    .cp-name {
+      flex: 1; min-width: 0; font-size: .7rem; color: var(--mid);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
     .gallery-item input.suggested { border-color: var(--sage); background: rgba(70,96,63,.07); }
     .alt-suggest-bar {
       display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; justify-content: space-between;
@@ -960,6 +994,14 @@
       </div>
 
       <div class="photos-section-title" id="photosSectionTitle">Vorhandene Bilder</div>
+      <div class="cp-toolbar" id="cpToolbar" hidden>
+        <label class="cp-select-all"><input type="checkbox" id="cpSelectAll" /> Alle auswählen</label>
+        <button type="button" class="btn btn-outline btn-sm" id="cpDeleteSelected" disabled>Ausgewählte löschen</button>
+        <span style="flex:1"></span>
+        <button type="button" class="btn btn-outline btn-sm" id="cpSortByName" title="Sortiert nach dem ursprünglichen Dateinamen — bei Kamera-Dateien (z. B. DSC01234) entspricht das meist der Aufnahme-Reihenfolge">Nach Dateiname sortieren</button>
+        <button type="button" class="btn btn-outline btn-sm cp-danger" id="cpDeleteAll">Alle löschen</button>
+      </div>
+      <p class="section-hint" id="cpHint" hidden>Die Reihenfolge hier ist die Reihenfolge in der Galerie des Kunden. Neue Bilder kommen in der Reihenfolge dazu, in der du sie auswählst oder ablegst. Zum Umsortieren Bilder ziehen oder ▲ ▼ nutzen — jede Änderung wird sofort gespeichert. Häkchen setzen (mit Shift-Klick einen ganzen Bereich), um mehrere Bilder auf einmal zu löschen.</p>
       <div class="admin-photo-grid" id="adminPhotoGrid"></div>
     </div>
 
@@ -1567,38 +1609,193 @@
     });
   }
 
+  // ─── Kundenfotos: Raster mit Sortierung + Mehrfachauswahl ──
+  // Reihenfolge = Reihenfolge in der Kunden-Galerie (serverseitig in uploads/<id>/.order.json).
+  let clientPhotos   = [];        // Dateinamen in aktueller Reihenfolge
+  let selectedPhotos = new Set();
+  let lastSelectedIndex = null;   // für Shift-Klick-Bereiche
+
+  // "1791147738113-007-DSC01234.jpg" → "DSC01234.jpg" (Zeitstempel/Laufnummer vom Upload entfernen)
+  function originalPhotoName(filename) {
+    return filename.replace(/^\d{10,}-(\d{3}-)?/, '');
+  }
+
   async function loadDetailPhotos(c) {
     const grid  = document.getElementById('adminPhotoGrid');
     grid.innerHTML = '<div style="color:var(--light);font-size:.82rem;padding:1rem;">Wird geladen …</div>';
 
     const res  = await adminFetch('/api/admin/clients/' + c.id + '/photos');
     const data = await res.json();
-    const photos = data.photos || [];
+    clientPhotos = (data.photos || []).map(p => p.filename);
+    selectedPhotos = new Set();
+    lastSelectedIndex = null;
+    c.photoCount = clientPhotos.length;
+    renderClientPhotos();
+  }
 
-    c.photoCount = photos.length;
-    document.getElementById('photosSectionTitle').textContent =
-      `Vorhandene Bilder (${photos.length})`;
-
-    if (!photos.length) {
+  function renderClientPhotos() {
+    const c = currentClient;
+    const grid = document.getElementById('adminPhotoGrid');
+    const count = clientPhotos.length;
+    document.getElementById('photosSectionTitle').textContent = `Vorhandene Bilder (${count})`;
+    document.getElementById('cpToolbar').hidden = !count;
+    document.getElementById('cpHint').hidden = !count;
+    if (!count) {
       grid.innerHTML = '<div class="no-photos">Noch keine Bilder hochgeladen.</div>';
       return;
     }
-
-    grid.innerHTML = photos.map(p => `
-      <div class="admin-photo-card">
-        <img src="/api/admin/photo/${c.id}/${p.filename}?auth=${encodeURIComponent(adminToken)}"
-          alt="${esc(p.filename)}" loading="lazy" />
-        <div class="admin-photo-overlay">
-          <button class="btn-icon danger"
-            onclick="deletePhoto('${c.id}','${p.filename}')"
-            aria-label="Bild ${esc(p.filename)} löschen"
-            title="Bild löschen">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-          </button>
+    const auth = encodeURIComponent(adminToken);
+    grid.innerHTML = clientPhotos.map((f, i) => {
+      const name = originalPhotoName(f);
+      return `<div class="gallery-item cp-item${selectedPhotos.has(f) ? ' selected' : ''}" data-file="${esc(f)}">
+        <div class="admin-photo-card" draggable="true" title="Zum Sortieren ziehen, Klick zum Auswählen">
+          <img src="/api/admin/photo/${c.id}/${encodeURIComponent(f)}?thumb=1&auth=${auth}" alt="${esc(name)}" loading="lazy" draggable="false" />
+          <label class="cp-check" title="Auswählen"><input type="checkbox" data-select ${selectedPhotos.has(f) ? 'checked' : ''} aria-label="${esc(name)} auswählen" /></label>
+          <span class="pos-badge">${i + 1}</span>
+          <span class="drag-handle" aria-hidden="true">⠿</span>
+          <div class="admin-photo-overlay">
+            <button class="btn-icon danger" data-action="delete" aria-label="Bild ${esc(name)} löschen" title="Bild löschen">${TRASH_ICON}</button>
+          </div>
         </div>
-        <div class="admin-photo-name">${esc(p.filename)}</div>
-      </div>`).join('');
+        <div class="gallery-item-row">
+          <span class="cp-name" title="${esc(name)}">${esc(name)}</span>
+          <button class="btn-icon" data-action="up" aria-label="Eine Position nach vorne" title="Nach vorne">▲</button>
+          <button class="btn-icon" data-action="down" aria-label="Eine Position nach hinten" title="Nach hinten">▼</button>
+        </div>
+      </div>`;
+    }).join('');
+    updateSelectionUi();
   }
+
+  function updateSelectionUi() {
+    const n = selectedPhotos.size;
+    const btn = document.getElementById('cpDeleteSelected');
+    btn.disabled = !n;
+    btn.textContent = n ? `${n} ausgewählte löschen` : 'Ausgewählte löschen';
+    const all = document.getElementById('cpSelectAll');
+    all.checked = n > 0 && n === clientPhotos.length;
+    all.indeterminate = n > 0 && n < clientPhotos.length;
+    document.querySelectorAll('#adminPhotoGrid .cp-item').forEach(el => {
+      const on = selectedPhotos.has(el.dataset.file);
+      el.classList.toggle('selected', on);
+      const cb = el.querySelector('[data-select]');
+      if (cb) cb.checked = on;
+    });
+  }
+
+  function toggleSelection(filename, shiftKey) {
+    const index = clientPhotos.indexOf(filename);
+    const turnOn = !selectedPhotos.has(filename);
+    if (shiftKey && lastSelectedIndex !== null) {
+      const [from, to] = [Math.min(lastSelectedIndex, index), Math.max(lastSelectedIndex, index)];
+      clientPhotos.slice(from, to + 1).forEach(f => turnOn ? selectedPhotos.add(f) : selectedPhotos.delete(f));
+    } else {
+      turnOn ? selectedPhotos.add(filename) : selectedPhotos.delete(filename);
+    }
+    lastSelectedIndex = index;
+    updateSelectionUi();
+  }
+
+  async function saveClientPhotoOrder() {
+    const grid = document.getElementById('adminPhotoGrid');
+    clientPhotos = [...grid.querySelectorAll('.cp-item')].map(el => el.dataset.file);
+    grid.querySelectorAll('.pos-badge').forEach((badge, i) => { badge.textContent = i + 1; });
+    const res = await adminFetch(`/api/admin/clients/${currentClient.id}/photos/order`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filenames: clientPhotos })
+    });
+    if (res.ok) showToast('Reihenfolge gespeichert');
+    else { showToast('Reihenfolge konnte nicht gespeichert werden.'); await loadDetailPhotos(currentClient); }
+  }
+
+  // filenames: Array oder 'all'
+  async function deleteClientPhotos(filenames) {
+    const all = filenames === 'all';
+    const n = all ? clientPhotos.length : filenames.length;
+    if (!n) return;
+    const question = all
+      ? `Wirklich ALLE ${n} Bilder von ${currentClient.name} löschen? Das kann nicht rückgängig gemacht werden.`
+      : n === 1 ? `Bild "${originalPhotoName(filenames[0])}" wirklich löschen?` : `${n} ausgewählte Bilder wirklich löschen?`;
+    if (!confirm(question)) return;
+    const res = await adminFetch(`/api/admin/clients/${currentClient.id}/photos/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(all ? { all: true } : { filenames })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) showToast(`${data.deleted} Bild${data.deleted === 1 ? '' : 'er'} gelöscht`);
+    else showToast(data.error || 'Bilder konnten nicht gelöscht werden.');
+    await loadDetailPhotos(currentClient);
+  }
+
+  // Einzeln löschen (auch von anderer Stelle aufrufbar)
+  function deletePhoto(clientId, filename) {
+    return deleteClientPhotos([filename]);
+  }
+
+  (function setupClientPhotoGrid() {
+    const grid = document.getElementById('adminPhotoGrid');
+    let drag = null; // { el, startOrder }
+
+    grid.addEventListener('click', e => {
+      const item = e.target.closest('.cp-item');
+      if (!item) return;
+      const btn = e.target.closest('[data-action]');
+      if (btn) {
+        const action = btn.dataset.action;
+        if (action === 'delete') deleteClientPhotos([item.dataset.file]);
+        else if (action === 'up' && item.previousElementSibling) { grid.insertBefore(item, item.previousElementSibling); saveClientPhotoOrder(); btn.focus(); }
+        else if (action === 'down' && item.nextElementSibling) { grid.insertBefore(item.nextElementSibling, item); saveClientPhotoOrder(); btn.focus(); }
+        return;
+      }
+      if (e.target.matches('[data-select]')) { // Checkbox selbst (Klick aufs Label landet hier ebenfalls)
+        toggleSelection(item.dataset.file, e.shiftKey);
+        return;
+      }
+      if (e.target.closest('.admin-photo-card') && !e.target.closest('.cp-check')) toggleSelection(item.dataset.file, e.shiftKey);
+    });
+
+    grid.addEventListener('dragstart', e => {
+      const card = e.target.closest?.('.admin-photo-card');
+      const item = card?.closest('.cp-item');
+      if (!item) return;
+      drag = { el: item, startOrder: [...grid.querySelectorAll('.cp-item')].map(x => x.dataset.file).join('|') };
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', item.dataset.file);
+      requestAnimationFrame(() => item.classList.add('dragging'));
+    });
+    grid.addEventListener('dragover', e => {
+      if (!drag) return;
+      e.preventDefault();
+      const target = e.target.closest('.cp-item');
+      if (!target || target === drag.el) return;
+      const rect = target.getBoundingClientRect();
+      grid.insertBefore(drag.el, e.clientX > rect.left + rect.width / 2 ? target.nextElementSibling : target);
+    });
+    grid.addEventListener('drop', e => { if (drag) e.preventDefault(); });
+    grid.addEventListener('dragend', () => {
+      if (!drag) return;
+      drag.el.classList.remove('dragging');
+      const changed = [...grid.querySelectorAll('.cp-item')].map(x => x.dataset.file).join('|') !== drag.startOrder;
+      drag = null;
+      if (changed) saveClientPhotoOrder();
+    });
+
+    document.getElementById('cpSelectAll').addEventListener('change', e => {
+      selectedPhotos = e.target.checked ? new Set(clientPhotos) : new Set();
+      lastSelectedIndex = null;
+      updateSelectionUi();
+    });
+    document.getElementById('cpDeleteSelected').addEventListener('click', () => deleteClientPhotos([...selectedPhotos]));
+    document.getElementById('cpDeleteAll').addEventListener('click', () => deleteClientPhotos('all'));
+    document.getElementById('cpSortByName').addEventListener('click', async () => {
+      if (!confirm('Alle Bilder nach Dateinamen sortieren? Die aktuelle Reihenfolge wird ersetzt.')) return;
+      clientPhotos.sort((a, b) => originalPhotoName(a).localeCompare(originalPhotoName(b), 'de', { numeric: true }));
+      renderClientPhotos();
+      await saveClientPhotoOrder();
+    });
+  })();
 
   // ─── Upload ─────────────────────────────────────────────
   const dropZone   = document.getElementById('dropZone');
@@ -1646,16 +1843,6 @@
       progress.style.display = 'none';
       bar.style.width = '0%';
     }, 2000);
-  }
-
-  // ─── Delete photo ────────────────────────────────────────
-  async function deletePhoto(clientId, filename) {
-    if (!confirm(`Bild "${filename}" wirklich löschen?`)) return;
-    const res = await adminFetch(`/api/admin/clients/${clientId}/photos/${filename}`, { method: 'DELETE' });
-    if (res.ok) {
-      showToast('Bild gelöscht');
-      await loadDetailPhotos(currentClient);
-    }
   }
 
   // ─── Bilder-Verwaltung (Homepage + Mediabox) ────────────

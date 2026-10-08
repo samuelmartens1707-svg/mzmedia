@@ -234,10 +234,35 @@ function safePhotoPath(clientId, filename) {
   return path.join(UPLOADS_DIR, clientId, filename);
 }
 
+// ─── Reihenfolge der Kundenfotos ─────────────────────────────
+// Liegt als uploads/<clientId>/.order.json (Liste von Dateinamen) neben den Fotos. Dateien, die dort
+// (noch) nicht stehen, kommen ans Ende, sortiert nach Dateinamen (Zeitstempel + Laufnummer = Upload-Reihenfolge).
+const PHOTO_ORDER_FILE = '.order.json';
+const CLIENT_ID_RE = /^[A-Za-z0-9_-]+$/;
+
+function readPhotoOrder(clientId) {
+  try {
+    const list = JSON.parse(fs.readFileSync(path.join(UPLOADS_DIR, clientId, PHOTO_ORDER_FILE), 'utf8'));
+    return Array.isArray(list) ? list : [];
+  } catch { return []; }
+}
+
+function writePhotoOrder(clientId, filenames) {
+  const dir = path.join(UPLOADS_DIR, clientId);
+  fs.mkdirSync(dir, { recursive: true });
+  const tmp = path.join(dir, PHOTO_ORDER_FILE + '.tmp');
+  fs.writeFileSync(tmp, JSON.stringify(filenames));
+  fs.renameSync(tmp, path.join(dir, PHOTO_ORDER_FILE)); // atomar: nie eine halb geschriebene Datei
+}
+
 function listClientPhotos(clientId) {
   const dir = path.join(UPLOADS_DIR, clientId);
-  if (!fs.existsSync(dir)) return [];
-  return fs.readdirSync(dir).filter(f => PHOTO_FILE_RE.test(f));
+  if (!CLIENT_ID_RE.test(clientId) || !fs.existsSync(dir)) return [];
+  const rank = new Map(readPhotoOrder(clientId).map((f, i) => [f, i]));
+  const pos = f => (rank.has(f) ? rank.get(f) : Infinity);
+  return fs.readdirSync(dir)
+    .filter(f => PHOTO_FILE_RE.test(f))
+    .sort((a, b) => (pos(a) - pos(b)) || a.localeCompare(b));
 }
 
 // ─── Middleware ─────────────────────────────────────────────
@@ -262,7 +287,11 @@ const storage = multer.diskStorage({
     cb(null, dir);
   },
   filename(req, file, cb) {
-    const safeName = Date.now() + '-' + file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    // Laufnummer hält die Reihenfolge innerhalb eines Uploads (= Auswahl-/Ablage-Reihenfolge)
+    req.photoIndex = (req.photoIndex || 0) + 1;
+    req.photoBatch = req.photoBatch || Date.now();
+    const safeName = `${req.photoBatch}-${String(req.photoIndex).padStart(3, '0')}-` +
+      file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
     cb(null, safeName);
   }
 });
@@ -659,50 +688,104 @@ app.delete('/api/admin/clients/:id', adminMiddleware, async (req, res) => {
 });
 
 // POST /api/admin/clients/:clientId/photos  — upload photos
-app.post('/api/admin/clients/:clientId/photos', adminMiddleware, upload.array('photos', 100), (req, res) => {
+// Neue Fotos werden in der Reihenfolge angehängt, in der sie ausgewählt/abgelegt wurden.
+app.post('/api/admin/clients/:clientId/photos', adminMiddleware, (req, res, next) => {
+  if (!CLIENT_ID_RE.test(req.params.clientId)) return res.status(400).json({ error: 'Ungültige Kunden-ID.' });
+  next();
+}, upload.array('photos', 100), (req, res) => {
   if (!req.files?.length) return res.status(400).json({ error: 'Keine Dateien hochgeladen.' });
-  res.json({ uploaded: req.files.map(f => f.filename) });
+  const added = req.files.map(f => f.filename);
+  const addedSet = new Set(added);
+  writePhotoOrder(req.params.clientId, [...listClientPhotos(req.params.clientId).filter(f => !addedSet.has(f)), ...added]);
+  res.json({ uploaded: added });
+});
+
+// PUT /api/admin/clients/:clientId/photos/order — Body: { filenames: [...] } (gewünschte Reihenfolge)
+app.put('/api/admin/clients/:clientId/photos/order', adminMiddleware, (req, res) => {
+  const { clientId } = req.params;
+  const { filenames } = req.body;
+  if (!CLIENT_ID_RE.test(clientId) || !Array.isArray(filenames)) return res.status(400).json({ error: 'Ungültige Anfrage.' });
+  const existing = listClientPhotos(clientId);
+  const existingSet = new Set(existing);
+  const ordered = [...new Set(filenames.filter(f => existingSet.has(f)))];
+  const orderedSet = new Set(ordered);
+  writePhotoOrder(clientId, [...ordered, ...existing.filter(f => !orderedSet.has(f))]); // nichts geht verloren
+  res.json({ ok: true });
+});
+
+// POST /api/admin/clients/:clientId/photos/delete — Body: { filenames: [...] } oder { all: true }
+app.post('/api/admin/clients/:clientId/photos/delete', adminMiddleware, (req, res) => {
+  const { clientId } = req.params;
+  if (!CLIENT_ID_RE.test(clientId)) return res.status(400).json({ error: 'Ungültige Kunden-ID.' });
+  const existing = listClientPhotos(clientId);
+  const targets = req.body.all === true
+    ? existing
+    : (Array.isArray(req.body.filenames) ? req.body.filenames.filter(f => existing.includes(f)) : []);
+  if (!targets.length) return res.status(400).json({ error: 'Keine Bilder ausgewählt.' });
+  let deleted = 0;
+  for (const f of targets) {
+    const filePath = safePhotoPath(clientId, f);
+    if (!filePath) continue;
+    try { fs.unlinkSync(filePath); deleted++; } catch (err) { console.error('[photos/delete]', f, err.message); }
+  }
+  const remaining = listClientPhotos(clientId);
+  writePhotoOrder(clientId, remaining);
+  if (deleted < targets.length) {
+    return res.status(500).json({ error: `Nur ${deleted} von ${targets.length} Bildern konnten gelöscht werden.`, deleted });
+  }
+  res.json({ deleted, remaining: remaining.length });
 });
 
 // DELETE /api/admin/clients/:clientId/photos/:filename
 app.delete('/api/admin/clients/:clientId/photos/:filename', adminMiddleware, (req, res) => {
-  const filePath = path.join(UPLOADS_DIR, req.params.clientId, req.params.filename);
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Bild nicht gefunden.' });
+  const filePath = CLIENT_ID_RE.test(req.params.clientId) && safePhotoPath(req.params.clientId, req.params.filename);
+  if (!filePath || !fs.existsSync(filePath)) return res.status(404).json({ error: 'Bild nicht gefunden.' });
   fs.unlinkSync(filePath);
   res.json({ ok: true });
 });
 
-// GET /api/admin/clients/:clientId/photos  — list photos (admin)
+// GET /api/admin/clients/:clientId/photos  — list photos (admin), in gespeicherter Reihenfolge
 app.get('/api/admin/clients/:clientId/photos', adminMiddleware, (req, res) => {
-  const dir = path.join(UPLOADS_DIR, req.params.clientId);
-  let photos = [];
-  if (fs.existsSync(dir)) {
-    photos = fs.readdirSync(dir)
-      .filter(f => /\.(jpe?g|png|webp|gif)$/i.test(f))
-      .map(f => ({ filename: f }));
-  }
-  res.json({ photos });
+  res.json({ photos: listClientPhotos(req.params.clientId).map(f => ({ filename: f })) });
 });
 
 // GET /api/admin/photo/:clientId/:filename  — serve photo for admin preview
-app.get('/api/admin/photo/:clientId/:filename', (req, res) => {
+// ?thumb=1 → kleines WebP (400 px) für das Sortier-Raster statt des Originals (bis 50 MB)
+const adminThumbCache = new Map(); // key → Buffer (LRU, max. ~48 MB)
+let adminThumbBytes = 0;
+app.get('/api/admin/photo/:clientId/:filename', async (req, res) => {
   const { auth } = req.query;
   if (!auth) return res.status(401).end();
   try { const p = jwt.verify(auth, SECRET); if (p.role !== 'admin') throw new Error(); }
   catch { return res.status(401).end(); }
-  const filePath = path.join(UPLOADS_DIR, req.params.clientId, req.params.filename);
-  if (!fs.existsSync(filePath)) return res.status(404).end();
-  res.sendFile(filePath);
+  const filePath = CLIENT_ID_RE.test(req.params.clientId) && safePhotoPath(req.params.clientId, req.params.filename);
+  if (!filePath || !fs.existsSync(filePath)) return res.status(404).end();
+  if (!req.query.thumb) return res.sendFile(filePath);
+  try {
+    const key = filePath + ':' + fs.statSync(filePath).mtimeMs;
+    let buf = adminThumbCache.get(key);
+    if (buf) { adminThumbCache.delete(key); adminThumbCache.set(key, buf); }
+    else {
+      buf = await sharp(filePath, { failOn: 'none' }).rotate()
+        .resize(400, 400, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 70 }).toBuffer();
+      adminThumbCache.set(key, buf); adminThumbBytes += buf.length;
+      for (const [k, b] of adminThumbCache) {
+        if (adminThumbBytes <= 48 * 1024 * 1024) break;
+        adminThumbCache.delete(k); adminThumbBytes -= b.length;
+      }
+    }
+    res.set('Content-Type', 'image/webp');
+    res.set('Cache-Control', 'private, max-age=86400');
+    res.end(buf);
+  } catch (err) {
+    console.error('[admin/photo] Vorschau fehlgeschlagen:', err.message);
+    res.sendFile(filePath); // Fallback: Original
+  }
 });
 
 // GET /api/my-photos-admin/:clientId  — photo count helper for admin dashboard
 app.get('/api/my-photos-admin/:clientId', adminMiddleware, (req, res) => {
-  const dir = path.join(UPLOADS_DIR, req.params.clientId);
-  let photos = [];
-  if (fs.existsSync(dir)) {
-    photos = fs.readdirSync(dir).filter(f => /\.(jpe?g|png|webp|gif)$/i.test(f));
-  }
-  res.json({ photos: photos.map(f => ({ filename: f })) });
+  res.json({ photos: listClientPhotos(req.params.clientId).map(f => ({ filename: f })) });
 });
 
 // GET /api/admin/clients/:clientId/gallery-link?base=<gallery.html-URL>
